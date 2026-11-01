@@ -7,13 +7,13 @@
  * 惯例：实体容器用 `export let`，只有 reset() 会整体替换；
  * 其它模块只做原地修改（push / splice / 改字段），不要重新赋值。
  */
-import { ROUND } from './config';
+import { ROUND, TRAINING } from './config';
 import { resetCameraTarget } from './core/camera';
 import { updateHud } from './ui/hud';
 import { renderDiag } from './ui/diag';
 import type {
   Boss, Bullet, GameState, Ghost, HitLog, Laser, Particle,
-  Player, Ring, Shot, Stats, Timer, Wall
+  PatternName, Player, Ring, Shot, Stats, Timer, Wall
 } from './types';
 
 function freshPlayer(): Player {
@@ -29,9 +29,18 @@ function freshBoss(): Boss {
   return {
     x: 0, y: 5.5, z: -6, hp: ROUND.bossHp, maxHp: ROUND.bossHp,
     phase: 1, ang: -1.2, flash: 0, cd: 1.8, last: '', alive: true,
-    spin: 0, enraged: false, sats: [0, 2.15, 4.3]
+    spin: 0, enraged: false, sats: [0, 2.15, 4.3], seq: 0, cast: []
   };
 }
+
+/* ============ 训练场运行时状态 ============ */
+/** 只被 systems/training.ts 与面板读写；放在这里是为了让 reset() 能一并清掉 */
+export const training = {
+  pattern: TRAINING.first as PatternName,
+  speed: 1,
+  /** 距离下一次循环还有多久 */
+  nextIn: 0
+};
 
 /* ============ 开关 ============ */
 export const opts = { shadows: true, guides: true, hitbox: false, trailMode: 1, mini: true };
@@ -104,6 +113,8 @@ export function reset(): void {
   clock.timeLeft = ROUND.time;
   clock.slowT = 0;
   clock.dmgFlash = 0;
+  training.speed = 1;
+  training.nextIn = 0;
   resetCameraTarget();
   updateHud();
   renderDiag();

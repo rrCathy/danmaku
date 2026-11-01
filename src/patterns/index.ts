@@ -7,16 +7,17 @@
  * 想复现某一局：见 main.ts 的 ?pat= / ?seed= 与 __dbg.run()。
  */
 import { boss, later, lasers, walls } from '../state';
+import { getSequenceMode, sequenceFor } from './sequence';
+import { random } from '../core/random';
 import { fanShot, ringShot, spreadShot } from './emitters';
 import {
   counterSpiral, diveShot, laserSweep, lowHigh, mineShot, orbitShot,
   rainShot, riseShot, satBurst, spiralShot, stairShot, wallShot
 } from './shots';
 
-export type PatternName =
-  | 'sweepLow' | 'spread' | 'ring' | 'stair' | 'rise'
-  | 'sweepHigh' | 'rain' | 'satBurst' | 'dive' | 'lowHigh'
-  | 'orbit' | 'spiral' | 'wall' | 'laser' | 'mine' | 'counterSpiral';
+import type { PatternName } from '../types';
+export type { PatternName } from '../types';
+export { PATTERN_LABELS } from './sequence';
 
 /** 每个阶段能抽到的图案池 */
 export const PATTERNS: Record<number, PatternName[]> = {
@@ -32,9 +33,24 @@ export const ALL_PATTERNS: PatternName[] = [
   'rain', 'mine', 'laser', 'wall', 'spiral', 'counterSpiral', 'satBurst', 'orbit'
 ];
 
+/**
+ * 抽下一招。
+ *
+ * 默认走固定序列（`patterns/sequence.ts` 的 SEQUENCES），游标存在 `boss.seq` 上，
+ * 阶段切换时归零 —— 每个阶段都从该阶段的第一招开始教。
+ * `?seq=random` 退回 v0.6 的随机抽，用于对照。
+ */
 export function pickPattern(): PatternName {
+  if (getSequenceMode() === 'sequence') {
+    const seq = sequenceFor(boss.phase);
+    const name = seq[boss.seq % seq.length];
+    boss.seq++;
+    return name;
+  }
+
+  // v0.6 行为：池内随机 + 避免连续重复
   const pool = PATTERNS[boss.phase] || PATTERNS[1];
-  let p = pool[Math.floor(Math.random() * pool.length)];
+  let p = pool[Math.floor(random() * pool.length)];
   if (p === boss.last && pool.length > 1) {
     p = pool[(pool.indexOf(p) + 1) % pool.length];
   }
@@ -43,6 +59,8 @@ export function pickPattern(): PatternName {
 
 export function runPattern(name: PatternName | string): void {
   boss.last = name as string;
+  boss.cast.push(boss.last);
+  if (boss.cast.length > 48) boss.cast.shift();
   switch (name) {
     case 'sweepLow':
       boss.flash = 0.55;

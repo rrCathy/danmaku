@@ -19,14 +19,18 @@ import { cam, updateCamera } from './core/camera';
 import { canvas, H, W, onAfterResize, resize } from './core/screen';
 import { isTouch } from './core/device';
 import { heightRGB } from './core/color';
-import { boss, bullets, clock, later, lasers, player, reset, rings, state, walls } from './state';
+import { boss, bullets, clock, later, lasers, player, reset, rings, state, training, walls } from './state';
+import { getSeed, setSeed } from './core/random';
+import { SEQUENCES, getSequenceMode, setSequenceMode, sequenceFor } from './patterns/sequence';
+import { setSpeed } from './systems/training';
+import { refreshTrainPanel } from './ui/training';
 import { updateGame } from './systems/loop';
 import { render } from './render';
 import { keys, initKeyboard } from './input/keyboard';
 import { initPointer } from './input/pointer';
 import { initTouchButtons, stickHome } from './input/touch';
 import { flags } from './input/flags';
-import { initUi, startGame, togglePolar } from './ui/flow';
+import { initUi, startGame, startTraining, togglePolar } from './ui/flow';
 import { updateHud } from './ui/hud';
 import { ALL_PATTERNS, runPattern } from './patterns';
 import type { PatternName } from './patterns';
@@ -40,7 +44,7 @@ function frame(t: number): void {
   lastT = t;
   const rdt = Math.min(0.05, Math.max(0, raw));
 
-  if (state === 'playing') {
+  if (state === 'playing' || state === 'training') {
     clock.slowT = Math.max(0, clock.slowT - rdt);
     const dt = rdt * (clock.slowT > 0 ? 0.3 : 1);
     updateGame(dt);
@@ -80,7 +84,7 @@ reset();
 updateHud();
 
 /* ============ URL 参数 ============ */
-/** 兼容旧写法（sat / counter / lowhigh）+ 新增 sweepLow / sweepHigh */
+/** 兼容旧写法（sat / counter / lowhigh / sweeplow …） */
 const PAT_ALIAS: Record<string, PatternName> = {
   ring: 'ring', spiral: 'spiral', wall: 'wall', laser: 'laser', sat: 'satBurst',
   spread: 'spread', rain: 'rain', orbit: 'orbit', stair: 'stair', dive: 'dive',
@@ -88,15 +92,29 @@ const PAT_ALIAS: Record<string, PatternName> = {
   sweeplow: 'sweepLow', sweephigh: 'sweepHigh'
 };
 
-if (/[?&]auto=1/.test(location.search)) {
-  startGame();
-  if (/[?&]fire=1/.test(location.search)) flags.fire = true;
-  const bh = location.search.match(/[?&]boss=(\d+)/);
-  if (bh) {
-    boss.hp = Math.min(boss.maxHp, parseInt(bh[1], 10));
-    boss.phase = boss.hp <= boss.maxHp * 0.33 ? 3 : boss.hp <= boss.maxHp * 0.66 ? 2 : 1;
-  }
-  const cm = location.search.match(/[?&]cam=(\d)/);
+function resolvePattern(raw: string): PatternName | undefined {
+  const key = raw.toLowerCase();
+  return PAT_ALIAS[key] || (ALL_PATTERNS as string[]).find((n) => n.toLowerCase() === key) as PatternName | undefined;
+}
+
+const SEARCH = location.search;
+
+// 种子必须在任何出招之前设好：?seed=20261101
+const seedMatch = SEARCH.match(/[?&]seed=(-?\d+)/);
+if (seedMatch) setSeed(parseInt(seedMatch[1], 10));
+
+// ?seq=random 退回 v0.6 的随机抽（对照用）；默认是固定序列
+const seqMatch = SEARCH.match(/[?&]seq=(\w+)/);
+if (seqMatch && seqMatch[1] === 'random') setSequenceMode('random');
+
+/** 训练场：不计时不计死，?pat= 选初招，?speed= 调弹速 */
+const trainMatch = /[?&]train=1/.test(SEARCH);
+if (trainMatch) {
+  const pt = SEARCH.match(/[?&]pat=([a-zA-Z]+)/);
+  startTraining(pt ? resolvePattern(pt[1]) : undefined);
+  const sp = SEARCH.match(/[?&]speed=([\d.]+)/);
+  if (sp) { setSpeed(parseFloat(sp[1])); refreshTrainPanel(); }
+  const cm = SEARCH.match(/[?&]cam=(\d)/);
   if (cm) {
     const idx = Math.min(3, Math.max(0, parseInt(cm[1], 10)));
     cam.preset = idx;
@@ -104,32 +122,52 @@ if (/[?&]auto=1/.test(location.search)) {
     cam.pitch = CAM_PRESETS[idx].pitch;
     cam.dist = CAM_PRESETS[idx].dist;
   }
-  const ym = location.search.match(/[?&]yaw=([-\d.]+)/);
+  const dv = SEARCH.match(/[?&]drive=([wasd]+)/);
+  if (dv) { for (let i = 0; i < dv[1].length; i++) keys[dv[1][i]] = true; }
+}
+
+if (/[?&]auto=1/.test(SEARCH) && !trainMatch) {
+  startGame();
+  if (/[?&]fire=1/.test(SEARCH)) flags.fire = true;
+  const bh = SEARCH.match(/[?&]boss=(\d+)/);
+  if (bh) {
+    boss.hp = Math.min(boss.maxHp, parseInt(bh[1], 10));
+    boss.phase = boss.hp <= boss.maxHp * 0.33 ? 3 : boss.hp <= boss.maxHp * 0.66 ? 2 : 1;
+  }
+  const cm = SEARCH.match(/[?&]cam=(\d)/);
+  if (cm) {
+    const idx = Math.min(3, Math.max(0, parseInt(cm[1], 10)));
+    cam.preset = idx;
+    cam.yaw = CAM_PRESETS[idx].yaw;
+    cam.pitch = CAM_PRESETS[idx].pitch;
+    cam.dist = CAM_PRESETS[idx].dist;
+  }
+  const ym = SEARCH.match(/[?&]yaw=([-\d.]+)/);
   if (ym) {
     cam.orbit = true;
     cam.preset = 3;
     cam.yaw = parseFloat(ym[1]);
     cam.cy = cam.yaw;
   }
-  if (/[?&]polar=1/.test(location.search)) togglePolar(true);
-  const dv = location.search.match(/[?&]drive=([wasd]+)/);
+  if (/[?&]polar=1/.test(SEARCH)) togglePolar(true);
+  const dv = SEARCH.match(/[?&]drive=([wasd]+)/);
   if (dv) { for (let i = 0; i < dv[1].length; i++) keys[dv[1][i]] = true; }
 
-  const pt = location.search.match(/[?&]pat=([a-zA-Z]+)/);
+  const pt = SEARCH.match(/[?&]pat=([a-zA-Z]+)/);
   if (pt) {
-    const key = pt[1].toLowerCase();
-    const nm = PAT_ALIAS[key] || (ALL_PATTERNS as string[]).find((n) => n.toLowerCase() === key);
+    const nm = resolvePattern(pt[1]);
     if (nm) later(0.35, function () { runPattern(nm); });
   }
+}
 
-  const m = location.search.match(/[?&]t=([\d.]+)/);
-  if (m) {
-    const ff = Math.min(120, parseFloat(m[1]) || 0);
-    const step = 1 / 60;
-    for (let s = 0; s < ff && state === 'playing'; s += step) {
-      updateGame(step);
-      updateCamera(step);
-    }
+// ?t=N 同步快进（对局或训练场都行），配合 ?seed= 可逐位复现
+const ffMatch = SEARCH.match(/[?&]t=([\d.]+)/);
+if (ffMatch) {
+  const ff = Math.min(120, parseFloat(ffMatch[1]) || 0);
+  const step = 1 / 60;
+  for (let s = 0; s < ff && (state === 'playing' || state === 'training'); s += step) {
+    updateGame(step);
+    updateCamera(step);
   }
 }
 
@@ -158,6 +196,16 @@ if (/[?&]dbg=1/.test(location.search)) {
     get boss() { return boss; },
     get bullets() { return bullets; },
     get clock() { return clock; },
+    get training() { return training; },
+    get sequence() {
+      const seq = sequenceFor(boss.phase);
+      return { mode: getSequenceMode(), index: boss.seq, next: seq[boss.seq % seq.length] };
+    },
+    get history() { return boss.cast; },
+    sequences: SEQUENCES,
+    seed: function () { return getSeed(); },
+    train: function (n?: string) { startTraining(n ? resolvePattern(n) : undefined); },
+    setSpeed: function (v: number) { setSpeed(v); },
     heightRGB,
     dash: function () { flags.dash = true; },
     run: function (n: string) { runPattern(n); }

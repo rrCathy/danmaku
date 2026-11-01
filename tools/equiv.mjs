@@ -24,6 +24,7 @@ const LEGACY = process.env.LEGACY ||
   'file:///' + process.cwd().replace(/\\/g, '/').replace(/^\/+/, '') + '/archive/v0.6-single-file.html';
 const NEXT = process.env.NEXT || 'http://127.0.0.1:4173/danmaku/';
 
+// 注意：新版默认走固定出招序列（v0.7 起），要对照 v0.6 的随机抽必须显式 ?seq=random
 const CASES = [
   'auto=1&dbg=1&t=60&drive=wasd',
   'auto=1&dbg=1&t=60&drive=wasd&fire=1',
@@ -123,8 +124,9 @@ console.log('legacy:', LEGACY);
 console.log('next  :', NEXT);
 console.log('');
 for (const c of CASES) {
-  const a = await run(LEGACY + '?' + c);
-  const b = await run(NEXT + '?' + c);
+  const q = c + '&seq=random';
+  const a = await run(LEGACY + '?' + q);
+  const b = await run(NEXT + '?' + q);
   const same = a.snap === b.snap;
   if (!same) diff++;
   console.log((same ? 'SAME  ' : 'DIFF  ') + c);

@@ -2,14 +2,16 @@
  * 流程与开关：开始 / 暂停 / 结束 / 切镜头 / 极坐标 / 轨迹线 / 雷达。
  * 所有会写 `state` 的地方都在这个文件里，别处只读。
  */
-import { CAM_PRESETS, ROUND } from '../config';
+import { CAM_PRESETS, ROUND, TRAINING } from '../config';
 import { cam, polar } from '../core/camera';
 import { COLORS } from '../core/color';
 import { isTouch } from '../core/device';
 import { flags } from '../input/flags';
 import { look, lookHintOn, reqLock } from '../input/pointer';
-import { boss, bullets, clock, opts, player, reset, setState, state, stats } from '../state';
-import type { EndReason } from '../types';
+import { boss, bullets, clock, opts, player, reset, setState, state, stats, training } from '../state';
+import { clearField, selectPattern } from '../systems/training';
+import { initTrainPanel, refreshTrainPanel, showTrainPanel } from './training';
+import type { EndReason, PatternName } from '../types';
 import { el } from './dom';
 import { toast } from './toast';
 
@@ -117,12 +119,36 @@ export function startGame(): void {
   setState('playing');
   el.startOverlay.classList.add('hidden');
   el.endOverlay.classList.add('hidden');
+  showTrainPanel(false);
+  document.body.classList.remove('training');
   flags.jump = false;
   flags.fire = false;
   // PC：开局顺手锁定鼠标，之后移动鼠标就是转视角（失败了也没关系，点画面即可）
   if (look.ok) reqLock();
   lookHintOn();
   toast(isTouch ? '击破 boss 即可通关 · 限时 2 分钟' : '击破 boss 即可通关 · 移动鼠标转视角', 2000, COLORS.player);
+}
+
+/**
+ * 训练场：不计时、双方都不掉血，选中的图案循环播放。
+ *
+ * 刻意不锁指针 —— 面板要能点。转视角用右键拖动 / Q E。
+ */
+export function startTraining(pattern?: PatternName): void {
+  requestLandscape();
+  reset();
+  setState('training');
+  el.startOverlay.classList.add('hidden');
+  el.endOverlay.classList.add('hidden');
+  flags.jump = false;
+  flags.fire = false;
+  initTrainPanel();
+  showTrainPanel(true);
+  document.body.classList.add('training');
+  selectPattern(pattern || (training.pattern as PatternName) || (TRAINING.first as PatternName));
+  refreshTrainPanel();
+  lookHintOn();
+  toast('训练场 · 换个格子就换一招', 1800, COLORS.player);
 }
 
 export function togglePause(): void {
@@ -138,9 +164,12 @@ export function togglePause(): void {
 
 export function backToMenu(): void {
   reset();
+  clearField();
   setState('menu');
   if (document.pointerLockElement) document.exitPointerLock();
   lookHintOn();
+  showTrainPanel(false);
+  document.body.classList.remove('training');
   el.endOverlay.classList.add('hidden');
   el.startOverlay.classList.remove('hidden');
 }
@@ -148,6 +177,8 @@ export function backToMenu(): void {
 export function endGame(win: boolean, reason?: EndReason): void {
   if (state === 'over') return;
   setState('over');
+  showTrainPanel(false);
+  document.body.classList.remove('training');
   if (document.pointerLockElement) document.exitPointerLock();
   lookHintOn();
 
@@ -209,6 +240,7 @@ export function initUi(): void {
   }
 
   document.getElementById('btnStart')!.addEventListener('click', startGame);
+  document.getElementById('btnTrain')!.addEventListener('click', function () { startTraining(); });
   document.getElementById('btnRestart')!.addEventListener('click', startGame);
   document.getElementById('btnMenu')!.addEventListener('click', backToMenu);
 }

@@ -4,6 +4,7 @@
  */
 import { addBullet } from '../systems/bullets';
 import { boss, player } from '../state';
+import { random } from '../core/random';
 import { rand } from '../core/math';
 import type { HClass } from '../types';
 
@@ -59,7 +60,7 @@ export function ringShot(
   h: number, count: number, speed: number, r?: number
 ): void {
   const cls: HClass = h < 1.05 ? 'low' : h < 2.05 ? 'mid' : 'high';
-  const rot = Math.random() * Math.PI * 2;
+  const rot = random() * Math.PI * 2;
   for (let i = 0; i < count; i++) {
     const a = rot + (i / count) * Math.PI * 2;
     addBullet(src.x, h, src.z,

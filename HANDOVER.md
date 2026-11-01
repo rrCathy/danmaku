@@ -1,7 +1,7 @@
 # 2.5E 弹幕 · 项目交接文档
 
 > 交接对象：接手这个验证装置的下一个人 / 下一个自己
-> 版本：v0.7　｜　整理时间：2026-11-01
+> 版本：v0.8　｜　整理时间：2026-11-01
 > 仓库：`github.com/rrCathy/danmaku`　｜　线上：<https://rrcathy.github.io/danmaku/>
 
 ---
@@ -27,14 +27,15 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | v0.7 |
-| 形态 | **Vite + TypeScript 多模块**，35 个 `.ts` + 2 个 `.css`，零运行时依赖（无 CDN / 字体 / 图片 / WebGL） |
-| 源码规模 | 3,575 行 TS + 268 行 CSS |
-| 构建产物 | `dist/assets/index-*.js` **51.6 KB**（gzip 18.9 KB）+ `index-*.css` 13.2 KB |
+| 版本 | v0.8 |
+| 形态 | **Vite + TypeScript 多模块**，39 个 `.ts` + 2 个 `.css`，零运行时依赖（无 CDN / 字体 / 图片 / WebGL） |
+| 源码规模 | 4,029 行 TS + 309 行 CSS |
+| 构建产物 | `dist/assets/index-*.js` **57.6 KB**（gzip 21.3 KB）+ `index-*.css` 15.5 KB |
 | 渲染 | canvas 2D + 手写透视投影（`project()`），不用 3D 库 |
 | 实测帧率 | **60.4 fps**（1440×900，headless Chromium 软件渲染，8 秒连续作战） |
 | 运行时错误 | **0**（v0.6 每次开局会留 1 条未捕获的 pointer lock 拒绝，已修） |
-| 行为一致性 | **14/14 场景与 v0.6 逐位一致**（方法见 §9） |
+| 行为一致性 | **14/14 场景与 v0.6 逐位一致**（`?seq=random`，方法见 §9） |
+| 出招可控 | 固定序列（默认）+ `?seq=random` 回退 + `?seed=` 逐位复现 |
 | 移动端 | 沿用 v0.6 的触屏布局与横竖屏处理，**本轮重构未重新实测真机** |
 
 ---
@@ -100,6 +101,7 @@ ui/*           →  只读 state，写 DOM
 | `core/camera.ts` | 手写透视相机（自由 / 极坐标 / 环绕三态） | `cam` `polar` `project()` `updateCamera()` |
 | `core/color.ts` | 高度→颜色连续映射（121 档缓存）+ 语义分段 | `heightRGB()` `clsName()` `CLASS_INFO` |
 | `core/screen.ts` | 画布 / DPR / 背景预渲染 | `canvas` `ctx` `W` `H` `resize()` |
+| `core/random.ts` | 随机源：默认 Math.random，`?seed=` 切 mulberry32 | `random()` `rand()` `setSeed()` |
 | `input/keyboard.ts` | 物理键位（`e.code`）映射，中文输入法下也准 | `keys` |
 | `input/pointer.ts` | 指针锁定、右键拖动、摇杆手势分发 | `look` `reqLock()` `lookHintOn()` |
 | `systems/loop.ts` | 一帧的总调度 | `updateGame(dt)` |
@@ -107,17 +109,20 @@ ui/*           →  只读 state，写 DOM
 | `systems/boss.ts` | 环绕运动、出招节奏、阶段、狂暴 | `updateBoss()` `damageBoss()` |
 | `systems/bullets.ts` | 积分、生命周期、碰撞、**受击诊断链** | `addBullet()` `updateBullets()` `onPlayerHit()` |
 | `systems/hazards.ts` | 激光 / 弹墙 | `updateLasers()` `updateWalls()` |
-| `patterns/index.ts` | 出招总表 + 阶段池 + 随机抽取 | `runPattern()` `pickPattern()` `PATTERNS` |
+| `systems/training.ts` | 训练场：清场 / 选图案 / 循环 / 弹速 | `selectPattern()` `updateTraining()` `setSpeed()` |
+| `patterns/index.ts` | 出招总表 + 阶段池 + 抽取 | `runPattern()` `pickPattern()` `PATTERNS` |
+| `patterns/sequence.ts` | 固定出招序列 + 图案中文名/解法提示 | `SEQUENCES` `PATTERN_LABELS` |
 | `patterns/shots.ts` | 16 种图案的具体实现 | `rainShot()` `wallShot()` … |
 | `render/index.ts` | 绘制总入口（深度排序只对实体做） | `render()` |
 | `ui/flow.ts` | 开始 / 暂停 / 结束 / 镜头 / 极坐标 / 开关 | `startGame()` `endGame()` `togglePolar()` |
 | `ui/hud.ts` | 血条、计时、阶段 | `updateHud()` |
 | `ui/diag.ts` | 受击诊断面板 | `renderDiag()` |
+| `ui/training.ts` | 训练场面板（16 格 + 弹速 + 受击计数） | `initTrainPanel()` `refreshTrainPanel()` |
 
 ### 状态与实体（`src/state.ts`）
 
 ```
-state: menu | playing | paused | over        （只在 ui/flow.ts 里被改）
+state: menu | playing | paused | over | training   （只在 ui/flow.ts 里被改）
 clock: { elapsed, timeLeft, slowT, dmgFlash }（只在 systems/ 里被改）
 
 player     玩家           boss       boss
@@ -126,6 +131,8 @@ lasers[]   旋转激光       walls[]    墙缝
 rings[]    地面预警圈     particles[] 粒子
 timers[]   延迟回调（later）           ghosts[] 冲刺残影
 logs[]     受击诊断（只留 DIAG_KEEP 条） stats{} 命中分类计数
+training{} 训练场：选中的图案 / 弹速 / 距下次循环
+boss.cast  本局实际出过的招（48 条上限）
 ```
 
 ### 调试参数（URL 直接带，做自动化验证用）
@@ -163,7 +170,10 @@ logs[]     受击诊断（只留 DIAG_KEEP 条） stats{} 命中分类计数
 | 狂暴 | 剩 30 s 自动触发（转速×1.5、出手更快） | `ROUND.rageAt`、`BOSS.rageSpeed` |
 | **冲刺** | 26 m/s × 0.18 s ≈ **4.7 m**，冷却 **1.15 s**，**不无敌** | `DASH` |
 
+| **训练场** | 循环间隔 2.8 s，弹速档位 0.5 / 1 / 1.5 | `TRAINING` |
+
 > 玩家速度 / 判定半径 / boss 血量三者是调过的平衡，单项大改会连带影响。
+> 训练场的弹速倍率只在 `addBullet()` 里乘一次，所以对所有图案一致生效，玩家不受影响。
 
 ---
 
@@ -207,9 +217,22 @@ logs[]     受击诊断（只留 DIAG_KEEP 条） stats{} 命中分类计数
 
 ---
 
-## 7. 16 种图案清单
+## 7. 16 种图案与出招顺序
 
-阶段解锁：P1 五种 → P2 十种 → P3 全 16 种。**随机抽取**（`pickPattern`，避免连续重复）。
+阶段解锁：P1 五种 → P2 十种 → P3 全 16 种。
+
+**默认走固定序列**（v0.8 起的改动，`patterns/sequence.ts`）。随机抽意味着三次测试跑的不是同一套弹幕，
+结论不可比。序列按「先教最基本的，再教需要新动作的」排序，每阶段开头都是这阶段的新东西：
+
+| 阶段 | 顺序 |
+|---|---|
+| P1 | 贴地扫 → 弥散 → 地涌 → 环形 → 阶梯 |
+| P2 | 高空扫 → 落点雨 → 卫星 → 俯冲 → 低接高 → 贴地扫 → 弥散 → 地涌 → 环形 → 阶梯 |
+| P3 | 墙缝 → 激光 → 追踪 → 地雷 → 螺旋 → 双螺旋 → 高空扫 → 落点雨 → 卫星 → 俯冲 → 低接高 → 贴地扫 → 弥散 → 地涌 → 环形 → 阶梯 |
+
+- 游标是 `boss.seq`，**阶段切换时归零**，所以升到 P2 会重新从「高空扫」开始教
+- `?seq=random` 退回 v0.6 的随机抽（池内随机 + 避免连续重复），用来对照
+- 每局实际出过的招记在 `boss.cast`（48 条上限），`__dbg.history` 可读
 
 | # | 名称 | 说明 | 高度带 | 解法 | 位置 |
 |---|---|---|---|---|---|
@@ -230,7 +253,23 @@ logs[]     受击诊断（只留 DIAG_KEEP 条） stats{} 命中分类计数
 | 15 | `mine` | 斜砸地面 → 读秒 → 四周炸一圈低空弹 | 0.55 | 离开圈 | 同上 |
 | 16 | `counterSpiral` | 双股反向螺旋交错，缝隙在转 | 波动 | 跟着缝走 | 同上 |
 
-> 单独测某个图案：`?auto=1&dbg=1&pat=rain&t=14`。
+> 单独测某个图案：`?train=1&pat=rain`（训练场循环），或 `?auto=1&dbg=1&pat=rain&t=14`（对局内插一招）。
+
+### 训练场
+
+`state = 'training'`，入口是说明页的「训练场」按钮或 `?train=1`。和正常对局的差异只有四条：
+
+| 项 | 对局 | 训练场 |
+|---|---|---|
+| 计时 | 2 分钟倒计时 | 正计时，`clock.timeLeft` 冻结 |
+| boss | 掉血、三阶段、狂暴 | 不掉血（`damageBoss` 直接返回） |
+| 玩家 | 会死 | 不扣血，受击仍走完整诊断链 |
+| 出招 | 固定序列 + boss cd | 面板选中的图案每 2.8 s 重放 |
+
+实现要点：
+- `systems/training.ts` 的 `selectPattern()` 会先 `clearField()`（含 timers），否则上一招的延迟回调会串进新招
+- 训练场**不锁指针**：要能点面板；转视角用右键拖动或 Q/E
+- 切图案、弹速、受击计数都在 `ui/training.ts` 的面板里；`updateTrainHud()` 每帧只在文字变化时写 DOM
 
 ---
 
@@ -278,6 +317,20 @@ auto=1&dbg=1&t=14&pat=dive&drive=wasd
 auto=1&dbg=1&t=14&pat=sat&drive=wa
 ```
 
+### v0.8 的增量验证
+
+| 断言 | 做法 | 结果 |
+|---|---|---|
+| 序列吻合 | `?auto=1&seed=7&t=90&boss=200`，取 `boss.cast` 与 `SEQUENCES[3]` 逐项比对 | 16 招全对 |
+| 种子可复现 | 同 seed 跑两次 `?t=40`，快照（玩家/boss/弹幕加权和）比较 | 完全一致；换 seed 必不同 |
+| 训练场可用 | 16 个图案逐个 `?train=1&pat=X&t=2.5` | 全部 `fired=true`、hp 保持 100、`timeLeft` 冻结 120、0 报错 |
+| 弹速倍率 | `?train=1&pat=spread&speed=0.5/1/1.5`，取场上子弹平均速度比 | 0.500 / 1.000 / 1.500（精确） |
+| 回归 | `tools/equiv.mjs`（已默认加 `?seq=random`） | 14/14 逐位一致 |
+
+> 踩坑记录：加训练场时 `frame()` 的更新条件还写着 `state === 'playing'`，
+> 结果面板能点、图案"选了"，但 `clock.elapsed` 一直是 0 —— 画面其实冻着。
+> 靠 `__dbg.clock.elapsed` 探针才抓到。改状态机时先搜一遍所有 `'playing'`。
+
 复现方式见 `tools/equiv.mjs`（跑之前需要：`npx vite preview --port 4173` +
 一个开了 `--remote-debugging-port=9333` 的 Chromium）。
 
@@ -296,11 +349,12 @@ auto=1&dbg=1&t=14&pat=sat&drive=wa
 | 3 | 部署到 GitHub Pages + Actions | ✅ v0.7（Vite 构建版） |
 | 4 | 新增冲刺 | ✅ v0.6 |
 | 5 | 工程化重构（Vite + TS，行为 1:1） | ✅ v0.7 |
-| 6 | 训练场 | ⬜ 待做 |
-| 7 | 训练场可测所有图案 | ⬜ 待做 |
+| 6 | 训练场 | ✅ v0.8 |
+| 7 | 训练场可测所有图案 | ✅ v0.8（16 格全通） |
 | 8 | 受击回放 | ⬜ 待做 |
-| 9 | 固定种子 / 固定序列 | ⬜ 待做 |
+| 9 | 固定种子 / 固定序列 | ✅ v0.8 |
 | 10 | 3D 弹幕分类学 + 新图案 | ⬜ 长期 |
+| 11 | 训练场存活计时 / 命中率 | ⬜ 待做 |
 
 ### 6/7 训练场 · 建议实现
 
@@ -343,7 +397,9 @@ auto=1&dbg=1&t=14&pat=sat&drive=wa
 - **`state` 只能在 `ui/flow.ts` 里改**（通过 `setState`）；其它模块只读。同理 `clock` 只在 `systems/` 里改。
 - **ESM 循环依赖是存在的**（`state ↔ ui/hud`、`bullets ↔ ui/flow`、`camera ↔ state`），
   只要不在模块顶层解引用这些绑定就安全；新增顶层副作用前先想清楚加载顺序。
-- 改完跑一遍：`npm run typecheck` → `?auto=1&dbg=1` 看 `__dbg.counts.hp`、帧率、控制台无报错 → 截图。
+- **新增状态时先搜 `'playing'`**：`frame()`、指针、跳/冲刺按钮、HUD 都有判断，漏一个就是"界面在动、世界是冻的"。
+- **随机一律走 `core/random.ts`**，不要直接 `Math.random()`（相机抖动除外，它按帧率调用，会破坏快进复现）。
+- 改完跑一遍：`npm run typecheck` → `npm run build` → `?auto=1&dbg=1` 看 `__dbg.counts.hp`、帧率、控制台无报错 → 截图。
 
 ---
 

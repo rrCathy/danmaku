@@ -2,7 +2,7 @@
 import { BOSS, ROUND } from '../config';
 import { COLORS } from '../core/color';
 import { clamp, lerp, rand } from '../core/math';
-import { boss, clock } from '../state';
+import { boss, clock, state } from '../state';
 import { spawnSpark } from './effects';
 import { pickPattern, runPattern } from '../patterns';
 import { updateHud } from '../ui/hud';
@@ -25,6 +25,9 @@ export function updateBoss(dt: number): void {
 
   boss.flash = Math.max(0, boss.flash - dt);
 
+  // 训练场：boss 只做环绕运动，出招由面板驱动（patterns/training.ts）
+  if (state === 'training') return;
+
   boss.cd -= dt;
   if (boss.cd <= 0) {
     runPattern(pickPattern());
@@ -36,16 +39,23 @@ export function updateBoss(dt: number): void {
 
 export function damageBoss(d: number): void {
   if (!boss.alive) return;
+  // 训练场：不掉血，只给一点受击反馈，玩家可以一直练
+  if (state === 'training') {
+    boss.flash = Math.max(boss.flash, 0.1);
+    return;
+  }
   boss.hp = Math.max(0, boss.hp - d);
   boss.flash = Math.max(boss.flash, 0.1);
 
   const p = boss.hp / boss.maxHp;
   if (p <= ROUND.phase2 && boss.phase === 1) {
     boss.phase = 2;
+    boss.seq = 0;                 // 新阶段从该阶段的第一招重新教
     boss.cd = Math.min(boss.cd, 1.2);
     toast('BOSS 进入第二阶段', 1500, COLORS.boss);
   } else if (p <= ROUND.phase3 && boss.phase === 2) {
     boss.phase = 3;
+    boss.seq = 0;
     boss.cd = Math.min(boss.cd, 1.0);
     toast('BOSS 进入第三阶段 · 弹幕加速', 1500, COLORS.boss);
   }

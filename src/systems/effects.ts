@@ -1,10 +1,11 @@
 /** 粒子与残影。纯视觉，不参与任何判定。 */
+import { random } from '../core/random';
 import { TAU, rand } from '../core/math';
 import { ghosts, particles, rings } from '../state';
 
 export function spawnSpark(x: number, y: number, z: number, rgb: string, power?: number): void {
-  const a = Math.random() * TAU;
-  const b = Math.random() * Math.PI - Math.PI / 2;
+  const a = random() * TAU;
+  const b = random() * Math.PI - Math.PI / 2;
   const sp = rand(1.5, 5) * (power || 1);
   particles.push({
     x, y, z,

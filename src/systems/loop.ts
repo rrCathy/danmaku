@@ -2,17 +2,21 @@
 import { ROUND } from '../config';
 import { cam, polar } from '../core/camera';
 import { lerp } from '../core/math';
-import { boss, clock, player, setState, updateTimers } from '../state';
+import { boss, clock, player, state, updateTimers } from '../state';
 import { updatePlayer } from './player';
 import { updateBoss } from './boss';
 import { updateBullets, updateShots } from './bullets';
 import { updateLasers, updateWalls } from './hazards';
 import { updateGhosts, updateParticles, updateRings } from './effects';
+import { updateTraining } from './training';
 import { updateHud } from '../ui/hud';
+import { updateTrainHud } from '../ui/training';
 import { toast } from '../ui/toast';
 import { endGame } from '../ui/flow';
 
 export function updateGame(dt: number): void {
+  const trainingMode = state === 'training';
+
   clock.elapsed += dt;
 
   updatePlayer(dt);
@@ -26,6 +30,9 @@ export function updateGame(dt: number): void {
   updateParticles(dt);
   updateGhosts(dt);
 
+  // 训练场：由面板驱动出招节奏，不走 boss 的 cd
+  if (trainingMode) updateTraining(dt);
+
   // 自由视角绕玩家转（标准第三人称），只留一点权重给 boss 让它保持在画面里
   const tx = polar.on ? player.x : player.x * 0.87 + boss.x * 0.13;
   const tz = polar.on ? player.z : player.z * 0.87 + boss.z * 0.13;
@@ -36,15 +43,19 @@ export function updateGame(dt: number): void {
   player.inv = Math.max(0, player.inv - dt);
   clock.dmgFlash = Math.max(0, clock.dmgFlash - dt * 1.9);
 
-  clock.timeLeft -= dt;
-  if (clock.timeLeft <= ROUND.rageAt && !boss.enraged) {
-    boss.enraged = true;
-    toast('剩余 30 秒 · BOSS 狂暴', 1800, '255,80,80');
-  }
-  if (clock.timeLeft <= 0) {
-    clock.timeLeft = 0;
-    endGame(false, 'time');
+  // 计时 / 狂暴 / 超时只在对局里跑
+  if (!trainingMode) {
+    clock.timeLeft -= dt;
+    if (clock.timeLeft <= ROUND.rageAt && !boss.enraged) {
+      boss.enraged = true;
+      toast('剩余 30 秒 · BOSS 狂暴', 1800, '255,80,80');
+    }
+    if (clock.timeLeft <= 0) {
+      clock.timeLeft = 0;
+      endGame(false, 'time');
+    }
   }
 
   updateHud();
+  if (trainingMode) updateTrainHud();
 }

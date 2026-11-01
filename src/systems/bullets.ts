@@ -6,10 +6,11 @@
  */
 import { ARENA_R, DIAG_KEEP, PLAYER } from '../config';
 import { CLASS_INFO, COLORS, clsByHeight, clsName, heightRGB } from '../core/color';
+import { random } from '../core/random';
 import { segPointDist } from '../core/math';
 import { cam } from '../core/camera';
 import { isTouch } from '../core/device';
-import { boss, bullets, clock, logs, opts, player, pshots, rings, stats } from '../state';
+import { boss, bullets, clock, logs, opts, player, pshots, rings, state, stats, training } from '../state';
 import { spawnSpark } from './effects';
 import { damageBoss } from './boss';
 import { updateHud } from '../ui/hud';
@@ -23,10 +24,14 @@ export function addBullet(
   vx: number, vy: number, vz: number,
   r: number, cls: HClass, kind: Bullet['kind']
 ): void {
+  // 训练场的弹速倍率在这里统一生效：所有图案都走这个工厂，不用各自改
+  const k = training.speed;
   bullets.push({
     x, y, z,
     px: x, py: y, pz: z,
-    vx, vy, vz,
+    vx: k === 1 ? vx : vx * k,
+    vy: k === 1 ? vy : vy * k,
+    vz: k === 1 ? vz : vz * k,
     r, cls, kind,
     rgb: heightRGB(y),
     homing: kind === 'orbit' ? 1 : 0,
@@ -39,7 +44,7 @@ export function addBullet(
 export function explodeMine(b: Bullet): void {
   const n = 14;
   for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + Math.random() * 0.28;
+    const a = (i / n) * Math.PI * 2 + random() * 0.28;
     addBullet(b.x, 0.55, b.z, Math.cos(a) * 7.6, 0, Math.sin(a) * 7.6, 0.20, 'low', 'mineBurst');
   }
   for (let k = 0; k < 14; k++) spawnSpark(b.x, 0.5, b.z, COLORS.low, 1.2);
@@ -165,8 +170,10 @@ export interface HitSource {
 export function onPlayerHit(b: HitSource): void {
   const info = CLASS_INFO[b.cls] || CLASS_INFO.mid;
   const dmg = b.cls === 'rain' ? PLAYER.dmgRain : PLAYER.dmgBullet;
+  const isTraining = state === 'training';
 
-  player.hp = Math.max(0, player.hp - dmg);
+  // 训练场不扣血：练习的目标是"读懂"，不是"活下来"
+  if (!isTraining) player.hp = Math.max(0, player.hp - dmg);
   player.inv = PLAYER.invTime;
   clock.dmgFlash = 0.45;
   clock.slowT = 0.3;
@@ -179,11 +186,11 @@ export function onPlayerHit(b: HitSource): void {
   if (logs.length > DIAG_KEEP) logs.pop();
   renderDiag();
 
-  if (!isTouch) toast('被「' + info.name + '」命中 · ' + info.tip, 1600, b.rgb);
+  if (!isTouch && !isTraining) toast('被「' + info.name + '」命中 · ' + info.tip, 1600, b.rgb);
   for (let i = 0; i < 16; i++) spawnSpark(b.x, b.y, b.z, b.rgb, 1.4);
 
   updateHud();
-  if (player.hp <= 0) endGame(false, 'hp');
+  if (!isTraining && player.hp <= 0) endGame(false, 'hp');
 }
 
 export function updateShots(dt: number): void {

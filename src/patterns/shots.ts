@@ -6,6 +6,7 @@
  */
 import { ARENA_R } from '../config';
 import { COLORS } from '../core/color';
+import { random } from '../core/random';
 import { clamp, rand } from '../core/math';
 import { boss, bullets, lasers, later, player, rings, walls } from '../state';
 import { addBullet } from '../systems/bullets';
@@ -26,7 +27,7 @@ export function rainShot(): void {
       z = player.z + rand(-0.5, 0.5);
       delay = 0.95;
     } else {
-      const a = Math.random() * TAU;
+      const a = random() * TAU;
       const rr = rand(2.0, 5.0);
       x = player.x + Math.cos(a) * rr;
       z = player.z + Math.sin(a) * rr;
@@ -76,7 +77,7 @@ export function spiralShot(): void {
 
 /** 墙缝：一整面立体弹墙推进，只留一个缺口 */
 export function wallShot(): void {
-  const dirA = Math.random() * TAU;
+  const dirA = random() * TAU;
   const nx = Math.cos(dirA), nz = Math.sin(dirA);   // 推进方向（朝场地中心）
   const tx = -nz, tz = nx;                          // 墙面切线
   const D = ARENA_R - 0.4;
@@ -113,7 +114,7 @@ export function wallShot(): void {
 
 /** 旋转激光：低扫（要跳）/ 高扫（别跳），从场地边缘横过 */
 export function laserSweep(): void {
-  const base = Math.random() * TAU;
+  const base = random() * TAU;
   lasers.push({ x: 0, z: 0, ang: base, y: 0.55, spin: 0.72, warm: 1.1, life: 3.2, r: 0.32, cls: 'low' });
   lasers.push({ x: 0, z: 0, ang: base + Math.PI * 0.42, y: 2.72, spin: -0.52, warm: 1.6, life: 2.9, r: 0.32, cls: 'high' });
   boss.flash = 0.55;
@@ -153,7 +154,7 @@ export function stairShot(): void {
 export function diveShot(): void {
   const n = boss.phase >= 3 ? 4 : 3;
   for (let i = 0; i < n; i++) {
-    const a = Math.random() * TAU;
+    const a = random() * TAU;
     const rr = i === 0 ? rand(0.3, 1.2) : rand(2.4, 5.2);
     let tx = player.x + Math.cos(a) * rr;
     let tz = player.z + Math.sin(a) * rr;
@@ -187,7 +188,7 @@ export function mineShot(): void {
 export function riseShot(): void {
   const n = boss.phase >= 3 ? 5 : 4;
   for (let i = 0; i < n; i++) {
-    const a = (i / n) * TAU + Math.random() * 0.5;
+    const a = (i / n) * TAU + random() * 0.5;
     const rr = rand(1.5, 4.8);
     let x = player.x + Math.cos(a) * rr;
     let z = player.z + Math.sin(a) * rr;

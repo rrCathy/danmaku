@@ -105,6 +105,10 @@ export interface Boss {
   enraged: boolean;
   /** 三颗卫星炮的相位 */
   sats: number[];
+  /** 固定序列的游标：每阶段从 0 开始（见 patterns/sequence.ts） */
+  seq: number;
+  /** 本局实际出过的招（最多 48 条）—— 复盘用，也是顺序验证的证据 */
+  cast: string[];
 }
 
 export interface HitLog {
@@ -145,5 +149,11 @@ export interface Projected {
   s: number;
 }
 
-export type GameState = 'menu' | 'playing' | 'paused' | 'over';
+/** 16 种弹幕图案的标识 */
+export type PatternName =
+  | 'sweepLow' | 'spread' | 'ring' | 'stair' | 'rise'
+  | 'sweepHigh' | 'rain' | 'satBurst' | 'dive' | 'lowHigh'
+  | 'orbit' | 'spiral' | 'wall' | 'laser' | 'mine' | 'counterSpiral';
+
+export type GameState = 'menu' | 'playing' | 'paused' | 'over' | 'training';
 export type EndReason = 'hp' | 'time';

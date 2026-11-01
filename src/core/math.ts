@@ -1,10 +1,13 @@
+import { rand } from './random';
+
 export const TAU = Math.PI * 2;
 
 export const clamp = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
 
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
-export const rand = (a: number, b: number): number => a + Math.random() * (b - a);
+/** 随机数统一走 core/random.ts，这样 ?seed= 才能覆盖到所有图案 */
+export { rand };
 
 /** 点到线段的最短距离。玩家判定用的是竖直胶囊，这一步只算平面 + 高度两个分量。 */
 export function segPointDist(
