@@ -1,0 +1,19 @@
+# 依赖与构建产物
+node_modules/
+dist/
+
+# 本地临时目录（自动化验证脚本、浏览器 profile）
+.tmp-*/
+
+# 工作台本地状态（会话记忆等）
+.workbuddy/
+
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# 本地覆盖
+*.local

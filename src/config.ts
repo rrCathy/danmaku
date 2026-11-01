@@ -1,0 +1,117 @@
+/**
+ * 所有可调数值的唯一入口。
+ *
+ * 研究机制时只改这里就够了 —— 改完刷新页面即可看到差异，
+ * 不需要在 3000 行里找魔法数字。每个常量后面的注释写的是「改了会发生什么」。
+ */
+
+/* ============ 场地 ============ */
+/** 圆形战场半径（米）。玩家的活动半径是 ARENA_R - 1.0。 */
+export const ARENA_R = 18;
+
+/* ============ 玩家 ============ */
+export const PLAYER = {
+  /** 加速度 m/s²。越大越「跟手」，但走位会失去惯性感 */
+  acc: 64,
+  /** 平面速度上限 m/s */
+  maxSpeed: 8.4,
+  /** 松开方向键后的指数阻尼系数，越大停得越快 */
+  damp: 10,
+  /** 一段跳 / 二段跳初速 m/s */
+  jumpVy: [9.4, 8.6] as const,
+  /** 重力 m/s² */
+  gravity: 27,
+  /** 判定胶囊半径 m */
+  hitR: 0.26,
+  /** 判定胶囊下沿 / 上沿（相对脚底） */
+  bodyLow: 0.18,
+  bodyHigh: 1.42,
+  /** 受击扣血 */
+  dmgBullet: 8,
+  dmgRain: 9,
+  /** 受击后无敌帧秒数 */
+  invTime: 0.85,
+  /** 极坐标：径向最小 / 最大半径、角速度上限 */
+  polarRMin: 2.0,
+  polarRMax: ARENA_R - 1.2,
+  polarWMax: 1.7,
+} as const;
+
+/* ============ 冲刺 ============ */
+/** 26 m/s × 0.18 s ≈ 4.7 m。冲刺期间不给无敌帧 —— 变快不等于变透明。 */
+export const DASH = { speed: 26, time: 0.18, cd: 1.15 } as const;
+
+/* ============ 战斗节奏 ============ */
+export const ROUND = {
+  /** 单局限时（秒） */
+  time: 120,
+  /** 剩这么多秒时 boss 自动狂暴 */
+  rageAt: 30,
+  /** boss 血量 */
+  bossHp: 900,
+  /** 阶段阈值（血量比例） */
+  phase2: 0.66,
+  phase3: 0.33,
+} as const;
+
+export const BOSS = {
+  /** 自转速度（卫星跟着转） */
+  spin: 0.75,
+  /** 绕场公转角速度基数 rad/s */
+  angSpeed: 0.34,
+  /** 每进一阶段公转加速量 */
+  angPerPhase: 0.16,
+  /** 公转轨道：x 半径 / z 半径 / z 偏移 */
+  orbitX: 6.4,
+  orbitZ: 5.0,
+  orbitZOff: -2.5,
+  /** 悬停基准高度与浮动 */
+  hoverY: 5.4,
+  hoverAmp: 0.85,
+  hoverAmp2: 0.18,
+  /** 出招间隔基数（秒） */
+  cdBase: 1.85,
+  /** 每进一阶段间隔缩短比例 */
+  cdPerPhase: 0.13,
+  /** 狂暴时除以此值 */
+  cdRage: 1.45,
+  /** 狂暴时公转乘以此值 */
+  rageSpeed: 1.5,
+  /** 出招间隔随机抖动范围 */
+  cdJitter: [0.9, 1.15] as const,
+} as const;
+
+/* ============ 相机 ============ */
+export const CAM_PRESETS = [
+  { name: '低角斜后视', yaw: 0.30, pitch: 0.40, dist: 15.5 },
+  { name: '高空俯视', yaw: 0.16, pitch: 0.95, dist: 20.0 },
+  { name: '侧向平视', yaw: 1.18, pitch: 0.19, dist: 16.0 },
+  { name: '环绕 · 径向朝前', yaw: 0.30, pitch: 0.42, dist: 14.2, orbit: true }
+] as const;
+
+export const CAMERA = {
+  /** 垂直视场角（度）。手写透视全靠它，改大了空间感更强但边缘畸变明显 */
+  fov: 55,
+  /** 近裁剪：相机空间 zv 小于它就丢弃（改了会让镜头后方的物体被画出来） */
+  near: 0.2,
+  /** 触屏默认拉近一点，否则手机上子弹太小 */
+  touchDist: 13.4,
+  touchPitch: 0.46,
+  touchYaw: 0.26,
+} as const;
+
+/* ============ 输入灵敏度 ============ */
+export const LOOK = {
+  /** 指针锁定后的鼠标灵敏度：弧度 / 像素 */
+  yawSens: 0.0030,
+  pitchSens: 0.0030,
+  /** 单帧位移限幅（像素），防异常跳变把镜头甩飞 */
+  maxStep: 160,
+  /** 右键拖拽 / 触屏搓动的灵敏度 */
+  dragYaw: 0.0072,
+  dragPitch: 0.005,
+} as const;
+
+/* ============ 诊断 ============ */
+/** 右上角只保留最近 N 条受击记录（原版是 4，扩大会挡住视野） */
+export const DIAG_KEEP = 4;

@@ -1,0 +1,149 @@
+/**
+ * 全局实体类型。
+ *
+ * 这个项目只在验证一件事：玩家能不能读懂「弹现在在哪一层」。
+ * 所以这里没有 Entity 基类、没有继承、没有组件系统 —— 全是扁平结构体，
+ * 每帧整批遍历，方便在控制台里直接 dump 一份快照做量化分析。
+ */
+
+/** 语义高度段。只用于文案与统计，不影响颜色（颜色由 heightRGB 按连续高度决定）。 */
+export type HClass = 'low' | 'mid' | 'high' | 'rain';
+
+/** 子弹来源图案。保留这个字段是为了按图案做统计，逻辑上不参与判定。 */
+export type BulletKind =
+  | 'sweep' | 'spread' | 'rain' | 'orbit' | 'ring' | 'spiral'
+  | 'wall' | 'sat' | 'stair' | 'dive' | 'mine' | 'mineLive'
+  | 'rise' | 'mineBurst';
+
+export interface Bullet {
+  x: number; y: number; z: number;
+  /** 上一帧位置，用来画单帧拖影（不是轨迹线，轨迹线在 trail 里） */
+  px: number; py: number; pz: number;
+  vx: number; vy: number; vz: number;
+  r: number;
+  cls: HClass;
+  kind: BulletKind;
+  /** '255,64,104' 形式，每帧按当前高度重算 */
+  rgb: string;
+  homing: number;
+  life: number;
+  /** 俯冲弹 / 地雷的读秒；undefined 表示没有引信 */
+  fuse?: number;
+  /** 1 = 不参与碰撞（地雷本体） */
+  noHit?: number;
+  trail: number[] | null;
+  tk: number;
+}
+
+export interface Shot {
+  x: number; y: number; z: number;
+  px: number; py: number; pz: number;
+  vx: number; vy: number; vz: number;
+  r: number; dmg: number; life: number;
+}
+
+export interface Particle {
+  x: number; y: number; z: number;
+  vx: number; vy: number; vz: number;
+  life: number; max: number; rgb: string; size: number;
+}
+
+/** 地面预警圈。t 倒数到 0 时触发对应的东西。 */
+export interface Ring {
+  x: number; z: number; r: number;
+  t: number; dur: number;
+  cls?: string;
+}
+
+export interface Laser {
+  x: number; z: number;
+  ang: number; y: number;
+  spin: number;
+  /** >0 表示还在预警期，不判定 */
+  warm: number;
+  life: number; r: number; cls: HClass;
+}
+
+/** 整面推进的弹墙，只留一个缺口。 */
+export interface Wall {
+  nx: number; nz: number; tx: number; tz: number;
+  D: number; halfW: number;
+  gapPos: number; gapW: number;
+  t: number; dur: number;
+}
+
+export interface Ghost {
+  x: number; y: number; z: number;
+  life: number; max: number;
+}
+
+export interface Player {
+  x: number; y: number; z: number;
+  vx: number; vz: number; vy: number;
+  jumps: number;
+  hp: number; maxHp: number;
+  /** 无敌帧剩余秒数 */
+  inv: number;
+  fireCd: number;
+  hitFlash: number;
+  /** 极坐标模式的 (r, θ) */
+  pr: number; pa: number; pvr: number; pw: number;
+  dashT: number; dashCd: number;
+  dashDX: number; dashDZ: number;
+}
+
+export interface Boss {
+  x: number; y: number; z: number;
+  hp: number; maxHp: number;
+  phase: number;
+  ang: number;
+  flash: number;
+  cd: number;
+  last: string;
+  alive: boolean;
+  spin: number;
+  enraged: boolean;
+  /** 三颗卫星炮的相位 */
+  sats: number[];
+}
+
+export interface HitLog {
+  info: { name: string; tip: string };
+  y: number;
+  cls: HClass;
+  t: number;
+}
+
+export interface Stats {
+  hits: number;
+  low: number;
+  mid: number;
+  high: number;
+  rain: number;
+}
+
+export interface Timer {
+  t: number;
+  fn: () => void;
+}
+
+/** 屏幕意图：f = 向前推，r = 向右推，len = 推杆幅度 0~1 */
+export interface InputDir {
+  f: number;
+  r: number;
+  len: number;
+}
+
+export interface Vec3 {
+  x: number; y: number; z: number;
+}
+
+/** project() 的输出：屏幕坐标 + 相机空间深度 + 缩放比 */
+export interface Projected {
+  x: number; y: number;
+  z: number;
+  s: number;
+}
+
+export type GameState = 'menu' | 'playing' | 'paused' | 'over';
+export type EndReason = 'hp' | 'time';

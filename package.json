@@ -1,0 +1,17 @@
+{
+  "name": "danmaku",
+  "private": true,
+  "version": "0.7.0",
+  "type": "module",
+  "description": "2.5E 弹幕 · 三维可读性验证装置",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

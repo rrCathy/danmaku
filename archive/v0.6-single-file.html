@@ -1,0 +1,3228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" name="viewport">
+<meta content="yes" name="apple-mobile-web-app-capable">
+<meta content="yes" name="mobile-web-app-capable">
+<meta content="#04060e" name="theme-color">
+<title>2.5E 弹幕 · 可读性验证原型 v0.6</title>
+<style>
+  :root{
+    --cyan:#6ee8ff;
+    --pink:#ff4f8b;
+    --violet:#a37cff;
+    --amber:#ffb040;
+    --dim:rgba(160,190,230,.55);
+    --panel:rgba(8,14,30,.72);
+    --line:rgba(110,232,255,.22);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#04060e;overflow:hidden;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;
+    font-family:"HarmonyOS Sans SC","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    color:#dfe9ff;-webkit-font-smoothing:antialiased;user-select:none}
+  #app{position:fixed;inset:0}
+  canvas#game{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  /* ---------- HUD ---------- */
+  #hud{position:absolute;inset:0;pointer-events:none;padding:18px 22px;
+       display:flex;flex-direction:column;justify-content:space-between}
+  .row{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+
+  .bar{width:290px}
+  .bar .lab{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.16em;
+            color:var(--dim);margin-bottom:6px;text-transform:uppercase}
+  .bar .track{height:9px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);
+              border-radius:2px;overflow:hidden;position:relative}
+  .bar .fill{height:100%;width:100%;transition:width .12s linear;
+             box-shadow:0 0 12px currentColor;background:currentColor}
+  #hpP .fill{color:var(--cyan)}
+  #hpB{width:340px}
+  #hpB .fill{color:var(--pink)}
+  #hpB .track{height:12px}
+  .bar.right .lab{flex-direction:row-reverse}
+
+  #centerTop{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:-4px}
+  #timer{font-size:30px;font-weight:600;letter-spacing:.06em;font-variant-numeric:tabular-nums;
+         text-shadow:0 0 18px rgba(110,232,255,.45)}
+  #timer.warn{color:#ff7a7a;text-shadow:0 0 20px rgba(255,80,80,.6)}
+  #phaseTag{font-size:11px;letter-spacing:.2em;color:var(--dim)}
+
+  /* ---------- 诊断面板 ---------- */
+  #diag{width:300px;background:var(--panel);border:1px solid var(--line);border-radius:4px;
+        padding:12px 13px;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+  #diag h3{margin:0 0 3px;font-size:11px;letter-spacing:.2em;color:var(--cyan);font-weight:600}
+  #diag .sub{font-size:10px;color:var(--dim);margin-bottom:9px;line-height:1.5}
+  #diagList{display:flex;flex-direction:column;gap:7px;min-height:20px}
+  .ditem{display:flex;gap:8px;font-size:11.5px;line-height:1.45;align-items:flex-start;
+         animation:fadein .18s ease-out}
+  .ditem .dot{width:6px;height:6px;border-radius:50%;margin-top:5px;flex:none;
+              box-shadow:0 0 8px currentColor;background:currentColor}
+  .ditem .nm{font-weight:600}
+  .ditem .tp{color:var(--dim);font-size:10.5px}
+  .dempty{font-size:11px;color:rgba(160,190,230,.35)}
+  @keyframes fadein{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+  /* ---------- 底部 ---------- */
+  #bottom{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+  #keys{font-size:11px;color:var(--dim);line-height:1.85;letter-spacing:.02em}
+  #keys b{color:#cfe6ff;font-weight:600}
+  kbd{display:inline-block;min-width:18px;text-align:center;padding:1px 5px;margin:0 1px;
+      border:1px solid rgba(140,190,240,.25);border-bottom-width:2px;border-radius:3px;
+      background:rgba(255,255,255,.05);color:#cfe6ff;font-size:10px;font-family:inherit}
+  #camTag{font-size:11px;color:var(--dim);text-align:right;line-height:1.8}
+  #camTag b{color:var(--cyan);font-weight:600}
+
+  /* ---------- toast ---------- */
+  #toast{position:absolute;left:50%;top:80%;transform:translate(-50%,-50%);
+         font-size:14px;font-weight:600;letter-spacing:.03em;opacity:0;transition:opacity .18s;
+         padding:9px 18px;border-radius:4px;white-space:nowrap;
+         background:rgba(4,8,18,.78);border:1px solid rgba(140,200,255,.16);
+         box-shadow:0 10px 34px rgba(0,0,0,.55);
+         backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #toast.on{opacity:1}
+
+  /* ---------- 鼠标锁定提示（PC 专用） ---------- */
+  #lookHint{position:absolute;left:50%;bottom:88px;transform:translateX(-50%);
+            font-size:11.5px;color:rgba(200,225,255,.72);letter-spacing:.04em;white-space:nowrap;
+            padding:6px 15px;border-radius:99px;background:rgba(4,8,18,.6);
+            border:1px solid rgba(140,200,255,.16);opacity:0;transition:opacity .25s;
+            pointer-events:none;z-index:5}
+  #lookHint.on{opacity:1}
+  #lookHint b{color:var(--cyan);font-weight:600}
+  #lookHint kbd{font-size:9.5px;padding:0 4px}
+  body.touch #lookHint{display:none}
+
+  /* ---------- 遮罩层 ---------- */
+  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+           background:radial-gradient(ellipse at 50% 45%,rgba(10,18,40,.82),rgba(3,5,12,.95));
+           backdrop-filter:blur(3px);z-index:20}
+  .overlay.hidden{display:none}
+  .card{width:min(720px,88vw);border:1px solid rgba(110,232,255,.2);border-radius:6px;
+        background:linear-gradient(160deg,rgba(12,20,42,.92),rgba(6,10,24,.94));
+        padding:34px 38px;box-shadow:0 30px 90px rgba(0,0,0,.7)}
+  .card .kicker{font-size:11px;letter-spacing:.34em;color:var(--cyan);opacity:.85}
+  .card h1{margin:10px 0 6px;font-size:30px;letter-spacing:.02em;font-weight:700}
+  .card h1 span{color:var(--cyan)}
+  .card .lead{font-size:13px;line-height:1.8;color:rgba(190,215,245,.8);margin:0 0 22px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 26px;margin-bottom:24px}
+  .item{font-size:12px;line-height:1.7;color:rgba(190,215,245,.78)}
+  .item .t{display:block;font-size:11px;letter-spacing:.14em;color:var(--cyan);margin-bottom:3px}
+  .tagline{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+  .pill{font-size:10.5px;padding:4px 9px;border-radius:999px;border:1px solid rgba(140,200,255,.2);
+        color:rgba(190,215,245,.8);background:rgba(110,232,255,.05)}
+  .btn{pointer-events:auto;cursor:pointer;border:1px solid rgba(110,232,255,.55);
+       background:linear-gradient(180deg,rgba(110,232,255,.20),rgba(110,232,255,.07));
+       color:#e8f8ff;font:inherit;font-size:14px;font-weight:600;letter-spacing:.12em;
+       padding:13px 34px;border-radius:4px;transition:.16s}
+  .btn:hover{background:linear-gradient(180deg,rgba(110,232,255,.34),rgba(110,232,255,.12));
+             box-shadow:0 0 28px rgba(110,232,255,.28)}
+  .btn.ghost{border-color:rgba(160,190,230,.28);background:transparent;color:rgba(200,220,245,.85)}
+  #endStats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:18px 0 26px}
+  #endStats .s{border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:11px 12px;
+               background:rgba(255,255,255,.02)}
+  #endStats .s .n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  #endStats .s .l{font-size:10px;letter-spacing:.14em;color:var(--dim);margin-top:3px}
+  .hintline{font-size:11.5px;color:rgba(190,215,245,.6);line-height:1.75;margin-top:18px;
+            border-left:2px solid rgba(110,232,255,.3);padding-left:12px}
+
+
+  /* ---------- 立面小地图 ---------- */
+  #miniWrap{position:absolute;left:20px;top:62px;width:174px;pointer-events:none;z-index:5;
+    transition:opacity .2s}
+  #miniWrap.off{opacity:0}
+  #minimap{width:174px;height:174px;display:block;border-radius:50%;
+    border:1px solid rgba(110,232,255,.24);
+    background:radial-gradient(circle at 50% 50%,rgba(10,18,38,.86),rgba(4,8,18,.9));
+    box-shadow:0 0 24px rgba(0,0,0,.45), inset 0 0 30px rgba(30,80,140,.18);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #miniCap{font-size:9px;letter-spacing:.1em;color:rgba(160,190,230,.48);margin-top:6px;
+    display:flex;justify-content:space-between;gap:6px}
+  #miniCap b{color:rgba(110,232,255,.7);font-weight:600}
+  #miniLegend{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:8.5px;
+    color:rgba(160,190,230,.5);letter-spacing:.06em}
+  #miniLegend .hbar{flex:1;height:6px;border-radius:3px;min-width:42px;
+    background:linear-gradient(90deg,
+      rgb(255,52,92) 0%, rgb(255,128,56) 7.5%, rgb(255,214,74) 15%,
+      rgb(138,255,126) 25%, rgb(58,226,255) 38.3%, rgb(86,140,255) 63.3%,
+      rgb(196,108,255) 100%);
+    box-shadow:0 0 9px rgba(150,180,255,.28), inset 0 0 0 1px rgba(255,255,255,.08)}
+  #miniLegend .hlab{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:8px;opacity:.8;flex:none}
+
+  /* 面板开关（触屏） */
+  #btnFx{display:none}
+  body.touch #btnFx{display:flex;flex-direction:column;gap:8px;position:absolute;right:9px;top:22%;
+    z-index:7;pointer-events:auto}
+  body.touch #btnFx button{width:44px;height:44px;border-radius:50%;font:inherit;font-size:9px;
+    letter-spacing:.04em;color:rgba(200,240,255,.85);border:1px solid rgba(110,232,255,.30);
+    background:rgba(10,22,40,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    touch-action:none;line-height:1.15;padding:0}
+  body.touch #btnFx button.on{border-color:rgba(150,255,210,.6);color:#dffff4;
+    background:rgba(60,150,120,.28)}
+  body.touch #miniWrap{left:10px;top:50px;width:106px}
+  body.touch #minimap{width:106px;height:106px}
+  body.touch #miniCap{font-size:7px;margin-top:3px}
+  body.touch #miniCap span:last-child{display:none}
+  body.touch #miniLegend{font-size:7px;margin-top:2px}
+  body.touch #miniLegend .hbar{height:5px;min-width:34px}
+  body.touch #miniLegend .hlab{font-size:6.5px}
+
+  /* ---------- 触摸端 ---------- */
+  #stick,#btnJump,#btnDash{display:none}
+  body.touch #stick{display:block;position:absolute;width:130px;height:130px;border-radius:50%;
+    border:1px solid rgba(110,232,255,.26);
+    background:radial-gradient(circle,rgba(110,232,255,.08),rgba(110,232,255,.01) 70%,transparent);
+    pointer-events:none;transition:opacity .15s;z-index:6}
+  body.touch #stickKnob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;
+    border-radius:50%;background:radial-gradient(circle at 38% 32%,rgba(200,255,238,.95),rgba(60,190,155,.5));
+    box-shadow:0 0 22px rgba(150,255,210,.45);pointer-events:none}
+  body.touch #btnJump{display:flex;align-items:center;justify-content:center;position:absolute;
+    right:26px;bottom:30px;width:94px;height:94px;border-radius:50%;
+    border:2px solid rgba(150,255,210,.55);color:#dffff4;font-size:13px;letter-spacing:.14em;
+    background:radial-gradient(circle at 40% 35%,rgba(150,255,210,.22),rgba(30,90,80,.18));
+    box-shadow:0 0 26px rgba(110,232,255,.16), inset 0 0 20px rgba(150,255,210,.10);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    pointer-events:auto;touch-action:none;z-index:7;transition:transform .08s, background .08s}
+  body.touch #btnJump.down{transform:scale(.93);background:radial-gradient(circle at 40% 35%,rgba(150,255,210,.42),rgba(30,90,80,.3))}
+  body.touch #btnDash{display:flex;align-items:center;justify-content:center;position:absolute;
+    right:130px;bottom:34px;width:70px;height:70px;border-radius:50%;
+    border:2px solid rgba(255,200,120,.5);color:#ffe9c9;font-size:10px;letter-spacing:.1em;
+    line-height:1.15;padding:0;text-align:center;
+    background:radial-gradient(circle at 40% 35%,rgba(255,200,120,.20),rgba(90,60,20,.18));
+    box-shadow:0 0 22px rgba(255,180,90,.14), inset 0 0 16px rgba(255,200,120,.08);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    pointer-events:auto;touch-action:none;z-index:7;
+    transition:transform .08s, background .08s, opacity .15s}
+  body.touch #btnDash.down{transform:scale(.92);background:radial-gradient(circle at 40% 35%,rgba(255,200,120,.42),rgba(90,60,20,.3))}
+  body.touch #btnDash.cool{opacity:.32}
+  body.touch #btnCam{display:flex;align-items:center;justify-content:center;position:absolute;right:104px;bottom:150px;
+    width:58px;height:58px;border-radius:50%;font-size:10px;letter-spacing:.06em;color:rgba(200,240,255,.85);
+    border:1px solid rgba(110,232,255,.32);background:rgba(10,22,40,.55);backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);pointer-events:auto;touch-action:none;z-index:7}
+  body.touch #btnCam:active{background:rgba(110,232,255,.22)}
+  body.touch.polaron #btnCam{display:none}
+
+  body.touch #hud{padding:9px 12px}
+  body.touch .bar{width:172px}
+  body.touch #hpB{width:190px}
+  body.touch #hpB .track{height:9px}
+  body.touch .bar .lab{font-size:9px;margin-bottom:4px;letter-spacing:.1em}
+  body.touch #timer{font-size:21px}
+  body.touch #phaseTag{display:none}
+  body.touch #diag{width:196px;padding:8px 9px;margin-top:8px}
+  body.touch #diag .sub{display:none}
+  body.touch #diag h3{font-size:9.5px;margin-bottom:5px;letter-spacing:.14em}
+  body.touch #diagList{gap:4px}
+  body.touch .ditem{font-size:10px;line-height:1.35;gap:5px}
+  body.touch .ditem .dot{margin-top:4px}
+  body.touch .ditem .tp{font-size:9px}
+  body.touch #keys{display:none}
+  body.touch #camTag{display:none}
+  body.touch #toast{top:auto;bottom:14%;font-size:12px;padding:7px 13px;max-width:86vw;white-space:normal;text-align:center}
+
+  body.touch .overlay{padding:10px}
+  body.touch .card{width:min(660px,94vw);max-height:94vh;overflow:auto;padding:20px 24px}
+  body.touch .card h1{font-size:23px;margin:6px 0 4px}
+  body.touch .card .kicker{font-size:9px}
+  body.touch .card .lead{font-size:11.5px;line-height:1.65;margin-bottom:12px}
+  body.touch .tagline{margin-bottom:12px;gap:6px}
+  body.touch .pill{font-size:9px;padding:3px 7px}
+  body.touch .grid2{gap:8px 16px;margin-bottom:12px}
+  body.touch .item{font-size:10.5px;line-height:1.55}
+  body.touch .item .t{font-size:9px;margin-bottom:2px}
+  body.touch .btn{padding:11px 26px;font-size:13px}
+  body.touch .hintline{display:none}
+  body.touch #endStats{gap:6px;margin:12px 0 16px}
+  body.touch #endStats .s{padding:7px 8px}
+  body.touch #endStats .s .n{font-size:17px}
+  body.touch #endStats .s .l{font-size:8.5px}
+  .touchhint{display:none;font-size:11px;line-height:1.7;color:rgba(190,215,245,.72);
+    border-left:2px solid rgba(150,255,210,.35);padding-left:10px;margin:0 0 16px}
+  body.touch .touchhint{display:block}
+  .touchonly{display:none}
+  body.touch .touchonly{display:inline}
+  body.touch .deskonly{display:none}
+
+  /* 竖屏提示 */
+  #rotate{display:none;position:fixed;inset:0;z-index:60;background:#04060e;
+    align-items:center;justify-content:center;text-align:center;padding:30px}
+  @media (orientation: portrait){
+    body.touch #rotate{display:flex}
+  }
+  #rotate .ic{width:64px;height:110px;border:2px solid rgba(150,255,210,.5);border-radius:10px;
+    margin:0 auto 20px;position:relative;animation:rot 2.4s ease-in-out infinite}
+  #rotate .ic:after{content:'';position:absolute;left:50%;bottom:7px;width:16px;height:2px;margin-left:-8px;
+    background:rgba(150,255,210,.6);border-radius:2px}
+  @keyframes rot{0%,35%{transform:rotate(0)}55%,100%{transform:rotate(90deg)}}
+  #rotate p{font-size:14px;letter-spacing:.1em;color:#bfe9ff;margin:0}
+  #rotate span{display:block;font-size:11px;color:rgba(160,190,230,.55);margin-top:8px;letter-spacing:.06em}
+
+  /* ---------- PC 窄窗口 / 矮窗口 ---------- */
+  @media (max-width: 1180px), (max-height: 720px){
+    #keys{font-size:10px;line-height:1.75;gap:2px 12px}
+    #keys kbd{font-size:9px;padding:1px 4px}
+    #hud{padding:10px 14px}
+    #diag{width:196px;padding:9px 10px}
+    #diag .sub{display:none}
+    #miniWrap{width:150px}
+    #minimap{width:150px;height:150px}
+    #btnFx{right:6px}
+  }
+  @media (max-height: 620px){
+    #keys{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div class="row">
+      <div class="bar" id="hpP">
+        <div class="lab"><span>PLAYER</span><span id="hpPtxt">100 / 100</span></div>
+        <div class="track"><div class="fill" id="hpPfill"></div></div>
+      </div>
+
+      <div id="centerTop">
+        <div id="timer">02:00</div>
+        <div id="phaseTag">PHASE 1 · 试作型 boss</div>
+      </div>
+
+      <div class="bar right" id="hpB">
+        <div class="lab"><span>BOSS</span><span id="hpBtxt">900 / 900</span></div>
+        <div class="track"><div class="fill" id="hpBfill"></div></div>
+        <div id="diag" style="margin-top:14px">
+          <h3>受击诊断</h3>
+          <div class="sub">每次被击中都应能说出原因 —— 这里记录系统认为你被什么打中。</div>
+          <div id="diagList"><div class="dempty">尚无记录</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="miniWrap">
+      <canvas height="360" id="minimap" width="360"></canvas>
+      <div id="miniCap"><span>俯视雷达 <b>6 / 12 / 18m</b></span><span>颜色 = 高度</span></div>
+      <div id="miniLegend">
+        <span class="hlab">0</span><span class="hbar"></span><span class="hlab">12m</span>
+      </div>
+    </div>
+
+    <div id="bottom">
+      <div id="keys">
+        <b>移动</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+        &nbsp; <b>跳跃 / 二段跳</b> <kbd>Space</kbd>
+        &nbsp; <b>冲刺</b> <kbd>Shift</kbd>
+        &nbsp; <b>射击</b> 按住 <kbd>鼠标左键</kbd> 或 <kbd>J</kbd>
+        <br>
+        <b>视角</b> 移动鼠标（点画面锁定 / <kbd>ESC</kbd> 解锁）
+        <br>
+        <b>备用转视角</b> 未锁定时按住 <kbd>右键</kbd> 拖动，或 <kbd>Q</kbd><kbd>E</kbd>
+        &nbsp; <b>切镜头</b> <kbd>C</kbd>
+        &nbsp; <b>极坐标模式</b> <kbd>V</kbd>
+        <br>
+        <b>轨迹线</b> <kbd>T</kbd>
+        &nbsp; <b>俯视雷达</b> <kbd>M</kbd>
+        <br>
+        <b>地面影子</b> <kbd>G</kbd>
+        &nbsp; <b>高度引导线</b> <kbd>H</kbd>
+        &nbsp; <b>判定框</b> <kbd>K</kbd>
+        &nbsp; <b>暂停</b> <kbd>P</kbd>
+        &nbsp; <b>重开</b> <kbd>R</kbd>
+      </div>
+      <div id="camTag">镜头 <b id="camName">低角斜后视</b><br><span id="camSub">目标：击破 boss · 限时 2 分钟</span></div>
+    </div>
+  </div>
+
+  <div id="stick"><div id="stickKnob"></div></div>
+  <button id="btnJump" type="button">跳<br>JUMP</button>
+  <button id="btnDash" type="button">冲刺<br>DASH</button>
+  <button id="btnCam" type="button">视角</button>
+  <div id="btnFx">
+    <button id="btnPolar" type="button">极轴</button>
+    <button id="btnTrail" type="button">轨迹</button>
+    <button class="on" id="btnMini" type="button">雷达</button>
+  </div>
+
+  <div id="lookHint"><b>点一下画面</b> 锁定鼠标 —— 之后移动鼠标就是转视角 · <kbd>ESC</kbd> 解锁</div>
+
+  <div id="toast"></div>
+
+  <div id="rotate">
+    <div>
+      <div class="ic"></div>
+      <p>请把手机横过来</p>
+      <span>横屏才能看到完整战场</span>
+    </div>
+  </div>
+
+  <div class="overlay" id="startOverlay">
+    <div class="card">
+      <div class="kicker">2.5E DANMAKU · READABILITY PROTOTYPE v0.6</div>
+      <h1>平面移动，<span>立体弹幕</span></h1>
+      <p class="lead">
+        你被限制在地面这一个平面上，但弹幕在真实的三维空间里飞行：贴地扫射、高空压制、环形扩散、旋转激光、墙缝推进。
+        这个原型不做美术、不做养成，只验证一件事 —— <b style="color:#bfe9ff">玩家能不能读懂“子弹在哪里”</b>。<br>
+        <b style="color:#bfe9ff">两种视角模式：</b>
+        <b>自由视角</b> —— PC 上点一下画面锁定鼠标，之后<b>移动鼠标就是转视角</b>（和常规第三人称一致，<kbd>ESC</kbd> 解锁、滚轮拉远近）；手机右半屏搓动，或用 Q E。
+        <b>极坐标模式</b>（按 <b>V</b> / 手机「极轴」键）—— 以场地中心为原点，摇杆上下 = 沿半径进出，左右 = 绕中心改变角度，镜头永远沿径向朝中心；此时相机锁死朝中心，<b>鼠标只调俯仰、横移无效</b>。
+        <span style="color:rgba(150,255,210,.85)">想验证“极坐标操作是否比自由移动更不容易迷失方向”，就用这两种模式交替打同一个 boss。</span>
+      </p>
+
+      <div class="tagline">
+        <span class="pill">16 种弹幕图案 · 多发射源</span>
+        <span class="pill">地面投影 + 弹幕拖尾</span>
+        <span class="pill">自由视角 + 极坐标模式</span>
+        <span class="pill">俯视雷达（颜色=高度）</span>
+        <span class="pill">受击诊断日志</span>
+      </div>
+
+      <div class="grid2">
+        <div class="item"><span class="t">COLOR = HEIGHT</span>
+          颜色是一条连续的彩虹：<b>红=贴地（要起跳）→ 橙 → 黄 → 绿 → 青 → 蓝 → 紫=12m 高空（别跳，从下方穿过）</b>。颜色只跟“这一刻的高度”走，所以同一颗弹从高空落下来会一路变色 —— 你读到的永远是它现在在哪一层，而不是它出生时的标签。<br>
+          <b>地面亮圈</b> = 即将落下的东西：俯冲弹会先悬停再砸、地雷会读秒后向四周炸开一圈低空弹、地涌会从地底竖直升起 —— 都靠“离开圈”躲。</div>
+        <div class="item"><span class="t">READ AIDS</span>
+          <b>T</b> 切换轨迹线：默认是<b>拖尾</b>（跟在弹后面的实线，颜色同弹、按真实高度画，能看出它从哪来）／第二档是预测虚线（弹头往前 0.5 秒）。
+          <b>M</b> 切换左上角俯视雷达：从上方看整片战局，弹幕颜色 = 高度（实心=贴地/要跳，空心紫=高空/别跳）。</div>
+        <div class="item"><span class="t">TEST GOAL</span>
+          玩 3 局，每局结束后回答：每次被击中时，你是否知道“为什么被打中”？如果三次里有一次说不清，可读性系统就不合格。</div>
+      </div>
+
+      <div class="touchhint">
+        左半屏拖动 = 虚拟摇杆移动　·　右下圆键 = 跳跃（空中再点一次二段跳）<br>
+        射击自动开火　·　「视角」切镜头　·　<b>右半屏横搓 = 转视角</b>　·　「极轴」= 极坐标模式<br>
+        右侧「极轴 / 轨迹 / 雷达」开关
+      </div>
+
+      <button class="btn" id="btnStart">开始测试</button>
+
+      <div class="hintline">
+        <span class="deskonly">操作：WASD 平面移动 · Space 二段跳 · <b>Shift 冲刺</b> · 按住左键 / J 射击 · <b>点画面锁鼠标 → 移动鼠标转视角</b>（ESC 解锁）· 滚轮拉远近 · <b>V 极坐标模式</b> · C 切镜头 · T 轨迹线 · M 雷达 · G 影子 · H 引导线 · K 判定框</span>
+        <span class="touchonly">操作：左半屏拖动 = 移动（虚拟摇杆）· 右下圆形键 = 跳跃 / 空中再按一次二段跳 · 橙色键 = 冲刺 · 射击自动朝 boss 开火 · 右半屏上下搓 = 调俯仰（极坐标下也能用）</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="endOverlay">
+    <div class="card">
+      <div class="kicker" id="endKicker">RESULT</div>
+      <h1 id="endTitle">击破</h1>
+      <p class="lead" id="endLead"></p>
+      <div id="endStats"></div>
+      <button class="btn" id="btnRestart">再来一局 (R)</button>
+      <button class="btn ghost" id="btnMenu" style="margin-left:10px">返回说明</button>
+      <div class="hintline">
+        复盘建议：如果某一类弹幕的受击次数明显偏高，先怀疑是“高度读不出来”，而不是“玩家太菜”。
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+/* 2.5E 弹幕 · 可读性验证原型
+ * 纯 Canvas2D 手写透视投影，零依赖，双击 index.html 即可运行。
+ * 验证目标：玩家在地面平面移动/二段跳，能不能读懂三维空间里飞来的弹幕。
+ */
+(function () {
+  'use strict';
+
+  /* ================= 基础工具 ================= */
+  const TAU = Math.PI * 2;
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const rand = (a, b) => a + Math.random() * (b - a);
+
+  /* ================= 画布 ================= */
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  let W = 1280, H = 720, DPR = 1;
+  let bgGrad = null, fxCanvas = null;
+
+  // 主输入是触摸（手机/平板）才走触屏布局；带触摸屏的笔记本仍按 PC 处理
+  const mq = function (q) { return window.matchMedia ? window.matchMedia(q).matches : false; };
+  const coarse = mq('(pointer: coarse)');
+  const noHover = mq('(hover: none)');
+  const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  const isTouch = /[?&]touch=1/.test(location.search) || (hasTouch && (coarse || noHover));
+  if (isTouch) document.body.classList.add('touch');
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, isTouch ? 1.75 : 2);
+    W = canvas.clientWidth || window.innerWidth;
+    H = canvas.clientHeight || window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    buildFx();
+    stickHome();
+  }
+
+  // 背景渐变 + 暗角 + 扫描线预渲染（移动端每帧只贴一张图）
+  function buildFx() {
+    bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    bgGrad.addColorStop(0, '#04060e');
+    bgGrad.addColorStop(0.5, '#070b18');
+    bgGrad.addColorStop(1, '#0a1024');
+
+    fxCanvas = document.createElement('canvas');
+    fxCanvas.width = Math.max(1, Math.floor(W * DPR));
+    fxCanvas.height = Math.max(1, Math.floor(H * DPR));
+    const g = fxCanvas.getContext('2d');
+    g.scale(DPR, DPR);
+    const vg = g.createRadialGradient(W / 2, H * 0.5, Math.min(W, H) * 0.34, W / 2, H * 0.5, Math.max(W, H) * 0.8);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.70)');
+    g.fillStyle = vg;
+    g.fillRect(0, 0, W, H);
+    g.globalAlpha = 0.045;
+    g.fillStyle = '#a8dcff';
+    for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
+    g.globalAlpha = 1;
+  }
+  window.addEventListener('resize', resize);
+
+  /* ================= 相机（手写透视） ================= */
+  const CAM_PRESETS = [
+    { name: '低角斜后视', yaw: 0.30, pitch: 0.40, dist: 15.5 },
+    { name: '高空俯视', yaw: 0.16, pitch: 0.95, dist: 20.0 },
+    { name: '侧向平视', yaw: 1.18, pitch: 0.19, dist: 16.0 },
+    { name: '环绕 · 径向朝前', yaw: 0.30, pitch: 0.42, dist: 14.2, orbit: true }
+  ];
+
+  const cam = {
+    yaw: 0.30, pitch: 0.40, dist: 15.5,
+    cy: 0.30, cp: 0.40, cd: 15.5,
+    target: { x: 0, y: 2.1, z: 8 },
+    eye: { x: 0, y: 0, z: 0 },
+    fwd: { x: 0, y: 0, z: -1 },
+    right: { x: 1, y: 0, z: 0 },
+    up: { x: 0, y: 1, z: 0 },
+    f: 800, shakeX: 0, shakeY: 0, shakeAmp: 0, preset: 0,
+    orbit: false
+  };
+
+  // 极坐标模式（径向朝前）：玩家以场地中心为原点做 (r, θ) 运动，相机永远沿径向朝内
+  // pitch / dist 单独存一份：这个模式下相机姿态不跟 cam.pitch 走，只由鼠标俯仰与滚轮缩放改
+  const polar = { on: false, pitch: 0.40, dist: 13.6 };
+
+  // 环绕视角：绕场地中心的自由旋转（Q/E 或拖动）
+  let camOrbitVel = 0;
+  function enterOrbit(silent) {
+    if (!cam.orbit) {
+      cam.orbit = true;
+      cam.preset = 3;
+      cam.pitch = CAM_PRESETS[3].pitch;
+      cam.dist = CAM_PRESETS[3].dist;
+    }
+    if (!silent) {
+      el.camName.textContent = CAM_PRESETS[3].name;
+      toast('环绕视角 · Q/E 或横向拖动旋转', 1200, COLORS.player);
+    }
+  }
+
+  function updateCamera(dt) {
+    if (polar.on) {
+      // 相机站在玩家所在的半径上、更靠外一点，镜头沿径向朝场地中心看
+      const outx = Math.cos(player.pa), outz = Math.sin(player.pa);
+      cam.yaw = Math.atan2(outx, outz);
+      cam.cy = cam.yaw;          // 不留插值，旋转必须刚性跟手
+      cam.pitch = polar.pitch;
+      cam.dist = polar.dist;
+    } else if (cam.orbit) {
+      let rot = 0;
+      if (keys['q']) rot -= 1;
+      if (keys['e']) rot += 1;
+      cam.yaw += (rot * 1.9 + camOrbitVel) * dt;
+      camOrbitVel *= Math.pow(0.02, dt);
+    }
+    const k = 1 - Math.pow(0.0015, dt);
+    cam.cy = lerp(cam.cy, cam.yaw, k);
+    cam.cp = lerp(cam.cp, cam.pitch, k);
+    cam.cd = lerp(cam.cd, cam.dist, 1 - Math.pow(0.02, dt));
+
+    const t = cam.target;
+    const cp = Math.cos(cam.cp), sp = Math.sin(cam.cp);
+    cam.eye.x = t.x + Math.sin(cam.cy) * cp * cam.cd;
+    cam.eye.y = t.y + sp * cam.cd;
+    cam.eye.z = t.z + Math.cos(cam.cy) * cp * cam.cd;
+
+    let fx = t.x - cam.eye.x, fy = t.y - cam.eye.y, fz = t.z - cam.eye.z;
+    const fl = Math.hypot(fx, fy, fz) || 1;
+    fx /= fl; fy /= fl; fz /= fl;
+
+    // right = normalize(fwd × worldUp)
+    let rx = -fz, ry = 0, rz = fx;
+    const rl = Math.hypot(rx, ry, rz) || 1;
+    rx /= rl; ry /= rl; rz /= rl;
+
+    // up = right × fwd
+    let ux = ry * fz - rz * fy;
+    let uy = rz * fx - rx * fz;
+    let uz = rx * fy - ry * fx;
+    const ul = Math.hypot(ux, uy, uz) || 1;
+    ux /= ul; uy /= ul; uz /= ul;
+
+    cam.fwd.x = fx; cam.fwd.y = fy; cam.fwd.z = fz;
+    cam.right.x = rx; cam.right.y = ry; cam.right.z = rz;
+    cam.up.x = ux; cam.up.y = uy; cam.up.z = uz;
+
+    const fov = 55 * Math.PI / 180;
+    cam.f = (H * 0.5) / Math.tan(fov * 0.5);
+  }
+
+  function project(x, y, z) {
+    const dx = x - cam.eye.x, dy = y - cam.eye.y, dz = z - cam.eye.z;
+    const zv = dx * cam.fwd.x + dy * cam.fwd.y + dz * cam.fwd.z;
+    if (zv < 0.2) return null;
+    const xv = dx * cam.right.x + dy * cam.right.y + dz * cam.right.z;
+    const yv = dx * cam.up.x + dy * cam.up.y + dz * cam.up.z;
+    const s = cam.f / zv;
+    return {
+      x: W * 0.5 + xv * s + cam.shakeX,
+      y: H * 0.5 - yv * s + cam.shakeY,
+      z: zv,
+      s: s
+    };
+  }
+
+  /* ================= 贴图缓存 ================= */
+  const glowCache = Object.create(null);
+
+  function glowSprite(rgb) {
+    if (glowCache[rgb]) return glowCache[rgb];
+    const S = 128;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    grd.addColorStop(0, 'rgba(255,255,255,0.95)');
+    grd.addColorStop(0.16, 'rgba(' + rgb + ',0.95)');
+    grd.addColorStop(0.40, 'rgba(' + rgb + ',0.32)');
+    grd.addColorStop(1, 'rgba(' + rgb + ',0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, S, S);
+    glowCache[rgb] = c;
+    return c;
+  }
+
+  let _shadowSprite = null;
+
+  function shadowSprite() {
+    if (_shadowSprite) return _shadowSprite;
+    const w = 128, h = 64;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(0, 0, 0, 0, 0, 64);
+    grd.addColorStop(0, 'rgba(0,0,0,0.8)');
+    grd.addColorStop(0.55, 'rgba(0,0,0,0.34)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.save();
+    g.translate(w / 2, h / 2);
+    g.scale(1, 0.5);
+    g.fillStyle = grd;
+    g.beginPath();
+    g.arc(0, 0, 64, 0, TAU);
+    g.fill();
+    g.restore();
+    _shadowSprite = c;
+    return c;
+  }
+
+  /* ================= 常量 / 配色 ================= */
+  const ARENA_R = 18;
+
+  const COLORS = {
+    low: '255,64,104',
+    mid: '255,176,64',
+    high: '163,124,255',
+    rain: '74,224,255',
+    player: '150,255,210',
+    boss: '255,86,160',
+    pshot: '190,240,255'
+  };
+
+  /* ---- 高度 → 颜色（连续） ------------------------------------------
+     0m 红 → 12m 紫，中间走彩虹。颜色只由「弹幕此刻的高度」决定，
+     所以一颗弹从高空落下来，会自己从紫变蓝变青变黄变红 —— 你看到的
+     永远是它现在在几层，而不是它出生时的标签。
+     采样点前密后疏：0~3m 是主要交战高度，这一段必须分得清。 */
+  const H_MAX = 12;          // 高度上限（落点雨从 10.5m 落下，留一点余量）
+  const H_STEPS = 120;       // 0.1m 一档，共 121 个缓存
+  const H_STOPS = [
+    [0.0, 255, 52, 92],      // 红  —— 贴地，必须跳
+    [0.9, 255, 128, 56],     // 橙
+    [1.8, 255, 214, 74],     // 黄
+    [3.0, 138, 255, 126],    // 绿
+    [4.6, 58, 226, 255],     // 青
+    [7.6, 86, 140, 255],     // 蓝
+    [12.0, 196, 108, 255]    // 紫  —— 上限，别跳，从下面穿
+  ];
+  const hRGB = new Array(H_STEPS + 1);
+
+  function heightRGB(y) {
+    const i = Math.round(clamp(y, 0, H_MAX) / H_MAX * H_STEPS);
+    const c = hRGB[i];
+    if (c) return c;
+    const h = i / H_STEPS * H_MAX;
+    let a = H_STOPS[0], b = H_STOPS[H_STOPS.length - 1];
+    for (let k = 0; k < H_STOPS.length - 1; k++) {
+      if (h >= H_STOPS[k][0] && h <= H_STOPS[k + 1][0]) { a = H_STOPS[k]; b = H_STOPS[k + 1]; break; }
+    }
+    const f = b[0] === a[0] ? 0 : (h - a[0]) / (b[0] - a[0]);
+    const s = Math.round(a[1] + (b[1] - a[1]) * f) + ',' +
+              Math.round(a[2] + (b[2] - a[2]) * f) + ',' +
+              Math.round(a[3] + (b[3] - a[3]) * f);
+    hRGB[i] = s;
+    return s;
+  }
+
+  // 诊断文案仍然按「段」说话，段界与 CLASS_INFO 的措辞对齐，颜色和说法不会打架
+  function clsName(y) {
+    if (y < 0.85) return 'low';
+    if (y < 2.4) return 'mid';
+    return 'high';
+  }
+
+  const CLASS_INFO = {
+    low: { name: '低空弹', tip: '贴地 0.5m —— 起跳可以躲过' },
+    mid: { name: '中空弹', tip: '中段高度 —— 侧向走位，别站在原地' },
+    high: { name: '高空弹', tip: '2.4m 以上 —— 不要起跳，从下方穿过' },
+    rain: { name: '落点雨', tip: '垂直下落 —— 离开地面标记圈' }
+  };
+
+  /* ================= 游戏状态 ================= */
+  let state = 'menu'; // menu | playing | paused | over
+  let player, boss, bullets, pshots, rings, particles, timers, logs, stats;
+  let lasers, walls;
+  let elapsed = 0, timeLeft = 120, slowT = 0, dmgFlash = 0;
+
+  const opts = { shadows: true, guides: true, hitbox: false, trailMode: 1, mini: true };
+
+  /* ================= 状态重置 ================= */
+  function reset() {
+    player = {
+      x: 0, y: 0, z: 8, vx: 0, vz: 0, vy: 0,
+      jumps: 2, hp: 100, maxHp: 100, inv: 0, fireCd: 0, hitFlash: 0,
+      pr: 8, pa: Math.PI * 0.5, pvr: 0, pw: 0,
+      dashT: 0, dashCd: 0, dashDX: 0, dashDZ: -1
+    };
+    boss = {
+      x: 0, y: 5.5, z: -6, hp: 900, maxHp: 900,
+      phase: 1, ang: -1.2, flash: 0, cd: 1.8, last: '', alive: true,
+      spin: 0, enraged: false, sats: [0, 2.15, 4.3]
+    };
+    bullets = [];
+    pshots = [];
+    rings = [];
+    lasers = [];
+    walls = [];
+    particles = [];
+    timers = [];
+    logs = [];
+    ghosts.length = 0;
+    stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0 };
+    elapsed = 0;
+    timeLeft = 120;
+    slowT = 0;
+    dmgFlash = 0;
+    cam.target.x = 0;
+    cam.target.y = 2.1;
+    cam.target.z = 8;
+    updateHud();
+    renderDiag();
+  }
+
+  /* ================= 输入 ================= */
+  const keys = Object.create(null);
+  let jumpQueued = false;
+  let mouseDown = false;
+
+  /* ---- 冲刺 ----
+     朝摇杆方向（没推摇杆就朝镜头前方）瞬移一段距离，0.18s 走完 4.7m。
+     冲刺期间不无敌 —— 你只是变快，不是变透明。 */
+  const DASH = { speed: 26, time: 0.18, cd: 1.15 };
+  let dashQueued = false;
+  let ghostT = 0;
+  const ghosts = [];
+
+  // 用物理键位映射：中文输入法打开时 e.key 会变成 Process，e.code 仍然是 KeyW
+  const KEYMAP = {
+    KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd',
+    KeyJ: 'j', KeyQ: 'q', KeyE: 'e', KeyC: 'c',
+    KeyV: 'v', KeyT: 't', KeyM: 'm', KeyP: 'p', KeyR: 'r',
+    KeyG: 'g', KeyH: 'h', KeyK: 'k', Space: ' ',
+    ShiftLeft: 'shift', ShiftRight: 'shift',
+    ArrowUp: 'arrowup', ArrowDown: 'arrowdown',
+    ArrowLeft: 'arrowleft', ArrowRight: 'arrowright',
+    Escape: 'escape', Enter: 'enter'
+  };
+
+  function keyOf(e) {
+    return KEYMAP[e.code] || (e.key ? e.key.toLowerCase() : '');
+  }
+
+  window.addEventListener('keydown', function (e) {
+    const k = keyOf(e);
+    // 注意：不要拦 Escape —— 浏览器要用它退出鼠标锁定（指针锁定）
+    if (k === ' ' || k === 'r' || k.indexOf('arrow') === 0) e.preventDefault();
+    const first = !keys[k];
+    keys[k] = true;
+    if (!first) return;
+
+    if (k === ' ') jumpQueued = true;
+    if (k === 'shift') dashQueued = true;
+    if (k === 'c') cycleCam();
+    if (k === 'q' || k === 'e') enterOrbit(false);
+    if (k === 't') cycleTrail();
+    if (k === 'm') toggleMini();
+    if (k === 'v') togglePolar();
+    if (k === 'g') { opts.shadows = !opts.shadows; toast(opts.shadows ? '地面影子：开' : '地面影子：关', 900, COLORS.player); }
+    if (k === 'h') { opts.guides = !opts.guides; toast(opts.guides ? '高度引导线：开' : '高度引导线：关', 900, COLORS.player); }
+    if (k === 'k') { opts.hitbox = !opts.hitbox; toast(opts.hitbox ? '判定框：显示' : '判定框：隐藏', 900, COLORS.player); }
+    if (k === 'p' && (state === 'playing' || state === 'paused')) togglePause();
+    if (k === 'r' && state !== 'menu') startGame();
+    if (k === 'enter' && state === 'menu') startGame();
+  });
+
+  window.addEventListener('keyup', function (e) {
+    keys[keyOf(e)] = false;
+  });
+
+  window.addEventListener('mousedown', function (e) {
+    if (e.target === canvas) mouseDown = true;
+  });
+  window.addEventListener('mouseup', function () { mouseDown = false; });
+  window.addEventListener('blur', function () {
+    drag.id = null;
+    drag.mode = '';
+    mouseDown = false;
+    for (const k in keys) keys[k] = false;
+  });
+  canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  /* ================= 触摸控制（横屏手机） ================= */
+  var stickEl = document.getElementById('stick');
+  var knobEl = document.getElementById('stickKnob');
+  var jumpEl = document.getElementById('btnJump');
+  const touch = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0, rotId: null, rotX: 0 };
+
+  function stickHome() {
+    if (!stickEl) return;
+    stickEl.style.left = '26px';
+    stickEl.style.top = (window.innerHeight - 30 - 130) + 'px';
+    stickEl.style.opacity = '0.55';
+    if (knobEl) knobEl.style.transform = '';
+  }
+
+  // 视角拖动：手机右半屏搓动 / 桌面按住右键拖动（未锁定鼠标时的兜底）
+  const drag = { id: null, x: 0, y: 0, mode: '' };
+
+  /* ---- PC 鼠标视角：指针锁定后，鼠标位移直接驱动视角，没有拖拽、没有阈值 ---- */
+  const look = {
+    locked: false,
+    ok: !isTouch && !!canvas.requestPointerLock,
+    warm: 0,             // 锁定后要丢弃的补发事件条数
+    yawSens: 0.0030,     // 弧度 / 像素 ≈ 0.17°/px
+    pitchSens: 0.0030
+  };
+
+  function reqLock() {
+    if (!look.ok || document.pointerLockElement === canvas) return;
+    try {
+      const pr = canvas.requestPointerLock({ unadjustedMovement: true });
+      if (pr && pr.catch) {
+        pr.catch(function () {
+          try { canvas.requestPointerLock(); } catch (e) {}
+        });
+      }
+    } catch (err) {
+      try { canvas.requestPointerLock(); } catch (e2) {}
+    }
+  }
+
+  function lookHintOn() {
+    const on = look.ok && !look.locked && (state === 'playing' || state === 'paused');
+    if (el.lookHint) el.lookHint.classList.toggle('on', on);
+  }
+
+  document.addEventListener('pointerlockchange', function () {
+    const was = look.locked;
+    look.locked = document.pointerLockElement === canvas;
+    document.body.classList.toggle('locked', look.locked);
+    if (look.locked) {
+      drag.id = null; drag.mode = '';
+      look.warm = 1;
+      el.camName.textContent = '自由视角 · 鼠标锁定';
+    } else if (was && state === 'playing') {
+      // 锁定被解除（多半是按了 ESC）：停下火力并暂停，别让玩家在丢失视角时继续挨打
+      mouseDown = false;
+      togglePause();
+    }
+    lookHintOn();
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (!look.locked) return;
+    // 刚锁定时浏览器可能补一个“指针归位”的巨幅位移，丢掉第一条
+    if (look.warm > 0) { look.warm--; return; }
+    let mx = e.movementX || 0, my = e.movementY || 0;
+    if (!mx && !my) return;
+    // 单帧位移限幅：防止个别设备/系统加速产生的异常跳变把镜头甩飞
+    mx = Math.max(-160, Math.min(160, mx));
+    my = Math.max(-160, Math.min(160, my));
+    if (polar.on) {
+      // 极坐标模式相机刚性朝中心，横向转视角没有意义，横向位移一律忽略（更不能拿它推角色）
+      polar.pitch = Math.max(0.12, Math.min(0.98, polar.pitch + my * look.pitchSens));
+    } else {
+      cam.yaw -= mx * look.yawSens;                       // 鼠标右移 → 视角右转
+      cam.pitch = Math.max(0.06, Math.min(1.28, cam.pitch + my * look.pitchSens));
+      cam.cy = cam.yaw;                                   // 零延迟：不给插值
+      cam.cp = cam.pitch;
+      cam.preset = -1;
+    }
+  });
+
+  // 滚轮拉近拉远（第三人称习惯）
+  canvas.addEventListener('wheel', function (e) {
+    if (isTouch) return;
+    e.preventDefault();
+    const d = e.deltaY > 0 ? 1 : -1;
+    if (polar.on) polar.dist = Math.max(9, Math.min(22, polar.dist + d * 0.9));
+    else cam.dist = Math.max(8, Math.min(26, cam.dist + d * 0.9));
+  }, { passive: false });
+
+  // 点画面：锁定鼠标；暂停中点画面 = 继续
+  canvas.addEventListener('click', function () {
+    if (!look.ok) return;
+    if (state === 'paused') togglePause();
+    if (state === 'playing') reqLock();
+  });
+
+  window.addEventListener('pointerdown', function (e) {
+    if (state !== 'playing') return;
+    const onBtn = e.target && e.target.closest && e.target.closest('button');
+    if (onBtn) return;
+
+    if (e.pointerType === 'mouse') {
+      if (look.locked) return;
+      if (e.button === 2) { drag.id = e.pointerId; drag.x = e.clientX; drag.y = e.clientY; drag.mode = 'rot'; }
+      return;
+    }
+
+    // 触屏右半屏 = 转视角；极坐标下朝向锁死中心，只留俯仰可用
+    if (e.clientX > window.innerWidth * 0.54) {
+      drag.id = e.pointerId;
+      drag.x = e.clientX;
+      drag.y = e.clientY;
+      drag.mode = 'rot';
+      touch.rotId = e.pointerId;
+      return;
+    }
+
+    touch.active = true;
+    touch.id = e.pointerId;
+    touch.ox = e.clientX;
+    touch.oy = e.clientY;
+    touch.dx = 0;
+    touch.dy = 0;
+    stickEl.style.left = (e.clientX - 65) + 'px';
+    stickEl.style.top = (e.clientY - 65) + 'px';
+    stickEl.style.opacity = '0.9';
+    if (knobEl) knobEl.style.transform = '';
+  }, { passive: true });
+
+  window.addEventListener('pointermove', function (e) {
+    if (drag.id !== null && e.pointerId === drag.id) {
+      if (polar.on) {
+        // 极坐标：横向转视角没有意义（相机刚性朝中心），纵向留给俯仰
+        polar.pitch = Math.max(0.10, Math.min(1.02, polar.pitch + (e.clientY - drag.y) * 0.005));
+        drag.x = e.clientX;
+        drag.y = e.clientY;
+        return;
+      }
+      // 向右搓 → 视角右转（镜头绕玩家逆时针走），与主流第三人称一致
+      cam.yaw -= (e.clientX - drag.x) * 0.0072;
+      cam.pitch = Math.max(0.06, Math.min(1.28, cam.pitch + (e.clientY - drag.y) * 0.005));
+      cam.cy = cam.yaw;           // 立即生效，不要插值拖拽
+      cam.cp = cam.pitch;
+      cam.preset = -1;
+      drag.x = e.clientX;
+      drag.y = e.clientY;
+      return;
+    }
+    if (!touch.active || e.pointerId !== touch.id) return;
+    let dx = e.clientX - touch.ox;
+    let dy = e.clientY - touch.oy;
+    const m = Math.hypot(dx, dy), R = 56;
+    if (m > R) { dx = dx / m * R; dy = dy / m * R; }
+    touch.dx = dx;
+    touch.dy = dy;
+    if (knobEl) knobEl.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+  }, { passive: true });
+
+  function releaseStick(e) {
+    if (drag.id !== null && (!e || e.pointerId === drag.id)) {
+      drag.id = null;
+      drag.mode = '';
+    }
+    if (touch.rotId && (!e || e.pointerId === touch.rotId)) touch.rotId = null;
+    if (!touch.active) return;
+    if (e && e.pointerId !== touch.id) return;
+    touch.active = false;
+    touch.dx = 0;
+    touch.dy = 0;
+    stickHome();
+  }
+  window.addEventListener('pointerup', releaseStick);
+  window.addEventListener('pointercancel', releaseStick);
+
+  const camBtn = document.getElementById('btnCam');
+  if (camBtn) {
+    camBtn.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      cycleCam();
+    });
+  }
+
+  if (jumpEl) {
+    jumpEl.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      if (state === 'playing') jumpQueued = true;
+      jumpEl.classList.add('down');
+    });
+    jumpEl.addEventListener('pointerup', function () { jumpEl.classList.remove('down'); });
+    jumpEl.addEventListener('pointercancel', function () { jumpEl.classList.remove('down'); });
+    jumpEl.addEventListener("pointerleave", function () { jumpEl.classList.remove('down'); });
+  }
+
+  const dashEl = document.getElementById('btnDash');
+  if (dashEl) {
+    dashEl.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      if (state === 'playing') dashQueued = true;
+      dashEl.classList.add('down');
+    });
+    dashEl.addEventListener('pointerup', function () { dashEl.classList.remove('down'); });
+    dashEl.addEventListener('pointercancel', function () { dashEl.classList.remove('down'); });
+    dashEl.addEventListener('pointerleave', function () { dashEl.classList.remove('down'); });
+  }
+
+  // 返回的是“屏幕意图”：f = 向上推（前），r = 向右推，len = 推杆幅度
+  function inputDir() {
+    if (touch.active) {
+      const jl = Math.hypot(touch.dx, touch.dy);
+      if (jl / 56 > 0.14) {
+        const nx = touch.dx / jl, ny = touch.dy / jl;
+        return { f: -ny, r: nx, len: Math.min(1, jl / 56) };
+      }
+      return { f: 0, r: 0, len: 0 };
+    }
+
+    let f = 0, r = 0;
+    if (keys['w'] || keys['arrowup']) f += 1;
+    if (keys['s'] || keys['arrowdown']) f -= 1;
+    if (keys['d'] || keys['arrowright']) r += 1;
+    if (keys['a'] || keys['arrowleft']) r -= 1;
+
+    const l = Math.hypot(f, r);
+    if (l > 0.001) return { f: f / l, r: r / l, len: 1 };
+    return { f: 0, r: 0, len: 0 };
+  }
+
+  /* ================= 粒子 / 特效 ================= */
+  function spawnSpark(x, y, z, rgb, power) {
+    const a = Math.random() * TAU;
+    const b = Math.random() * Math.PI - Math.PI / 2;
+    const sp = rand(1.5, 5) * (power || 1);
+    particles.push({
+      x: x, y: y, z: z,
+      vx: Math.cos(a) * Math.cos(b) * sp,
+      vy: Math.sin(b) * sp + 1.5,
+      vz: Math.sin(a) * Math.cos(b) * sp,
+      life: rand(0.25, 0.7), max: 0.7,
+      rgb: rgb, size: rand(0.05, 0.16) * (power || 1)
+    });
+  }
+
+  /* ================= 子弹 ================= */
+  function addBullet(x, y, z, vx, vy, vz, r, cls, kind) {
+    bullets.push({
+      x: x, y: y, z: z,
+      px: x, py: y, pz: z,
+      vx: vx, vy: vy, vz: vz,
+      r: r, cls: cls, kind: kind,
+      rgb: heightRGB(y),
+      homing: kind === 'orbit' ? 1 : 0,
+      life: kind === 'orbit' ? 7 : 8,
+      trail: null, tk: 0
+    });
+  }
+
+  function clsByHeight(h) { return h < 1.05 ? 'low' : h < 2.05 ? 'mid' : 'high'; }
+
+  // 地雷爆炸：一圈低空弹（可以起跳躲）
+  function explodeMine(b) {
+    const n = 14;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU + Math.random() * 0.28;
+      addBullet(b.x, 0.55, b.z, Math.cos(a) * 7.6, 0, Math.sin(a) * 7.6, 0.20, 'low', 'mineBurst');
+    }
+    for (let k = 0; k < 14; k++) spawnSpark(b.x, 0.5, b.z, COLORS.low, 1.2);
+    cam.shakeAmp = Math.max(cam.shakeAmp, 3);
+  }
+
+  // boss 周围的卫星炮：弹幕的第二个发射源
+  function satPos(i) {
+    const a = boss.spin * 1.55 + boss.sats[i];
+    return {
+      x: boss.x + Math.cos(a) * 2.75,
+      y: boss.y + Math.sin(boss.spin * 2.2 + i * 2.1) * 0.85,
+      z: boss.z + Math.sin(a) * 2.75
+    };
+  }
+
+  function aimVel(from, tx, ty, tz, speed) {
+    let dx = tx - from.x, dy = ty - from.y, dz = tz - from.z;
+    const l = Math.hypot(dx, dy, dz) || 1;
+    return { x: dx / l * speed, y: dy / l * speed, z: dz / l * speed };
+  }
+
+  function fanShot(targetY, count, speed, r, cls, gap) {
+    const px = player.x, pz = player.z;
+    let dx = px - boss.x, dz = pz - boss.z;
+    const l = Math.hypot(dx, dz) || 1;
+    dx /= l; dz /= l;
+    const perpX = -dz, perpZ = dx;
+    const step = gap || 1.6;
+
+    for (let i = 0; i < count; i++) {
+      const off = (i - (count - 1) / 2) * step;
+      const tx = px + perpX * off;
+      const tz = pz + perpZ * off;
+      let vx = tx - boss.x, vy = targetY - boss.y, vz = tz - boss.z;
+      const vl = Math.hypot(vx, vy, vz) || 1;
+      addBullet(boss.x, boss.y, boss.z, vx / vl * speed, vy / vl * speed, vz / vl * speed, r, cls, 'sweep');
+    }
+  }
+
+  function spreadShot() {
+    for (let i = 0; i < 9; i++) {
+      const ty = 0.7 + (i / 8) * 2.6;
+      const tx = player.x + rand(-1.2, 1.2);
+      const tz = player.z + rand(-1.2, 1.2);
+      let vx = tx - boss.x, vy = ty - boss.y, vz = tz - boss.z;
+      const l = Math.hypot(vx, vy, vz) || 1;
+      const sp = rand(6.2, 7.4);
+      const cls = ty < 1.05 ? 'low' : ty < 2.05 ? 'mid' : 'high';
+      addBullet(boss.x, boss.y, boss.z, vx / l * sp, vy / l * sp, vz / l * sp, 0.22, cls, 'spread');
+    }
+  }
+
+  function rainShot() {
+    const n = boss.phase >= 3 ? 7 : 5;
+    for (let i = 0; i < n; i++) {
+      let x, z, delay;
+      if (i === 0) {
+        x = player.x + rand(-0.5, 0.5);
+        z = player.z + rand(-0.5, 0.5);
+        delay = 0.95;
+      } else {
+        const a = Math.random() * TAU;
+        const rr = rand(2.0, 5.0);
+        x = player.x + Math.cos(a) * rr;
+        z = player.z + Math.sin(a) * rr;
+        delay = 1.0 + i * 0.08;
+      }
+      const dx = x - boss.x, dz = z - boss.z;
+      if (Math.hypot(dx, dz) > ARENA_R - 1.5) continue;
+
+      rings.push({ x: x, z: z, r: 1.15, t: delay, dur: delay });
+      later(delay, (function (xx, zz) {
+        return function () {
+          addBullet(xx, 10.5, zz, 0, -15.5, 0, 0.34, 'rain', 'rain');
+          for (let k = 0; k < 4; k++) spawnSpark(xx, 10.5, zz, COLORS.rain, 0.7);
+        };
+      })(x, z));
+    }
+  }
+
+  function orbitShot() {
+    const n = 14;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU + boss.spin;
+      const ox = boss.x + Math.cos(a) * 1.9;
+      const oz = boss.z + Math.sin(a) * 1.9;
+      const oy = boss.y + rand(-0.7, 0.7);
+      addBullet(ox, oy, oz, Math.cos(a) * 1.4, 0, Math.sin(a) * 1.4, 0.20, 'mid', 'orbit');
+    }
+  }
+
+  /* ---- 环形扩散：从中心向四周水平推开，分高度层 ---- */
+  function ringShot(src, h, count, speed, r) {
+    const cls = clsByHeight(h);
+    const rot = Math.random() * TAU;
+    for (let i = 0; i < count; i++) {
+      const a = rot + (i / count) * TAU;
+      addBullet(src.x, h, src.z,
+        Math.cos(a) * speed, 0, Math.sin(a) * speed,
+        r || 0.22, cls, 'ring');
+    }
+  }
+
+  /* ---- 螺旋：连续发射 + 高度正弦变化，形成 3D 螺旋 ---- */
+  function spiralShot() {
+    const N = 26;
+    for (let i = 0; i < N; i++) {
+      later(i * 0.072, (function (idx) {
+        return function () {
+          if (!boss.alive) return;
+          const a = boss.spin * 2.4 + idx * 0.46;
+          const h = 0.75 + (Math.sin(idx * 0.42) * 0.5 + 0.5) * 2.1;
+          const sp = 10.2;
+          addBullet(boss.x, h, boss.z, Math.cos(a) * sp, 0, Math.sin(a) * sp,
+            0.20, clsByHeight(h), 'spiral');
+        };
+      })(i));
+    }
+  }
+
+  /* ---- 墙缝：一整面立体弹墙推进，只留一个缺口 ---- */
+  function wallShot() {
+    const dirA = Math.random() * TAU;
+    const nx = Math.cos(dirA), nz = Math.sin(dirA);   // 推进方向（朝场地中心）
+    const tx = -nz, tz = nx;                          // 墙面切线
+    const D = ARENA_R - 0.4;
+    const halfW = 8.5;
+
+    // 缺口放在玩家切线位置附近（保证可达但需要移动）
+    const pu = player.x * tx + player.z * tz;
+    const gapPos = clamp(pu + rand(-2.6, 2.6), -halfW + 1.6, halfW - 1.6);
+    const gapW = 1.35;
+
+    walls.push({
+      nx: nx, nz: nz, tx: tx, tz: tz, D: D, halfW: halfW,
+      gapPos: gapPos, gapW: gapW, t: 1.15, dur: 1.15
+    });
+    boss.flash = 0.5;
+
+    later(1.15, function () {
+      if (!boss.alive) return;
+      const rows = 4;
+      const sp = 7.2;
+      const step = 0.66;
+      for (let u = -halfW; u <= halfW; u += step) {
+        if (Math.abs(u - gapPos) < gapW) continue;    // 缺口
+        for (let k = 0; k < rows; k++) {
+          const h = 0.42 + k * 0.82;
+          const px = nx * D + tx * u;
+          const pz = nz * D + tz * u;
+          addBullet(px, h, pz, -nx * sp, 0, -nz * sp,
+            0.21, clsByHeight(h), 'wall');
+        }
+      }
+      // 缺口地面标记，帮玩家确认“洞在这里”
+      const gx = nx * (D - 3) + tx * gapPos;
+      const gz = nz * (D - 3) + tz * gapPos;
+      rings.push({ x: gx, z: gz, r: gapW + 0.5, t: 0.55, dur: 0.55, cls: 'gap' });
+    });
+  }
+
+  /* ---- 旋转激光：低扫（要跳）/ 高扫（别跳），从场地边缘横过 ---- */
+  function laserSweep() {
+    const base = Math.random() * TAU;
+    lasers.push({ x: 0, z: 0, ang: base, y: 0.55, spin: 0.72, warm: 1.1, life: 3.2, r: 0.32, cls: 'low' });
+    lasers.push({ x: 0, z: 0, ang: base + Math.PI * 0.42, y: 2.72, spin: -0.52, warm: 1.6, life: 2.9, r: 0.32, cls: 'high' });
+    boss.flash = 0.55;
+  }
+
+  /* ---- 卫星齐射：从三个卫星各打一组瞄准弹 ---- */
+  function satBurst() {
+    const n = boss.phase >= 3 ? 3 : 2;
+    for (let s = 0; s < boss.sats.length; s++) {
+      const src = satPos(s);
+      for (let i = 0; i < n; i++) {
+        const h = 0.62 + i * 0.95;
+        const v = aimVel(src, player.x, h, player.z, 12.5);
+        addBullet(src.x, src.y, src.z, v.x, v.y, v.z, 0.20, clsByHeight(h), 'sat');
+      }
+      for (let k = 0; k < 3; k++) spawnSpark(src.x, src.y, src.z, COLORS.mid, 0.4);
+    }
+  }
+
+  /* ---- 阶梯：一串高度逐级抬升的连发，像一段楼梯从你身上刷过去 ---- */
+  function stairShot() {
+    const N = boss.phase >= 3 ? 9 : 7;
+    const px = player.x, pz = player.z;   // 锁定施法瞬间的位置：站着不动必被扫中
+    for (let i = 0; i < N; i++) {
+      later(i * 0.155, (function (idx) {
+        return function () {
+          if (!boss.alive) return;
+          const h = 0.45 + idx * (2.55 / (N - 1));   // 0.45 → 3.0 逐级抬升
+          const v = aimVel(boss, px, h, pz, 11.8);
+          addBullet(boss.x, boss.y, boss.z, v.x, v.y, v.z, 0.21, clsByHeight(h), 'stair');
+        };
+      })(i));
+    }
+  }
+
+  /* ---- 俯冲：高空悬停 + 地面落点圈，读秒结束后垂直砸下来 ---- */
+  function diveShot() {
+    const n = boss.phase >= 3 ? 4 : 3;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU;
+      const rr = i === 0 ? rand(0.3, 1.2) : rand(2.4, 5.2);
+      let tx = player.x + Math.cos(a) * rr;
+      let tz = player.z + Math.sin(a) * rr;
+      const d = Math.hypot(tx, tz);
+      if (d > ARENA_R - 1.4) { tx *= (ARENA_R - 1.5) / d; tz *= (ARENA_R - 1.5) / d; }
+
+      const fuse = 0.85 + i * 0.13;
+      addBullet(tx, 8.8, tz, 0, 0, 0, 0.30, 'rain', 'dive');
+      const b = bullets[bullets.length - 1];
+      b.fuse = fuse;
+      rings.push({ x: tx, z: tz, r: 1.05, t: fuse, dur: fuse, cls: 'dive' });
+    }
+  }
+
+  /* ---- 布雷：斜着砸到地面的延时雷，读秒结束后向四周炸开一圈低空弹 ---- */
+  function mineShot() {
+    const n = boss.phase >= 3 ? 5 : 4;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU + rand(-0.35, 0.35);
+      const rr = rand(2.4, 6.6);
+      let tx = player.x + Math.cos(a) * rr;
+      let tz = player.z + Math.sin(a) * rr;
+      const d = Math.hypot(tx, tz);
+      if (d > ARENA_R - 1.5) { tx *= (ARENA_R - 1.6) / d; tz *= (ARENA_R - 1.6) / d; }
+      addBullet(tx, 6.2, tz, 0, -17, 0, 0.26, 'rain', 'mine');
+      bullets[bullets.length - 1].noHit = 1;        // 雷本身不碰人，靠爆炸清场
+    }
+  }
+
+  /* ---- 地涌：地面先亮标记，再从地底垂直升起一道光柱（必须横移，跳没用） ---- */
+  function riseShot() {
+    const n = boss.phase >= 3 ? 5 : 4;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU + Math.random() * 0.5;
+      const rr = rand(1.5, 4.8);
+      let x = player.x + Math.cos(a) * rr;
+      let z = player.z + Math.sin(a) * rr;
+      const d = Math.hypot(x, z);
+      if (d > ARENA_R - 1.3) { x *= (ARENA_R - 1.4) / d; z *= (ARENA_R - 1.4) / d; }
+      rings.push({ x: x, z: z, r: 0.8, t: 0.72, dur: 0.72, cls: 'rise' });
+      later(0.72, (function (xx, zz) {
+        return function () {
+          addBullet(xx, 0.2, zz, 0, 13.5, 0, 0.30, 'mid', 'rise');
+          for (let k = 0; k < 4; k++) spawnSpark(xx, 0.25, zz, COLORS.mid, 0.6);
+        };
+      })(x, z));
+    }
+  }
+
+  /* ---- 双螺旋帘：两股反向螺旋交错，缝隙在转，得跟着缝走 ---- */
+  function counterSpiral() {
+    const N = boss.phase >= 3 ? 30 : 22;
+    for (let i = 0; i < N; i++) {
+      later(i * 0.058, (function (idx) {
+        return function () {
+          if (!boss.alive) return;
+          const a1 = boss.spin * 2.8 + idx * 0.56;
+          const a2 = -boss.spin * 2.8 - idx * 0.56 + Math.PI * 0.5;
+          const h1 = 0.7 + (Math.sin(idx * 0.36) * 0.5 + 0.5) * 2.2;
+          const h2 = 0.7 + (Math.sin(idx * 0.36 + Math.PI) * 0.5 + 0.5) * 2.2;
+          const sp = 9.6;
+          addBullet(boss.x, h1, boss.z, Math.cos(a1) * sp, 0, Math.sin(a1) * sp,
+            0.19, clsByHeight(h1), 'spiral');
+          addBullet(boss.x, h2, boss.z, Math.cos(a2) * sp, 0, Math.sin(a2) * sp,
+            0.19, clsByHeight(h2), 'spiral');
+        };
+      })(i));
+    }
+  }
+
+  /* ---- 低接高：先低扫（要跳），1 秒后高扫（必须落地）—— 练起跳节奏 ---- */
+  function lowHigh() {
+    boss.flash = 0.45;
+    later(0.45, function () { fanShot(0.55, 6, 13.5, 0.22, 'low', 2.9); });
+    later(0.45 + 1.05, function () {
+      const src = satPos(1);
+      for (let i = 0; i < 6; i++) {
+        const off = (i - 2.5) * 2.4;
+        const px = player.x + off * Math.cos(boss.spin * 0.2);
+        const pz = player.z + off * Math.sin(boss.spin * 0.2);
+        const v = aimVel(src, px, 2.62, pz, 13.2);
+        addBullet(src.x, src.y, src.z, v.x, v.y, v.z, 0.24, 'high', 'sweep');
+      }
+    });
+  }
+
+  /* ================= boss 出招 ================= */
+  const PATTERNS = {
+    1: ['sweepLow', 'spread', 'ring', 'stair', 'rise'],
+    2: ['sweepLow', 'spread', 'sweepHigh', 'rain', 'ring', 'satBurst', 'stair', 'dive', 'rise', 'lowHigh'],
+    3: ['sweepLow', 'sweepHigh', 'spread', 'rain', 'orbit', 'ring', 'spiral', 'wall', 'laser', 'satBurst',
+        'stair', 'dive', 'mine', 'rise', 'counterSpiral', 'lowHigh']
+  };
+
+  function pickPattern() {
+    const pool = PATTERNS[boss.phase] || PATTERNS[1];
+    let p = pool[Math.floor(Math.random() * pool.length)];
+    if (p === boss.last && pool.length > 1) {
+      p = pool[(pool.indexOf(p) + 1) % pool.length];
+    }
+    return p;
+  }
+
+  function runPattern(name) {
+    boss.last = name;
+    switch (name) {
+      case 'sweepLow':
+        boss.flash = 0.55;
+        later(0.55, function () { fanShot(0.55, 7, 14, 0.22, 'low', 2.5); });
+        break;
+      case 'sweepHigh':
+        boss.flash = 0.5;
+        later(0.5, function () { fanShot(2.45, 7, 14.5, 0.25, 'high', 2.5); });
+        break;
+      case 'spread':
+        boss.flash = 0.35;
+        later(0.35, spreadShot);
+        break;
+      case 'rain':
+        boss.flash = 0.4;
+        later(0.3, rainShot);
+        break;
+      case 'orbit':
+        boss.flash = 0.45;
+        later(0.45, orbitShot);
+        break;
+      case 'ring':
+        boss.flash = 0.4;
+        later(0.4, function () { ringShot(boss, 0.55, 20, 9.5, 0.22); });
+        later(0.75, function () { ringShot(boss, 1.6, 20, 8.8, 0.22); });
+        if (boss.phase >= 3) later(1.1, function () { ringShot(boss, 2.55, 20, 8.2, 0.24); });
+        break;
+      case 'spiral':
+        boss.flash = 0.4;
+        later(0.4, spiralShot);
+        break;
+      case 'wall':
+        if (walls.length) break;       // 墙不叠加
+        boss.flash = 0.5;
+        later(0.3, wallShot);
+        break;
+      case 'laser':
+        if (lasers.length) break;      // 激光不叠加，避免满屏红线
+        boss.flash = 0.55;
+        later(0.55, laserSweep);
+        break;
+      case 'satBurst':
+        boss.flash = 0.35;
+        later(0.35, satBurst);
+        later(0.85, satBurst);
+        break;
+      case 'stair':
+        boss.flash = 0.45;
+        later(0.45, stairShot);
+        break;
+      case 'dive':
+        boss.flash = 0.5;
+        later(0.5, diveShot);
+        break;
+      case 'mine':
+        boss.flash = 0.45;
+        later(0.45, mineShot);
+        break;
+      case 'rise':
+        boss.flash = 0.4;
+        later(0.4, riseShot);
+        break;
+      case 'counterSpiral':
+        boss.flash = 0.45;
+        later(0.45, counterSpiral);
+        break;
+      case 'lowHigh':
+        later(0.1, lowHigh);
+        break;
+    }
+  }
+
+  function later(t, fn) {
+    timers.push({ t: t, fn: fn });
+  }
+
+  function updateTimers(dt) {
+    for (let i = timers.length - 1; i >= 0; i--) {
+      timers[i].t -= dt;
+      if (timers[i].t <= 0) {
+        const fn = timers[i].fn;
+        timers.splice(i, 1);
+        fn();
+      }
+    }
+  }
+
+  /* ================= 玩家 ================= */
+  function startDash(inp) {
+    let dx = -Math.sin(cam.cy), dz = -Math.cos(cam.cy);
+    if (inp.len > 0.05) {
+      const cy = cam.cy;
+      const fx = -Math.sin(cy), fz = -Math.cos(cy);
+      const rx = Math.cos(cy), rz = -Math.sin(cy);
+      dx = fx * inp.f + rx * inp.r;
+      dz = fz * inp.f + rz * inp.r;
+    }
+    const l = Math.hypot(dx, dz);
+    if (l < 1e-4) { dx = -Math.sin(cam.cy); dz = -Math.cos(cam.cy); }
+    else { dx /= l; dz /= l; }
+    player.dashDX = dx;
+    player.dashDZ = dz;
+    player.dashT = DASH.time;
+    player.dashCd = DASH.cd;
+    ghostT = 0;
+    for (let i = 0; i < 10; i++) {
+      spawnSpark(player.x, player.y + rand(0.1, 0.9), player.z, COLORS.player, 0.6);
+    }
+    cam.shakeAmp = Math.max(cam.shakeAmp, 1.6);
+  }
+
+  function updateGhosts(dt) {
+    for (let i = ghosts.length - 1; i >= 0; i--) {
+      ghosts[i].life -= dt;
+      if (ghosts[i].life <= 0) ghosts.splice(i, 1);
+    }
+  }
+
+  function updatePlayer(dt) {
+    const inp = inputDir();
+    const ACC = 64, MAX = 8.4, DAMP = 10;
+
+    /* ---- 冲刺 ---- */
+    player.dashCd = Math.max(0, player.dashCd - dt);
+    if (dashQueued) {
+      dashQueued = false;
+      if (player.dashCd <= 0 && player.dashT <= 0) startDash(inp);
+    }
+
+    if (player.dashT > 0) {
+      player.dashT -= dt;
+      player.vx = player.dashDX * DASH.speed;
+      player.vz = player.dashDZ * DASH.speed;
+      player.x += player.vx * dt;
+      player.z += player.vz * dt;
+
+      const dr = Math.hypot(player.x, player.z), dlim = ARENA_R - 1.0;
+      if (dr > dlim) { player.x = player.x / dr * dlim; player.z = player.z / dr * dlim; }
+
+      if (polar.on) {
+        player.pr = clamp(Math.hypot(player.x, player.z), 2.0, ARENA_R - 1.2);
+        player.pa = Math.atan2(player.z, player.x);
+        player.pvr = 0;
+        player.pw = 0;
+      }
+
+      ghostT -= dt;
+      if (ghostT <= 0) {
+        ghostT = 0.02;
+        ghosts.push({ x: player.x, y: player.y, z: player.z, life: 0.30, max: 0.30 });
+      }
+
+      if (player.dashT <= 0) { player.vx *= 0.22; player.vz *= 0.22; }
+    } else if (polar.on) {
+      /* ---- 极坐标：上下 = 径向（上推向内），左右 = 绕中心的角度 ---- */
+      const tVr = -inp.f * MAX * inp.len;
+      // 切向线速度恒定 → 角速度按半径缩放；再封顶，避免贴近中心时画面狂转
+      const WMAX = 1.7;
+      let tW = -inp.r * (MAX / Math.max(player.pr, 3.2)) * inp.len;
+      if (tW > WMAX) tW = WMAX;
+      if (tW < -WMAX) tW = -WMAX;
+      const k = 1 - Math.exp(-11 * dt);
+      player.pvr += (tVr - player.pvr) * k;
+      player.pw += (tW - player.pw) * k;
+
+      player.pr += player.pvr * dt;
+      player.pa += player.pw * dt;
+
+      const rMin = 2.0, rMax = ARENA_R - 1.2;
+      if (player.pr < rMin) { player.pr = rMin; if (player.pvr < 0) player.pvr = 0; }
+      if (player.pr > rMax) { player.pr = rMax; if (player.pvr > 0) player.pvr = 0; }
+
+      const nx = Math.cos(player.pa) * player.pr;
+      const nz = Math.sin(player.pa) * player.pr;
+      player.vx = (nx - player.x) / Math.max(dt, 1e-5);
+      player.vz = (nz - player.z) / Math.max(dt, 1e-5);
+      player.x = nx;
+      player.z = nz;
+    } else {
+      /* ---- 笛卡尔：摇杆方向按镜头朝向投到世界 ---- */
+      const cy = cam.cy;
+      const fx = -Math.sin(cy), fz = -Math.cos(cy);
+      const rx = Math.cos(cy), rz = -Math.sin(cy);
+      let dx = fx * inp.f + rx * inp.r;
+      let dz = fz * inp.f + rz * inp.r;
+      const dl = Math.hypot(dx, dz);
+      if (dl > 0.001) { dx /= dl; dz /= dl; }
+
+      if (inp.len > 0.05 && dl > 0.001) {
+        const ak = 0.5 + 0.5 * Math.min(1, inp.len);
+        player.vx += dx * ACC * ak * dt;
+        player.vz += dz * ACC * ak * dt;
+      } else {
+        const k = Math.exp(-DAMP * dt);
+        player.vx *= k;
+        player.vz *= k;
+      }
+
+      const sp = Math.hypot(player.vx, player.vz);
+      if (sp > MAX) {
+        player.vx = player.vx / sp * MAX;
+        player.vz = player.vz / sp * MAX;
+      }
+
+      player.x += player.vx * dt;
+      player.z += player.vz * dt;
+
+      const rr = Math.hypot(player.x, player.z);
+      const lim = ARENA_R - 1.0;
+      if (rr > lim) {
+        player.x = player.x / rr * lim;
+        player.z = player.z / rr * lim;
+        player.vx *= 0.2;
+        player.vz *= 0.2;
+      }
+    }
+
+    if (jumpQueued) {
+      jumpQueued = false;
+      if (player.jumps > 0) {
+        player.vy = player.jumps === 2 ? 9.4 : 8.6;
+        player.jumps--;
+        for (let i = 0; i < 6; i++) spawnSpark(player.x, player.y + 0.1, player.z, COLORS.player, 0.5);
+      }
+    }
+
+    player.vy -= 27 * dt;
+    player.y += player.vy * dt;
+    if (player.y <= 0) {
+      player.y = 0;
+      player.vy = 0;
+      player.jumps = 2;
+    }
+
+    player.fireCd -= dt;
+    if ((mouseDown || keys['j'] || isTouch) && player.fireCd <= 0 && boss.alive) {
+      player.fireCd = 0.105;
+      fireShot();
+    }
+  }
+
+  function fireShot() {
+    const sx = player.x, sy = player.y + 0.95, sz = player.z;
+    let dx = boss.x - sx, dy = boss.y - sy, dz = boss.z - sz;
+    const l = Math.hypot(dx, dy, dz) || 1;
+    const sp = 46;
+    pshots.push({
+      x: sx, y: sy, z: sz, px: sx, py: sy, pz: sz,
+      vx: dx / l * sp, vy: dy / l * sp, vz: dz / l * sp,
+      r: 0.14, dmg: 2.6, life: 2
+    });
+    for (let i = 0; i < 2; i++) spawnSpark(sx, sy, sz, COLORS.pshot, 0.35);
+  }
+
+  /* ================= boss ================= */
+  function updateBoss(dt) {
+    if (!boss.alive) return;
+    boss.spin += dt * 0.75;
+
+    const rage = boss.enraged ? 1.5 : 1;
+    boss.ang += dt * (0.34 + (boss.phase - 1) * 0.16) * rage;
+
+    const tx = Math.cos(boss.ang) * 6.4;
+    const tz = Math.sin(boss.ang) * 5.0 - 2.5;
+    const f = Math.min(1, dt * 1.5);
+    boss.x = lerp(boss.x, tx, f);
+    boss.z = lerp(boss.z, tz, f);
+    boss.y = 5.4 + Math.sin(elapsed * 1.05) * 0.85 + Math.sin(elapsed * 2.3) * 0.18;
+
+    boss.flash = Math.max(0, boss.flash - dt);
+
+    boss.cd -= dt;
+    if (boss.cd <= 0) {
+      runPattern(pickPattern());
+      const base = 1.85;
+      boss.cd = base * (1 - (boss.phase - 1) * 0.13) / (boss.enraged ? 1.45 : 1) * rand(0.9, 1.15);
+    }
+  }
+
+  function damageBoss(d) {
+    if (!boss.alive) return;
+    boss.hp = Math.max(0, boss.hp - d);
+    boss.flash = Math.max(boss.flash, 0.1);
+
+    const p = boss.hp / boss.maxHp;
+    if (p <= 0.66 && boss.phase === 1) {
+      boss.phase = 2;
+      boss.cd = Math.min(boss.cd, 1.2);
+      toast('BOSS 进入第二阶段', 1500, COLORS.boss);
+    } else if (p <= 0.33 && boss.phase === 2) {
+      boss.phase = 3;
+      boss.cd = Math.min(boss.cd, 1.0);
+      toast('BOSS 进入第三阶段 · 弹幕加速', 1500, COLORS.boss);
+    }
+
+    if (boss.hp <= 0) {
+      boss.alive = false;
+      for (let i = 0; i < 60; i++) spawnSpark(boss.x, boss.y, boss.z, COLORS.boss, 2.2);
+      endGame(true);
+    }
+    updateHud();
+  }
+
+  /* ================= 弹幕更新 / 碰撞 ================= */
+  function segPointDist(px, py, pz, ax, ay, az, bx, by, bz) {
+    const abx = bx - ax, aby = by - ay, abz = bz - az;
+    const apx = px - ax, apy = py - ay, apz = pz - az;
+    const ab2 = abx * abx + aby * aby + abz * abz;
+    let t = ab2 > 1e-8 ? (apx * abx + apy * aby + apz * abz) / ab2 : 0;
+    t = clamp(t, 0, 1);
+    const cx = ax + abx * t, cy = ay + aby * t, cz = az + abz * t;
+    return Math.hypot(px - cx, py - cy, pz - cz);
+  }
+
+  function hitPlayer(b) {
+    const d = segPointDist(
+      b.x, b.y, b.z,
+      player.x, player.y + 0.18, player.z,
+      player.x, player.y + 1.42, player.z
+    );
+    return d < 0.26 + b.r;
+  }
+
+  function updateBullets(dt) {
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.px = b.x; b.py = b.y; b.pz = b.z;
+
+      // 俯冲弹：先悬停读秒，时间到垂直砸向地面标记点
+      if (b.kind === 'dive') {
+        if (b.fuse > 0) {
+          b.fuse -= dt;
+          if (b.fuse <= 0) {
+            b.vy = -23;
+            for (let k = 0; k < 4; k++) spawnSpark(b.x, b.y, b.z, COLORS.rain, 0.8);
+          }
+        }
+      }
+
+      if (b.homing) {
+        const spd = 4.2;
+        let dx = player.x - b.x;
+        let dy = (player.y + 0.85) - b.y;
+        let dz = player.z - b.z;
+        const l = Math.hypot(dx, dy, dz) || 1;
+        const k = Math.min(1, dt * 1.4);
+        b.vx = lerp(b.vx, dx / l * spd, k);
+        b.vy = lerp(b.vy, dy / l * spd, k);
+        b.vz = lerp(b.vz, dz / l * spd, k);
+      }
+
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.z += b.vz * dt;
+      b.life -= dt;
+      b.rgb = heightRGB(b.y);   // 颜色永远跟着当前高度走
+      b.cls = b.kind === 'rain' ? 'rain' : clsName(b.y);
+
+      if (opts.trailMode === 1 || opts.trailMode === 3) {
+        b.tk -= dt;
+        if (b.tk <= 0) {
+          b.tk = 0.045;
+          if (!b.trail) b.trail = [];
+          b.trail.push(b.x, b.y, b.z);
+          if (b.trail.length > 66) b.trail.splice(0, 3);
+        }
+      }
+
+      if (b.kind === 'rain' && b.y <= 0.12) {
+        for (let k = 0; k < 5; k++) spawnSpark(b.x, 0.15, b.z, COLORS.rain, 0.8);
+        bullets.splice(i, 1);
+        continue;
+      }
+
+      // 地雷：砸到地面后固定住，读秒结束向四周炸开一圈低空弹
+      if (b.kind === 'mine' && b.y <= 0.32) {
+        b.y = 0.32;
+        b.vx = 0; b.vy = 0; b.vz = 0;
+        b.kind = 'mineLive';
+        b.fuse = 1.9;
+        b.life = 99;
+        rings.push({ x: b.x, z: b.z, r: 1.45, t: 1.9, dur: 1.9, cls: 'mine' });
+        for (let k = 0; k < 4; k++) spawnSpark(b.x, 0.3, b.z, COLORS.rain, 0.5);
+      }
+      if (b.kind === 'mineLive') {
+        b.fuse -= dt;
+        if (b.fuse <= 0) {
+          explodeMine(b);
+          bullets.splice(i, 1);
+          continue;
+        }
+      }
+
+      // 地涌：上升途中实时换色 —— 高度色带永远说实话
+      if (b.kind === 'rise') {
+        const c2 = clsByHeight(b.y);
+        if (c2 !== b.cls) { b.cls = c2; b.rgb = COLORS[c2]; }
+        if (b.y > 7.2) {
+          for (let k = 0; k < 3; k++) spawnSpark(b.x, b.y, b.z, b.rgb, 0.5);
+          bullets.splice(i, 1);
+          continue;
+        }
+      }
+
+      if (b.life <= 0 || b.y < -1.2 || Math.hypot(b.x, b.z) > ARENA_R + 8) {
+        bullets.splice(i, 1);
+        continue;
+      }
+
+      if (!b.noHit && player.inv <= 0 && hitPlayer(b)) {
+        onPlayerHit(b);
+        bullets.splice(i, 1);
+        continue;
+      }
+    }
+  }
+
+  function onPlayerHit(b) {
+    const info = CLASS_INFO[b.cls] || CLASS_INFO.mid;
+    const dmg = b.cls === 'rain' ? 9 : 8;
+
+    player.hp = Math.max(0, player.hp - dmg);
+    player.inv = 0.85;
+    dmgFlash = 0.45;
+    slowT = 0.3;
+    cam.shakeAmp = 7;
+
+    stats.hits++;
+    stats[b.cls] = (stats[b.cls] || 0) + 1;
+
+    logs.unshift({ info: info, y: b.y, cls: b.cls, t: elapsed });
+    if (logs.length > 4) logs.pop();
+    renderDiag();
+
+    if (!isTouch) toast('被「' + info.name + '」命中 · ' + info.tip, 1600, b.rgb);
+    for (let i = 0; i < 16; i++) spawnSpark(b.x, b.y, b.z, b.rgb, 1.4);
+
+    updateHud();
+    if (player.hp <= 0) endGame(false, 'hp');
+  }
+
+  function updateShots(dt) {
+    for (let i = pshots.length - 1; i >= 0; i--) {
+      const s = pshots[i];
+      s.px = s.x; s.py = s.y; s.pz = s.z;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.z += s.vz * dt;
+      s.life -= dt;
+
+      if (boss.alive) {
+        const d = Math.hypot(s.x - boss.x, s.y - boss.y, s.z - boss.z);
+        if (d < 1.32 + s.r) {
+          damageBoss(s.dmg);
+          for (let k = 0; k < 3; k++) spawnSpark(s.x, s.y, s.z, COLORS.pshot, 0.6);
+          pshots.splice(i, 1);
+          continue;
+        }
+      }
+
+      if (s.life <= 0 || Math.hypot(s.x, s.z) > ARENA_R + 8 || s.y < -1) pshots.splice(i, 1);
+    }
+  }
+
+  /* ---- 激光 ---- */
+  function laserHits(l) {
+    // 贯穿场地的直线：判定 = 点到直线的距离
+    const dx = Math.cos(l.ang), dz = Math.sin(l.ang);
+    const px = player.x - l.x, pz = player.z - l.z;
+    const dh = Math.abs(px * dz - pz * dx) - (0.26 + l.r);
+    const y0 = player.y + 0.18, y1 = player.y + 1.42;
+    const dy = l.y < y0 ? y0 - l.y : (l.y > y1 ? l.y - y1 : 0);
+    return dh <= 0 && dy <= 0;
+  }
+
+  function updateLasers(dt) {
+    for (let i = lasers.length - 1; i >= 0; i--) {
+      const l = lasers[i];
+      l.ang += l.spin * dt;
+      l.warm -= dt;
+      l.life -= dt;
+
+      if (l.warm <= 0 && player.inv <= 0 && laserHits(l)) {
+        onPlayerHit({ cls: l.cls, rgb: COLORS[l.cls], x: player.x, y: l.y, z: player.z });
+        player.inv = 0.9;
+      }
+      if (l.life <= 0) lasers.splice(i, 1);
+    }
+  }
+
+  function updateWalls(dt) {
+    for (let i = walls.length - 1; i >= 0; i--) {
+      walls[i].t -= dt;
+      if (walls[i].t <= -0.2) walls.splice(i, 1);
+    }
+  }
+
+  function updateRings(dt) {
+    for (let i = rings.length - 1; i >= 0; i--) {
+      rings[i].t -= dt;
+      if (rings[i].t <= -0.15) rings.splice(i, 1);
+    }
+  }
+
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.vy -= 9 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.z += p.vz * dt;
+      if (p.y < 0.03) { p.y = 0.03; p.vy *= -0.35; p.vx *= 0.7; p.vz *= 0.7; }
+      p.life -= dt;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  /* ================= 主更新 ================= */
+  function updateGame(dt) {
+    elapsed += dt;
+
+    updatePlayer(dt);
+    updateBoss(dt);
+    updateTimers(dt);
+    updateBullets(dt);
+    updateLasers(dt);
+    updateWalls(dt);
+    updateShots(dt);
+    updateRings(dt);
+    updateParticles(dt);
+    updateGhosts(dt);
+
+    // 自由视角绕玩家转（标准第三人称），只留一点权重给 boss 让它保持在画面里
+    const tx = polar.on ? player.x : player.x * 0.87 + boss.x * 0.13;
+    const tz = polar.on ? player.z : player.z * 0.87 + boss.z * 0.13;
+    cam.target.x = lerp(cam.target.x, tx, Math.min(1, dt * 3.2));
+    cam.target.z = lerp(cam.target.z, tz, Math.min(1, dt * 3.2));
+    cam.target.y = lerp(cam.target.y, 2.1 + player.y * 0.25, Math.min(1, dt * 3));
+
+    player.inv = Math.max(0, player.inv - dt);
+    dmgFlash = Math.max(0, dmgFlash - dt * 1.9);
+
+    timeLeft -= dt;
+    if (timeLeft <= 30 && !boss.enraged) {
+      boss.enraged = true;
+      toast('剩余 30 秒 · BOSS 狂暴', 1800, '255,80,80');
+    }
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      endGame(false, 'time');
+    }
+
+    updateHud();
+  }
+
+  /* ================= 绘制：地面 ================= */
+  function drawFloor() {
+    const R = ARENA_R;
+
+    const pts = [];
+    let ok = true;
+    for (let i = 0; i <= 72; i++) {
+      const a = i / 72 * TAU;
+      const p = project(Math.cos(a) * R, 0, Math.sin(a) * R);
+      if (!p) { ok = false; break; }
+      pts.push(p);
+    }
+
+    if (ok && pts.length > 2) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+      const g = ctx.createRadialGradient(W / 2, H * 0.46, 40, W / 2, H * 0.56, Math.max(W, H) * 0.8);
+      g.addColorStop(0, 'rgba(26,40,80,0.62)');
+      g.addColorStop(0.55, 'rgba(14,22,48,0.72)');
+      g.addColorStop(1, 'rgba(6,10,24,0.9)');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(96,196,255,0.30)';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+    }
+
+    // 网格是世界锚定的：转动镜头时网格跟着一起转，玩家才能感知到自己转了
+    ctx.lineWidth = 1;
+    for (let gx = -R; gx <= R + 0.01; gx += 3) {
+      const half = Math.sqrt(Math.max(0, R * R - gx * gx));
+      if (half < 0.6) continue;
+      const a = project(gx, 0, -half), b = project(gx, 0, half);
+      if (!a || !b) continue;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = 'rgba(80,140,220,0.16)';
+      ctx.stroke();
+    }
+    for (let gz = -R; gz <= R + 0.01; gz += 3) {
+      const half = Math.sqrt(Math.max(0, R * R - gz * gz));
+      if (half < 0.6) continue;
+      const a = project(-half, 0, gz), b = project(half, 0, gz);
+      if (!a || !b) continue;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.strokeStyle = 'rgba(80,140,220,0.16)';
+      ctx.stroke();
+    }
+
+    // 中轴十字（世界坐标 X/Z 轴），做方位参照
+    const ax1 = project(-R, 0, 0), ax2 = project(R, 0, 0);
+    if (ax1 && ax2) {
+      ctx.beginPath(); ctx.moveTo(ax1.x, ax1.y); ctx.lineTo(ax2.x, ax2.y);
+      ctx.strokeStyle = 'rgba(120,200,255,0.30)'; ctx.lineWidth = 1.3; ctx.stroke();
+    }
+    const az1 = project(0, 0, -R), az2 = project(0, 0, R);
+    if (az1 && az2) {
+      ctx.beginPath(); ctx.moveTo(az1.x, az1.y); ctx.lineTo(az2.x, az2.y);
+      ctx.strokeStyle = 'rgba(120,200,255,0.30)'; ctx.lineWidth = 1.3; ctx.stroke();
+    }
+
+    // 世界 +Z 方向的方位标：镜头一转，这个标记就会跑到屏幕侧面，能直接看出转了多少
+    drawGroundCircle(0, 0, 0.9, 'rgba(120,200,255,0.28)', null, 1.4);
+    const np = project(0, 0.02, R - 0.9);
+    if (np) {
+      ctx.beginPath();
+      ctx.arc(np.x, np.y, Math.max(2.5, 0.22 * np.s), 0, TAU);
+      ctx.fillStyle = 'rgba(150,255,210,0.75)';
+      ctx.fill();
+    }
+
+    // 极坐标模式：叠加同心距离环 + 径向辐条（世界锚定，转圈时辐条会真实移动）
+    if (polar.on) {
+      for (let rr = 3; rr <= R; rr += 3) {
+        const pts2 = [];
+        let pok = true;
+        for (let i = 0; i <= 64; i++) {
+          const a2 = i / 64 * TAU;
+          const q = project(Math.cos(a2) * rr, 0.012, Math.sin(a2) * rr);
+          if (!q) { pok = false; break; }
+          pts2.push(q);
+        }
+        if (!pok) continue;
+        ctx.beginPath();
+        ctx.moveTo(pts2[0].x, pts2[0].y);
+        for (let i = 1; i < pts2.length; i++) ctx.lineTo(pts2[i].x, pts2[i].y);
+        ctx.strokeStyle = rr % 9 === 0 ? 'rgba(110,232,255,0.26)' : 'rgba(110,200,255,0.12)';
+        ctx.lineWidth = rr % 9 === 0 ? 1.5 : 1;
+        ctx.stroke();
+      }
+      for (let i = 0; i < 24; i++) {
+        const a2 = i / 24 * TAU;
+        const p1 = project(Math.cos(a2) * 1.0, 0.014, Math.sin(a2) * 1.0);
+        const p2 = project(Math.cos(a2) * R, 0.014, Math.sin(a2) * R);
+        if (!p1 || !p2) continue;
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = i % 6 === 0 ? 'rgba(150,255,210,0.30)' : 'rgba(110,180,255,0.11)';
+        ctx.lineWidth = i % 6 === 0 ? 1.4 : 1;
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawGroundCircle(x, z, r, stroke, fill, lw) {
+    const pts = [];
+    for (let i = 0; i <= 44; i++) {
+      const a = i / 44 * TAU;
+      const p = project(x + Math.cos(a) * r, 0.03, z + Math.sin(a) * r);
+      if (!p) return;
+      pts.push(p);
+    }
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 2; ctx.stroke(); }
+  }
+
+  function drawTelegraphs() {
+    for (let i = 0; i < rings.length; i++) {
+      const r = rings[i];
+      const p = 1 - clamp(r.t / r.dur, 0, 1);
+      const pulse = 0.35 + 0.55 * Math.abs(Math.sin(elapsed * 9 + i));
+      const rad = r.r * (1.18 - 0.18 * p);
+      drawGroundCircle(r.x, r.z, rad,
+        'rgba(74,224,255,' + (0.45 + 0.5 * pulse) + ')',
+        'rgba(74,224,255,' + (0.06 + 0.10 * p) + ')',
+        2);
+      drawGroundCircle(r.x, r.z, rad * p,
+        'rgba(74,224,255,' + (0.25 * pulse) + ')', null, 1.5);
+    }
+  }
+
+  function drawShadowAt(x, z, worldR, alpha) {
+    const p = project(x, 0.02, z);
+    if (!p) return;
+    const rp = worldR * p.s;
+    if (rp < 0.5) return;
+    ctx.globalAlpha = clamp(alpha, 0, 1);
+    ctx.drawImage(shadowSprite(), p.x - rp, p.y - rp * 0.5, rp * 2, rp * 1.0);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawShadows() {
+    // 子弹：用彩色地面投影环（比黑色阴影更易读）
+    for (let i = 0; i < bullets.length; i++) {
+      const b = bullets[i];
+      if (b.y < 0.25) continue;
+      const a = clamp(1 - b.y / 14, 0.18, 0.8);
+      drawGroundCircle(
+        b.x, b.z, b.r * 1.5,
+        'rgba(' + b.rgb + ',' + (0.62 * a).toFixed(3) + ')',
+        'rgba(' + b.rgb + ',' + (0.11 * a).toFixed(3) + ')',
+        1.7
+      );
+      // 影子中心的小亮点，帮助判断落点
+      const c = project(b.x, 0.04, b.z);
+      if (c) {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, Math.max(1, b.r * c.s * 0.55), 0, TAU);
+        ctx.fillStyle = 'rgba(' + b.rgb + ',' + (0.75 * a).toFixed(3) + ')';
+        ctx.fill();
+      }
+    }
+
+    if (boss.alive) drawShadowAt(boss.x, boss.z, 1.9, 0.42);
+    drawShadowAt(player.x, player.z, 0.66 * clamp(1 - player.y * 0.16, 0.4, 1), 0.62);
+
+    // 玩家脚下的平面基准环，强化“我站在一个平面上”
+    const ringR = 0.92;
+    drawGroundCircle(player.x, player.z, ringR,
+      'rgba(110,232,255,0.20)', null, 1.2);
+  }
+
+  function drawGuides() {
+    ctx.lineWidth = 1;
+    for (let i = 0; i < bullets.length; i++) {
+      const b = bullets[i];
+      if (b.y < 0.4) continue;
+      const p1 = project(b.x, b.y, b.z);
+      const p2 = project(b.x, 0.03, b.z);
+      if (!p1 || !p2) continue;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.strokeStyle = 'rgba(' + b.rgb + ',0.18)';
+      ctx.stroke();
+    }
+    if (boss.alive) {
+      const p1 = project(boss.x, boss.y, boss.z);
+      const p2 = project(boss.x, 0.03, boss.z);
+      if (p1 && p2) {
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = 'rgba(255,86,160,0.16)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+  }
+
+  /* ================= 绘制：弹幕轨迹（跟在弹后面的 3D 拖尾） ================= */
+  function drawPlaneTrails() {
+    const mode = opts.trailMode;
+    if (!mode) return;
+
+    const showTrail = (mode === 1 || mode === 3);
+    const showPredict = (mode === 2 || mode === 3);
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // 小屏幕上按比例收细，否则近处弹的拖尾会粗得比弹还抢眼
+    const lwScale = Math.min(1, Math.max(0.52, W / 1500));
+
+    for (let i = 0; i < bullets.length; i++) {
+      const b = bullets[i];
+      if (b.kind === 'rain') continue;
+      const dist = Math.hypot(b.x - player.x, b.z - player.z);
+      if (dist > 13) continue;
+
+      /* ---- 拖尾：子弹已经飞过的路径，画在它自己的高度上，永远落在弹的后面 ---- */
+      if (showTrail) {
+        const tr = b.trail;
+        if (tr && tr.length >= 12) {
+          const n = tr.length;
+
+          // 后半段淡、靠近弹头的部分亮
+          const strokeRange = function (from, to, alpha, lw) {
+            ctx.beginPath();
+            let started = false;
+            for (let k = from; k < to; k += 3) {
+              const q = project(tr[k], tr[k + 1], tr[k + 2]);
+              if (!q) { started = false; continue; }
+              if (!started) { ctx.moveTo(q.x, q.y); started = true; }
+              else ctx.lineTo(q.x, q.y);
+            }
+            if (!started) return;
+            ctx.strokeStyle = 'rgba(' + b.rgb + ',' + alpha + ')';
+            ctx.lineWidth = lw;
+            ctx.stroke();
+          };
+
+          // 分段渐隐：尾巴几乎看不见，靠近弹头才实
+          const SEG = 5;
+          for (let g = 0; g < SEG; g++) {
+            const a0 = Math.floor(n * g / SEG / 3) * 3;
+            const a1 = Math.min(n, Math.floor(n * (g + 1) / SEG / 3) * 3 + 3);
+            const t2 = g / (SEG - 1);
+            strokeRange(a0, a1, 0.04 + 0.28 * t2 * t2, (1.3 + 1.1 * t2) * lwScale);
+          }
+          strokeRange(Math.max(0, n - 9), n, 0.85, 2.4 * lwScale);
+        }
+      }
+
+      /* ---- 预测：很短的一段虚线，从弹头往前 0.5 秒，不会跑到很远 ---- */
+      if (showPredict) {
+        let x = b.x, y = b.y, z = b.z;
+        const s0 = project(x, y, z);
+        if (!s0) continue;
+        ctx.beginPath();
+        ctx.moveTo(s0.x, s0.y);
+        let drew = false;
+        for (let k = 0; k < 9; k++) {
+          x += b.vx * 0.06; y += b.vy * 0.06; z += b.vz * 0.06;
+          if (y < 0.05) break;
+          const q = project(x, y, z);
+          if (!q) break;
+          ctx.lineTo(q.x, q.y);
+          drew = true;
+        }
+        if (!drew) continue;
+        ctx.setLineDash([4, 6]);
+        ctx.strokeStyle = 'rgba(' + b.rgb + ',0.22)';
+        ctx.lineWidth = 1.2 * lwScale;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  /* ================= 绘制：激光 ================= */
+  function drawLasers() {
+    for (let i = 0; i < lasers.length; i++) {
+      const l = lasers[i];
+      const dx = Math.cos(l.ang), dz = Math.sin(l.ang);
+      const LEN = ARENA_R + 6;
+      const sx = l.x - dx * LEN, sz = l.z - dz * LEN;
+      const ex = l.x + dx * LEN, ez = l.z + dz * LEN;
+      const rgb = COLORS[l.cls] || COLORS.mid;
+      const warm = l.warm > 0;
+      const flick = warm ? (0.18 + 0.22 * Math.abs(Math.sin(elapsed * 22))) : 1;
+
+      // 地面投影线（告诉玩家这条激光扫过哪条地线）
+      const ga = project(sx, 0.02, sz);
+      const gb = project(ex, 0.02, ez);
+      if (ga && gb) {
+        if (warm) {
+          // 预警：地面虚线，先告诉玩家危险要来
+          ctx.save();
+          ctx.setLineDash([6, 6]);
+          ctx.beginPath();
+          ctx.moveTo(ga.x, ga.y);
+          ctx.lineTo(gb.x, gb.y);
+          ctx.strokeStyle = 'rgba(' + rgb + ',' + (0.30 + 0.3 * flick) + ')';
+          ctx.lineWidth = Math.max(1.5, 0.16 * ga.s);
+          ctx.stroke();
+          ctx.restore();
+        } else if (l.y < 1.0) {
+          // 低激光：贴地亮线，让“它就在地面上”这件事无可争议
+          ctx.beginPath();
+          ctx.moveTo(ga.x, ga.y);
+          ctx.lineTo(gb.x, gb.y);
+          ctx.strokeStyle = 'rgba(' + rgb + ',0.42)';
+          ctx.lineWidth = Math.max(2, 0.16 * ga.s);
+          ctx.stroke();
+        }
+      }
+
+      // 高激光：两端画落地支脚，明确“它是悬空的”
+      if (l.y > 1.2) {
+        const feet = [[sx, sz], [ex, ez]];
+        for (let f = 0; f < 2; f++) {
+          const top = project(feet[f][0], l.y, feet[f][1]);
+          const bot = project(feet[f][0], 0.02, feet[f][1]);
+          if (!top || !bot) continue;
+          ctx.beginPath();
+          ctx.moveTo(top.x, top.y);
+          ctx.lineTo(bot.x, bot.y);
+          ctx.strokeStyle = 'rgba(' + rgb + ',' + (warm ? 0.25 : 0.4) + ')';
+          ctx.lineWidth = 1.2;
+          ctx.setLineDash([3, 5]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      const a = project(sx, l.y, sz);
+      const b = project(ex, l.y, ez);
+      if (a && b) {
+        const wAvg = (a.s + b.s) * 0.5;
+        // 外层辉光
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = 'rgba(' + rgb + ',' + (0.20 * flick) + ')';
+        ctx.lineWidth = Math.max(4, 0.85 * wAvg);
+        ctx.stroke();
+        // 核心
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = warm
+          ? 'rgba(' + rgb + ',' + (0.9 * flick) + ')'
+          : 'rgba(255,255,255,' + (0.92 * flick) + ')';
+        ctx.lineWidth = Math.max(1.5, 0.17 * wAvg);
+        ctx.stroke();
+
+        // 中心发射源
+        const c0 = project(l.x, l.y, l.z);
+        if (c0) {
+          ctx.beginPath();
+          ctx.arc(c0.x, c0.y, Math.max(4, 0.46 * c0.s), 0, TAU);
+          ctx.fillStyle = 'rgba(' + rgb + ',' + (warm ? 0.5 : 0.95) + ')';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(c0.x, c0.y, Math.max(2, 0.2 * c0.s), 0, TAU);
+          ctx.fillStyle = 'rgba(255,255,255,0.95)';
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  /* ================= 绘制：墙缝预警 ================= */
+  function drawWalls() {
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      const k = clamp(1 - w.t / w.dur, 0, 1);
+      const pulse = 0.18 + 0.2 * Math.abs(Math.sin(elapsed * 12));
+      const HGT = 3.0;
+      const halfW = w.halfW;
+      const gs = w.gapPos - w.gapW * 0.5;
+      const ge = w.gapPos + w.gapW * 0.5;
+
+      const panel = function (u0, u1, alpha, fillRgb) {
+        const A = project(w.nx * w.D + w.tx * u0, 0, w.nz * w.D + w.tz * u0);
+        const B = project(w.nx * w.D + w.tx * u1, 0, w.nz * w.D + w.tz * u1);
+        const C = project(w.nx * w.D + w.tx * u1, HGT, w.nz * w.D + w.tz * u1);
+        const D = project(w.nx * w.D + w.tx * u0, HGT, w.nz * w.D + w.tz * u0);
+        if (!A || !B || !C || !D) return;
+        ctx.beginPath();
+        ctx.moveTo(A.x, A.y);
+        ctx.lineTo(B.x, B.y);
+        ctx.lineTo(C.x, C.y);
+        ctx.lineTo(D.x, D.y);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(' + fillRgb + ',' + alpha + ')';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(' + fillRgb + ',0.55)';
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+      };
+
+      panel(-halfW, gs, 0.05 + pulse * 0.35, '255,96,120');
+      panel(ge, halfW, 0.05 + pulse * 0.35, '255,96,120');
+
+      // 缺口提示：地面绿色箭头
+      const gapX = w.nx * w.D + w.tx * w.gapPos;
+      const gapZ = w.nz * w.D + w.tz * w.gapPos;
+      const gp = project(gapX, 0.03, gapZ);
+      if (gp) {
+        ctx.beginPath();
+        ctx.arc(gp.x, gp.y, Math.max(3, 0.9 * gp.s), 0, TAU);
+        ctx.strokeStyle = 'rgba(120,255,190,' + (0.45 + 0.4 * pulse) + ')';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      const dirA = Math.atan2(-w.nz, -w.nx);
+      const tip = project(gapX - w.nx * 1.6, 0.03, gapZ - w.nz * 1.6);
+      if (gp && tip) {
+        const ang = Math.atan2(tip.y - gp.y, tip.x - gp.x);
+        const L = Math.max(6, 0.55 * gp.s);
+        ctx.beginPath();
+        ctx.moveTo(gp.x, gp.y);
+        ctx.lineTo(gp.x + Math.cos(ang) * L, gp.y + Math.sin(ang) * L);
+        ctx.strokeStyle = 'rgba(120,255,190,0.7)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      void dirA; void k;
+    }
+  }
+
+  /* ================= 绘制：实体 ================= */
+  function drawBullet(b, p) {
+    const rp = Math.max(1.4, b.r * p.s);
+    const tp = project(b.px, b.py, b.pz);
+    if (tp) {
+      ctx.beginPath();
+      ctx.moveTo(tp.x, tp.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.strokeStyle = 'rgba(' + b.rgb + ',0.42)';
+      ctx.lineWidth = Math.max(1, rp * 1.15);
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    const g = glowSprite(b.rgb);
+    const gs = rp * 6.4;
+    ctx.globalAlpha = 0.85;
+    ctx.drawImage(g, p.x - gs / 2, p.y - gs / 2, gs, gs);
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rp * 0.8, 0, TAU);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rp, 0, TAU);
+    ctx.strokeStyle = 'rgba(' + b.rgb + ',0.92)';
+    ctx.lineWidth = Math.max(1, rp * 0.28);
+    ctx.stroke();
+  }
+
+  function drawPShot(s, p) {
+    const rp = Math.max(1.2, s.r * p.s);
+    const tp = project(s.px, s.py, s.pz);
+    if (tp) {
+      ctx.beginPath();
+      ctx.moveTo(tp.x, tp.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.strokeStyle = 'rgba(' + COLORS.pshot + ',0.55)';
+      ctx.lineWidth = Math.max(1, rp * 1.3);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rp * 1.6, 0, TAU);
+    ctx.fillStyle = 'rgba(' + COLORS.pshot + ',0.35)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rp, 0, TAU);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+  }
+
+  function drawParticle(pa, p) {
+    const rp = Math.max(1, pa.size * p.s);
+    ctx.globalAlpha = clamp(pa.life / pa.max, 0, 1) * 0.9;
+    ctx.drawImage(glowSprite(pa.rgb), p.x - rp * 3, p.y - rp * 3, rp * 6, rp * 6);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawGhosts() {
+    for (let i = 0; i < ghosts.length; i++) {
+      const g = ghosts[i];
+      const p = project(g.x, g.y + 0.7, g.z);
+      if (!p) continue;
+      const a = clamp(g.life / g.max, 0, 1);
+      const s = p.s;
+      ctx.globalAlpha = a * 0.30;
+      ctx.drawImage(glowSprite(COLORS.player), p.x - 1.0 * s, p.y - 1.35 * s, 2.0 * s, 2.7 * s);
+      ctx.globalAlpha = a * 0.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(2, 0.22 * s), 0, TAU);
+      ctx.fillStyle = 'rgba(190,255,235,0.85)';
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawPlayer(p) {
+    const s = p.s;
+    const bh = 1.34 * s;
+    const bw = 0.62 * s;
+
+    const blink = player.inv > 0 && Math.floor(player.inv * 22) % 2 === 0;
+    ctx.globalAlpha = blink ? 0.42 : 1;
+
+    const g = glowSprite(COLORS.player);
+    ctx.globalAlpha *= 0.40;
+    ctx.drawImage(g, p.x - bw * 2.4, p.y - bh * 1.05, bw * 4.8, bh * 2.3);
+    ctx.globalAlpha = blink ? 0.42 : 1;
+
+    const grd = ctx.createLinearGradient(p.x, p.y - bh * 0.5, p.x, p.y + bh * 0.5);
+    grd.addColorStop(0, 'rgba(240,255,252,1)');
+    grd.addColorStop(0.55, 'rgba(150,255,210,0.97)');
+    grd.addColorStop(1, 'rgba(24,120,96,0.97)');
+
+    ctx.lineCap = 'round';
+    // 腿
+    ctx.strokeStyle = 'rgba(120,235,195,0.95)';
+    ctx.lineWidth = Math.max(2, bw * 0.20);
+    ctx.beginPath();
+    ctx.moveTo(p.x - bw * 0.13, p.y + bh * 0.20);
+    ctx.lineTo(p.x - bw * 0.19, p.y + bh * 0.50);
+    ctx.moveTo(p.x + bw * 0.13, p.y + bh * 0.20);
+    ctx.lineTo(p.x + bw * 0.19, p.y + bh * 0.50);
+    ctx.stroke();
+
+    // 躯干
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y - bh * 0.20);
+    ctx.lineTo(p.x, p.y + bh * 0.22);
+    ctx.strokeStyle = grd;
+    ctx.lineWidth = Math.max(3, bw * 0.42);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(235,255,250,0.5)';
+    ctx.lineWidth = Math.max(1, bw * 0.10);
+    ctx.stroke();
+
+    // 手臂（跳跃时张开，方便读出“在空中”）
+    const air = player.y > 0.08;
+    const armY = air ? -0.12 : 0.02;
+    ctx.strokeStyle = 'rgba(180,255,225,0.9)';
+    ctx.lineWidth = Math.max(1.6, bw * 0.16);
+    ctx.beginPath();
+    ctx.moveTo(p.x - bw * 0.05, p.y + bh * armY);
+    ctx.lineTo(p.x - bw * 0.42, p.y + bh * (air ? -0.34 : 0.12));
+    ctx.moveTo(p.x + bw * 0.05, p.y + bh * armY);
+    ctx.lineTo(p.x + bw * 0.42, p.y + bh * (air ? -0.34 : 0.12));
+    ctx.stroke();
+
+    // 头
+    ctx.beginPath();
+    ctx.arc(p.x, p.y - bh * 0.36, Math.max(2.4, bw * 0.24), 0, TAU);
+    ctx.fillStyle = 'rgba(240,255,252,0.98)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(120,235,195,0.9)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // 跳跃高度竖线：让“离地多高”有直接读数
+    if (air) {
+      const gp2 = project(player.x, 0.03, player.z);
+      const fp = project(player.x, player.y + 0.1, player.z);
+      if (gp2 && fp) {
+        ctx.beginPath();
+        ctx.moveTo(fp.x, fp.y);
+        ctx.lineTo(gp2.x, gp2.y);
+        ctx.strokeStyle = 'rgba(150,255,210,0.22)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    ctx.globalAlpha = 1;
+
+    if (opts.hitbox) {
+      const a = project(player.x, player.y + 0.18, player.z);
+      const b = project(player.x, player.y + 1.42, player.z);
+      if (a && b) {
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'rgba(120,255,180,0.30)';
+        ctx.lineWidth = 0.52 * a.s;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, 0.26 * a.s, 0, TAU);
+        ctx.strokeStyle = 'rgba(120,255,180,0.75)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawBoss(p) {
+    const rad = 1.25 * p.s;
+    const flash = boss.flash > 0;
+
+    const gp = project(boss.x, 0.03, boss.z);
+    if (gp) {
+      const grd = ctx.createLinearGradient(p.x, p.y, gp.x, gp.y);
+      grd.addColorStop(0, 'rgba(255,86,160,0.26)');
+      grd.addColorStop(1, 'rgba(255,86,160,0)');
+      ctx.strokeStyle = grd;
+      ctx.lineWidth = Math.max(2, rad * 0.45);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(gp.x, gp.y);
+      ctx.stroke();
+    }
+
+    const g = glowSprite(flash ? '255,235,250' : COLORS.boss);
+    ctx.globalAlpha = 0.85;
+    ctx.drawImage(g, p.x - rad * 3.2, p.y - rad * 3.2, rad * 6.4, rad * 6.4);
+    ctx.globalAlpha = 1;
+
+    const ringPts = [];
+    let ok = true;
+    for (let i = 0; i <= 48; i++) {
+      const a = i / 48 * TAU + boss.spin * 0.7;
+      const q = project(boss.x + Math.cos(a) * 2.05, boss.y, boss.z + Math.sin(a) * 2.05);
+      if (!q) { ok = false; break; }
+      ringPts.push(q);
+    }
+    if (ok) {
+      ctx.beginPath();
+      ctx.moveTo(ringPts[0].x, ringPts[0].y);
+      for (let i = 1; i < ringPts.length; i++) ctx.lineTo(ringPts[i].x, ringPts[i].y);
+      ctx.strokeStyle = 'rgba(255,130,195,0.55)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    const grd = ctx.createRadialGradient(
+      p.x - rad * 0.32, p.y - rad * 0.36, rad * 0.1,
+      p.x, p.y, rad
+    );
+    grd.addColorStop(0, 'rgba(255,248,252,1)');
+    grd.addColorStop(0.45, 'rgba(255,112,176,0.97)');
+    grd.addColorStop(1, 'rgba(112,16,66,0.97)');
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rad, 0, TAU);
+    ctx.fillStyle = grd;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,205,232,0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rad * 0.34, 0, TAU);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+
+    // 卫星炮：第二个发射源，明确画出来，让玩家知道弹从哪来
+    for (let i = 0; i < boss.sats.length; i++) {
+      const sp = satPos(i);
+      const q = project(sp.x, sp.y, sp.z);
+      const gq = project(sp.x, 0.03, sp.z);
+      if (gq) {
+        ctx.beginPath();
+        ctx.arc(gq.x, gq.y, Math.max(1.5, 0.18 * gq.s), 0, TAU);
+        ctx.fillStyle = 'rgba(255,176,64,0.5)';
+        ctx.fill();
+      }
+      if (!q) continue;
+      const rr = Math.max(2, 0.20 * q.s);
+      ctx.drawImage(glowSprite('255,196,110'), q.x - rr * 4, q.y - rr * 4, rr * 8, rr * 8);
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, rr, 0, TAU);
+      ctx.fillStyle = 'rgba(255,240,220,0.98)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, rr * 1.7, 0, TAU);
+      ctx.strokeStyle = 'rgba(255,176,64,0.7)';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+  }
+
+  /* ================= 绘制：主流程 ================= */
+  function render() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    ctx.fillStyle = bgGrad || '#04060e';
+    ctx.fillRect(0, 0, W, H);
+
+    drawFloor();
+    drawTelegraphs();
+    if (walls.length) drawWalls();
+    if (opts.shadows) drawShadows();
+    drawPlaneTrails();
+    drawGhosts();
+    if (opts.guides) drawGuides();
+    if (lasers.length) drawLasers();
+
+    const items = [];
+
+    for (let i = 0; i < bullets.length; i++) {
+      const b = bullets[i];
+      const p = project(b.x, b.y, b.z);
+      if (!p) continue;
+      items.push({ z: p.z, fn: (function (bb, pp) { return function () { drawBullet(bb, pp); }; })(b, p) });
+    }
+
+    for (let i = 0; i < pshots.length; i++) {
+      const s = pshots[i];
+      const p = project(s.x, s.y, s.z);
+      if (!p) continue;
+      items.push({ z: p.z, fn: (function (ss, pp) { return function () { drawPShot(ss, pp); }; })(s, p) });
+    }
+
+    for (let i = 0; i < particles.length; i++) {
+      const pa = particles[i];
+      const p = project(pa.x, pa.y, pa.z);
+      if (!p) continue;
+      items.push({ z: p.z, fn: (function (qq, pp) { return function () { drawParticle(qq, pp); }; })(pa, p) });
+    }
+
+    if (boss.alive) {
+      const p = project(boss.x, boss.y, boss.z);
+      if (p) items.push({ z: p.z, fn: function () { drawBoss(p); } });
+    }
+
+    const pp = project(player.x, player.y + 0.7, player.z);
+    if (pp) items.push({ z: pp.z - 0.001, fn: function () { drawPlayer(pp); } });
+
+    items.sort(function (a, b) { return b.z - a.z; });
+    for (let i = 0; i < items.length; i++) items[i].fn();
+
+    // 玩家高亮轮廓：即使被近处弹幕遮住也能一眼定位
+    const pp2 = project(player.x, player.y + 0.7, player.z);
+    if (pp2) {
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = 'rgba(200,255,235,0.95)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(pp2.x, pp2.y, 0.33 * pp2.s, 0.70 * pp2.s, 0, 0, TAU);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (dmgFlash > 0) {
+      ctx.fillStyle = 'rgba(255,44,76,' + (dmgFlash * 0.22) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // 暗角 + 扫描线（预渲染）
+    if (fxCanvas) ctx.drawImage(fxCanvas, 0, 0, W, H);
+
+    drawMinimap();
+  }
+
+  /* ================= 俯视雷达（东方式俯视图，颜色 = 高度） ================= */
+  const miniEl = document.getElementById('minimap');
+  const miniCtx = miniEl ? miniEl.getContext('2d') : null;
+  const MINI_RANGE = 19.5;
+
+  function drawMinimap() {
+    if (!miniCtx || !opts.mini) return;
+    const c = miniCtx;
+    const MW = miniEl.width, MH = miniEl.height;
+    c.clearRect(0, 0, MW, MH);
+
+    const cx = MW / 2, cy = MH / 2;
+    const R = Math.min(MW, MH) / 2 - 7;
+    const k = R / MINI_RANGE;
+
+    // 与相机对齐：雷达上方 = 屏幕前方，右侧 = 屏幕右方
+    const fx = -Math.sin(cam.cy), fz = -Math.cos(cam.cy);
+    const rx = Math.cos(cam.cy), rz = -Math.sin(cam.cy);
+    const P = function (wx, wz) {
+      const u = wx * rx + wz * rz;
+      const v = wx * fx + wz * fz;
+      return { x: cx + u * k, y: cy - v * k };
+    };
+
+    // 同心圆距离环
+    for (let i = 1; i <= 3; i++) {
+      const rr = R * (i / 3);
+      c.beginPath();
+      c.arc(cx, cy, rr, 0, TAU);
+      c.strokeStyle = 'rgba(110,200,255,' + (i === 3 ? 0.26 : 0.11) + ')';
+      c.lineWidth = i === 3 ? 1.6 : 1;
+      c.stroke();
+    }
+    // 十字
+    c.beginPath();
+    c.moveTo(cx - R, cy); c.lineTo(cx + R, cy);
+    c.moveTo(cx, cy - R); c.lineTo(cx, cy + R);
+    c.strokeStyle = 'rgba(110,200,255,0.08)';
+    c.lineWidth = 1;
+    c.stroke();
+
+    // 玩家 → boss 的射击方位线
+    const pp = P(player.x, player.z);
+    const bp = P(boss.x, boss.z);
+    if (boss.alive) {
+      c.beginPath();
+      c.moveTo(pp.x, pp.y);
+      c.lineTo(bp.x, bp.y);
+      c.strokeStyle = 'rgba(255,86,160,0.16)';
+      c.lineWidth = 1;
+      c.setLineDash([3, 4]);
+      c.stroke();
+      c.setLineDash([]);
+    }
+
+    // 激光：俯视线段
+    for (let i = 0; i < lasers.length; i++) {
+      const l = lasers[i];
+      const dx = Math.cos(l.ang), dz = Math.sin(l.ang);
+      const LEN = ARENA_R + 6;
+      const a = P(l.x - dx * LEN, l.z - dz * LEN), b = P(l.x + dx * LEN, l.z + dz * LEN);
+      c.beginPath();
+      c.moveTo(a.x, a.y);
+      c.lineTo(b.x, b.y);
+      c.strokeStyle = 'rgba(' + (COLORS[l.cls] || COLORS.mid) + ',' + (l.warm > 0 ? 0.35 : 0.8) + ')';
+      c.lineWidth = l.warm > 0 ? 1.4 : 3;
+      c.stroke();
+    }
+
+    // 墙缝预警：红线 + 缺口
+    for (let i = 0; i < walls.length; i++) {
+      const w = walls[i];
+      const a = P(w.nx * w.D + w.tx * -w.halfW, w.nz * w.D + w.tz * -w.halfW);
+      const b = P(w.nx * w.D + w.tx * w.halfW, w.nz * w.D + w.tz * w.halfW);
+      c.beginPath();
+      c.moveTo(a.x, a.y);
+      c.lineTo(b.x, b.y);
+      c.strokeStyle = 'rgba(255,96,120,0.75)';
+      c.lineWidth = 2.4;
+      c.stroke();
+      const ga = P(w.nx * w.D + w.tx * (w.gapPos - w.gapW), w.nz * w.D + w.tz * (w.gapPos - w.gapW));
+      const gb = P(w.nx * w.D + w.tx * (w.gapPos + w.gapW), w.nz * w.D + w.tz * (w.gapPos + w.gapW));
+      c.beginPath();
+      c.moveTo(ga.x, ga.y);
+      c.lineTo(gb.x, gb.y);
+      c.strokeStyle = 'rgba(120,255,190,0.9)';
+      c.lineWidth = 2.4;
+      c.stroke();
+    }
+
+    // 弹幕：实心 = 低空 / 空心 = 高空
+    for (let i = 0; i < bullets.length; i++) {
+      const b = bullets[i];
+      const q = P(b.x, b.z);
+      if (q.x < 2 || q.x > MW - 2 || q.y < 2 || q.y > MH - 2) continue;
+      if (b.cls === 'high') {
+        c.beginPath();
+        c.arc(q.x, q.y, 3.4, 0, TAU);
+        c.strokeStyle = 'rgba(' + b.rgb + ',0.95)';
+        c.lineWidth = 1.7;
+        c.stroke();
+      } else {
+        c.beginPath();
+        c.arc(q.x, q.y, b.cls === 'low' ? 3.4 : 2.9, 0, TAU);
+        c.fillStyle = 'rgba(' + b.rgb + ',0.95)';
+        c.fill();
+      }
+    }
+
+    // boss + 卫星
+    if (boss.alive) {
+      for (let i = 0; i < boss.sats.length; i++) {
+        const sp = satPos(i);
+        const q = P(sp.x, sp.z);
+        c.beginPath();
+        c.arc(q.x, q.y, 3, 0, TAU);
+        c.fillStyle = 'rgba(255,196,110,0.9)';
+        c.fill();
+      }
+      c.beginPath();
+      c.arc(bp.x, bp.y, 10, 0, TAU);
+      c.fillStyle = 'rgba(255,86,160,0.25)';
+      c.fill();
+      c.beginPath();
+      c.arc(bp.x, bp.y, 6, 0, TAU);
+      c.fillStyle = 'rgba(255,140,190,0.98)';
+      c.fill();
+    }
+
+    // 玩家：光晕 + 实心点
+    c.beginPath();
+    c.arc(pp.x, pp.y, 13, 0, TAU);
+    c.fillStyle = 'rgba(150,255,210,0.12)';
+    c.fill();
+    c.beginPath();
+    c.arc(pp.x, pp.y, 5.2, 0, TAU);
+    c.fillStyle = 'rgba(190,255,235,1)';
+    c.fill();
+    c.beginPath();
+    c.arc(pp.x, pp.y, 5.2, 0, TAU);
+    c.strokeStyle = 'rgba(20,80,60,0.9)';
+    c.lineWidth = 1.6;
+    c.stroke();
+
+    // 外框刻度
+    c.fillStyle = 'rgba(120,160,200,0.42)';
+    c.font = '15px "PingFang SC",system-ui,sans-serif';
+    c.textAlign = 'center';
+    c.fillText('前', cx, 16);
+    c.fillText('后', cx, MH - 5);
+  }
+
+  /* ================= HUD ================= */
+  const el = {
+    hpPfill: document.getElementById('hpPfill'),
+    hpPtxt: document.getElementById('hpPtxt'),
+    hpBfill: document.getElementById('hpBfill'),
+    hpBtxt: document.getElementById('hpBtxt'),
+    timer: document.getElementById('timer'),
+    phaseTag: document.getElementById('phaseTag'),
+    diagList: document.getElementById('diagList'),
+    camName: document.getElementById('camName'),
+    toast: document.getElementById('toast'),
+    lookHint: document.getElementById('lookHint'),
+    startOverlay: document.getElementById('startOverlay'),
+    endOverlay: document.getElementById('endOverlay'),
+    endKicker: document.getElementById('endKicker'),
+    endTitle: document.getElementById('endTitle'),
+    endLead: document.getElementById('endLead'),
+    endStats: document.getElementById('endStats')
+  };
+
+  function fmtTime(t) {
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  const camSubEl = document.getElementById('camSub');
+  const camNameEl = document.getElementById('camName');
+
+  function updateHud() {
+    if (polar.on && camSubEl) {
+      const deg = (player.pa * 180 / Math.PI + 360) % 360;
+      camSubEl.textContent = 'r ' + player.pr.toFixed(1) + 'm · θ ' + deg.toFixed(0) + '° · 上下=进出 左右=绕圈';
+    } else if (camSubEl) {
+      camSubEl.textContent = '目标：击破 boss · 限时 2 分钟';
+    }
+    const pp = clamp(player.hp / player.maxHp, 0, 1) * 100;
+    const bb = clamp(boss.hp / boss.maxHp, 0, 1) * 100;
+    el.hpPfill.style.width = pp + '%';
+    el.hpPtxt.textContent = Math.ceil(player.hp) + ' / ' + player.maxHp;
+    el.hpBfill.style.width = bb + '%';
+    el.hpBtxt.textContent = Math.ceil(boss.hp) + ' / ' + boss.maxHp;
+    el.timer.textContent = fmtTime(timeLeft);
+    el.timer.classList.toggle('warn', timeLeft <= 30);
+    el.phaseTag.textContent = 'PHASE ' + boss.phase + ' · ' + (boss.enraged ? '狂暴' : '试作型 boss');
+    if (dashEl) dashEl.classList.toggle('cool', player.dashCd > 0);
+  }
+
+  function renderDiag() {
+    if (!logs.length) {
+      el.diagList.innerHTML = '<div class="dempty">尚无记录</div>';
+      return;
+    }
+    let html = '';
+    for (let i = 0; i < logs.length; i++) {
+      const l = logs[i];
+      const c = 'rgb(' + (COLORS[l.cls] || COLORS.mid) + ')';
+      html += '<div class="ditem">' +
+        '<span class="dot" style="color:' + c + '"></span>' +
+        '<span><span class="nm" style="color:' + c + '">' + l.info.name + '</span>' +
+        ' · 命中高度 ' + l.y.toFixed(1) + 'm<br>' +
+        '<span class="tp">' + l.info.tip + '</span></span></div>';
+    }
+    el.diagList.innerHTML = html;
+  }
+
+  let toastTimer = null;
+
+  function toast(msg, ms, rgb) {
+    el.toast.textContent = msg;
+    el.toast.style.color = rgb ? 'rgb(' + rgb + ')' : '#dff3ff';
+    el.toast.classList.add('on');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      el.toast.classList.remove('on');
+    }, ms || 1200);
+  }
+
+  function polarNote() {
+    return isTouch
+      ? '极坐标模式 · 上下 = 进出中心，左右 = 绕中心转'
+      : '极坐标模式 · 上下 = 进出中心，左右 / 鼠标横移 = 绕中心转';
+  }
+
+  function togglePolar(force) {
+    polar.on = (typeof force === 'boolean') ? force : !polar.on;
+    if (polar.on) {
+      cam.orbit = false;
+      const p = player;
+      p.pr = Math.max(1.0, Math.hypot(p.x, p.z));
+      p.pa = Math.atan2(p.z, p.x);
+      p.pvr = 0;
+      p.pw = 0;
+      p.vx = 0;
+      p.vz = 0;
+      polar.pitch = Math.max(0.12, Math.min(0.98, cam.pitch));
+      polar.dist = Math.max(9, Math.min(22, cam.dist));
+      el.camName.textContent = '极坐标 · 径向朝前';
+      toast(polarNote(), 2200, COLORS.player);
+    } else {
+      // 退出时把极坐标速度转成世界速度，避免瞬移感
+      player.vx = Math.cos(player.pa) * player.pvr - Math.sin(player.pa) * player.pw * player.pr;
+      player.vz = Math.sin(player.pa) * player.pvr + Math.cos(player.pa) * player.pw * player.pr;
+      el.camName.textContent = CAM_PRESETS[cam.preset] ? CAM_PRESETS[cam.preset].name : '跟随视角';
+      toast('自由视角模式', 1400, COLORS.player);
+    }
+    const b = document.getElementById('btnPolar');
+    if (b) b.classList.toggle('on', polar.on);
+    document.body.classList.toggle('polaron', polar.on);
+  }
+
+  const TRAIL_NAMES = ['关闭', '拖尾（已飞过的路径）', '预测（接下来往哪飞）', '拖尾 + 预测'];
+  let trailBtnEl = null, miniBtnEl = null;
+
+  function cycleTrail() {
+    opts.trailMode = (opts.trailMode + 1) % 4;
+    for (let i = 0; i < bullets.length; i++) bullets[i].trail = null;
+    if (opts.trailMode === 1) opts.trailMode = 1;
+    if (trailBtnEl) trailBtnEl.classList.toggle('on', opts.trailMode > 0);
+    toast('轨迹线：' + TRAIL_NAMES[opts.trailMode], 1000, COLORS.player);
+  }
+
+  function toggleMini() {
+    opts.mini = !opts.mini;
+    const w = document.getElementById('miniWrap');
+    if (w) w.classList.toggle('off', !opts.mini);
+    if (miniBtnEl) miniBtnEl.classList.toggle('on', opts.mini);
+    toast(opts.mini ? '立面图：开' : '立面图：关', 900, COLORS.player);
+  }
+
+  function cycleCam() {
+    cam.preset = (cam.preset + 1) % CAM_PRESETS.length;
+    const p = CAM_PRESETS[cam.preset];
+    if (!p.orbit) cam.yaw = p.yaw;
+    cam.pitch = p.pitch;
+    cam.dist = p.dist;
+    cam.orbit = !!p.orbit;
+    el.camName.textContent = p.name;
+    toast('镜头：' + p.name, 1100, COLORS.player);
+  }
+
+  /* ================= 流程控制 ================= */
+  function requestLandscape() {
+    if (!isTouch) return;
+    const root = document.documentElement;
+    try {
+      if (root.requestFullscreen) {
+        const pr = root.requestFullscreen();
+        if (pr && pr.catch) pr.catch(function () {});
+      }
+    } catch (err) {}
+    try {
+      if (screen.orientation && screen.orientation.lock) {
+        const pr2 = screen.orientation.lock('landscape');
+        if (pr2 && pr2.catch) pr2.catch(function () {});
+      }
+    } catch (err) {}
+  }
+
+  function startGame() {
+    requestLandscape();
+    reset();
+    state = 'playing';
+    el.startOverlay.classList.add('hidden');
+    el.endOverlay.classList.add('hidden');
+    jumpQueued = false;
+    mouseDown = false;
+    // PC：开局顺手锁定鼠标，之后移动鼠标就是转视角（失败了也没关系，点画面即可）
+    if (look.ok) reqLock();
+    lookHintOn();
+    toast(isTouch ? '击破 boss 即可通关 · 限时 2 分钟' : '击破 boss 即可通关 · 移动鼠标转视角', 2000, COLORS.player);
+  }
+
+  function togglePause() {
+    if (state === 'playing') {
+      state = 'paused';
+      toast('已暂停 · 按 P 或点击画面继续', 100000, COLORS.player);
+    } else if (state === 'paused') {
+      state = 'playing';
+      el.toast.classList.remove('on');
+    }
+    lookHintOn();
+  }
+
+  function backToMenu() {
+    reset();
+    state = 'menu';
+    if (document.pointerLockElement) document.exitPointerLock();
+    lookHintOn();
+    el.endOverlay.classList.add('hidden');
+    el.startOverlay.classList.remove('hidden');
+  }
+
+  function endGame(win, reason) {
+    if (state === 'over') return;
+    state = 'over';
+    if (document.pointerLockElement) document.exitPointerLock();
+    lookHintOn();
+
+    const used = 120 - Math.max(0, timeLeft);
+    if (win) {
+      el.endKicker.textContent = 'BOSS DEFEATED';
+      el.endTitle.textContent = '击破';
+      el.endTitle.style.color = '#8ff0ff';
+      el.endLead.textContent = '用时 ' + used.toFixed(1) + ' 秒击破 boss，受击 ' + stats.hits + ' 次。' +
+        '如果是第一次玩，请回想：每次被击中时，你是否能说出“我为什么被打中”？';
+    } else if (reason === 'time') {
+      el.endKicker.textContent = 'TIMEOUT';
+      el.endTitle.textContent = '超时';
+      el.endTitle.style.color = '#ffb46a';
+      el.endLead.textContent = '2 分钟结束，boss 剩余 ' + Math.ceil(boss.hp) + ' 点血量。' +
+        '超时说明输出窗口不够 —— 但也可能是「不敢靠近输出」造成的，看看受击类型分布。';
+    } else {
+      el.endKicker.textContent = 'DEFEATED';
+      el.endTitle.textContent = '被击坠';
+      el.endTitle.style.color = '#ff8aa8';
+      el.endLead.textContent = '坚持了 ' + used.toFixed(1) + ' 秒，boss 剩余 ' + Math.ceil(boss.hp) + ' 点血量。' +
+        '重点看下面的受击分布：哪一类最多，就说明哪一类最“读不出来”。';
+    }
+
+    const cells = [
+      ['受击次数', stats.hits, '#ff9ab4'],
+      ['低空弹', stats.low, 'rgb(' + COLORS.low + ')'],
+      ['中空弹', stats.mid, 'rgb(' + COLORS.mid + ')'],
+      ['高空弹', stats.high, 'rgb(' + COLORS.high + ')'],
+      ['落点雨', stats.rain, 'rgb(' + COLORS.rain + ')']
+    ];
+    let html = '';
+    for (let i = 0; i < cells.length; i++) {
+      html += '<div class="s"><div class="n" style="color:' + cells[i][2] + '">' + cells[i][1] + '</div>' +
+        '<div class="l">' + cells[i][0] + '</div></div>';
+    }
+    el.endStats.innerHTML = html;
+
+    el.endOverlay.classList.remove('hidden');
+  }
+
+  /* ================= 主循环 ================= */
+  let lastT = 0;
+
+  function frame(t) {
+    if (canvas.clientWidth !== W || canvas.clientHeight !== H) resize();
+    const raw = lastT ? (t - lastT) / 1000 : 0.016;
+    lastT = t;
+    const rdt = Math.min(0.05, Math.max(0, raw));
+
+    if (state === 'playing') {
+      slowT = Math.max(0, slowT - rdt);
+      const dt = rdt * (slowT > 0 ? 0.3 : 1);
+      updateGame(dt);
+    }
+
+    cam.shakeAmp *= Math.pow(0.015, rdt);
+    if (cam.shakeAmp < 0.06) cam.shakeAmp = 0;
+    cam.shakeX = (Math.random() - 0.5) * 2 * cam.shakeAmp;
+    cam.shakeY = (Math.random() - 0.5) * 2 * cam.shakeAmp;
+
+    updateCamera(rdt);
+    render();
+
+    requestAnimationFrame(frame);
+  }
+
+  /* ================= 启动 ================= */
+  el.camName.textContent = CAM_PRESETS[0].name;
+  resize();
+  if (isTouch) {
+    cam.dist = 13.4; cam.cd = 13.4;
+    cam.pitch = 0.46; cam.cp = 0.46;
+    cam.yaw = 0.26; cam.cy = 0.26;
+    cam.target.y = 2.4;
+  }
+  if (/[?&]vp=1/.test(location.search)) {
+    document.title = 'VP ' + W + 'x' + H + ' inner ' + window.innerWidth + 'x' + window.innerHeight;
+  }
+  reset();
+  updateHud();
+
+  trailBtnEl = document.getElementById('btnTrail');
+  miniBtnEl = document.getElementById('btnMini');
+  var polarBtnEl = document.getElementById('btnPolar');
+  if (polarBtnEl) {
+    polarBtnEl.addEventListener('pointerdown', function (e) { e.preventDefault(); togglePolar(); });
+  }
+  if (trailBtnEl) {
+    trailBtnEl.classList.toggle('on', opts.trailMode > 0);
+    trailBtnEl.addEventListener('pointerdown', function (e) { e.preventDefault(); cycleTrail(); });
+  }
+  if (miniBtnEl) {
+    miniBtnEl.addEventListener('pointerdown', function (e) { e.preventDefault(); toggleMini(); });
+  }
+
+  document.getElementById('btnStart').addEventListener('click', startGame);
+  document.getElementById('btnRestart').addEventListener('click', startGame);
+  document.getElementById('btnMenu').addEventListener('click', backToMenu);
+
+  // 调试/演示用：index.html?auto=1 直接开打，&t=秒数 快进模拟
+  if (/[?&]auto=1/.test(location.search)) {
+    startGame();
+    if (/[?&]fire=1/.test(location.search)) mouseDown = true;
+    const bh = location.search.match(/[?&]boss=(\d+)/);
+    if (bh) {
+      boss.hp = Math.min(boss.maxHp, parseInt(bh[1], 10));
+      boss.phase = boss.hp <= boss.maxHp * 0.33 ? 3 : boss.hp <= boss.maxHp * 0.66 ? 2 : 1;
+    }
+    const cm = location.search.match(/[?&]cam=(\d)/);
+    if (cm) {
+      const idx = Math.min(3, Math.max(0, parseInt(cm[1], 10)));
+      cam.preset = idx;
+      cam.yaw = CAM_PRESETS[idx].yaw;
+      cam.pitch = CAM_PRESETS[idx].pitch;
+      cam.dist = CAM_PRESETS[idx].dist;
+      el.camName.textContent = CAM_PRESETS[idx].name;
+    }
+    const ym = location.search.match(/[?&]yaw=([-\d.]+)/);
+    if (ym) {
+      cam.orbit = true;
+      cam.preset = 3;
+      cam.yaw = parseFloat(ym[1]);
+      cam.cy = cam.yaw;
+      el.camName.textContent = CAM_PRESETS[3].name;
+    }
+    if (/[?&]polar=1/.test(location.search)) togglePolar(true);
+    const dv = location.search.match(/[?&]drive=([wasd]+)/);
+    if (dv) { for (let i = 0; i < dv[1].length; i++) keys[dv[1][i]] = true; }
+    const pt = location.search.match(/[?&]pat=([a-zA-Z]+)/);
+    if (pt) {
+      const names = {
+        ring: 'ring', spiral: 'spiral', wall: 'wall', laser: 'laser', sat: 'satBurst',
+        spread: 'spread', rain: 'rain', orbit: 'orbit',
+        stair: 'stair', dive: 'dive', mine: 'mine', rise: 'rise',
+        counter: 'counterSpiral', lowhigh: 'lowHigh'
+      };
+      const nm = names[pt[1]];
+      if (nm) later(0.35, function () { runPattern(nm); });
+    }
+    const m = location.search.match(/[?&]t=([\d.]+)/);
+    if (m) {
+      const ff = Math.min(120, parseFloat(m[1]) || 0);
+      const step = 1 / 60;
+      for (let s = 0; s < ff && state === 'playing'; s += step) {
+        updateGame(step);
+        updateCamera(step);
+      }
+
+    }
+  }
+
+  // 调试钩子：?dbg=1 时把相机/输入状态挂到 window，方便自动化验证
+  if (/[?&]dbg=1/.test(location.search)) {
+    window.__dbg = {
+      cam: cam, polar: polar, look: look,
+      get state() { return state; },
+      get counts() { return { b: bullets.length, l: lasers.length, w: walls.length, r: rings.length, hp: boss.hp }; },
+      get player() { return player; },
+      get boss() { return boss; },
+      get bullets() { return bullets; },
+      heightRGB: heightRGB,
+      dash: function () { dashQueued = true; },
+      run: function (n) { runPattern(n); }
+    };
+  }
+
+  requestAnimationFrame(frame);
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+/** boss：环绕运动、出招节奏、阶段与狂暴。 */
+import { BOSS, ROUND } from '../config';
+import { COLORS } from '../core/color';
+import { clamp, lerp, rand } from '../core/math';
+import { boss, clock } from '../state';
+import { spawnSpark } from './effects';
+import { pickPattern, runPattern } from '../patterns';
+import { updateHud } from '../ui/hud';
+import { toast } from '../ui/toast';
+import { endGame } from '../ui/flow';
+
+export function updateBoss(dt: number): void {
+  if (!boss.alive) return;
+  boss.spin += dt * BOSS.spin;
+
+  const rage = boss.enraged ? BOSS.rageSpeed : 1;
+  boss.ang += dt * (BOSS.angSpeed + (boss.phase - 1) * BOSS.angPerPhase) * rage;
+
+  const tx = Math.cos(boss.ang) * BOSS.orbitX;
+  const tz = Math.sin(boss.ang) * BOSS.orbitZ + BOSS.orbitZOff;
+  const f = Math.min(1, dt * 1.5);
+  boss.x = lerp(boss.x, tx, f);
+  boss.z = lerp(boss.z, tz, f);
+  boss.y = BOSS.hoverY + Math.sin(clock.elapsed * 1.05) * BOSS.hoverAmp + Math.sin(clock.elapsed * 2.3) * BOSS.hoverAmp2;
+
+  boss.flash = Math.max(0, boss.flash - dt);
+
+  boss.cd -= dt;
+  if (boss.cd <= 0) {
+    runPattern(pickPattern());
+    boss.cd = BOSS.cdBase * (1 - (boss.phase - 1) * BOSS.cdPerPhase)
+      / (boss.enraged ? BOSS.cdRage : 1)
+      * rand(BOSS.cdJitter[0], BOSS.cdJitter[1]);
+  }
+}
+
+export function damageBoss(d: number): void {
+  if (!boss.alive) return;
+  boss.hp = Math.max(0, boss.hp - d);
+  boss.flash = Math.max(boss.flash, 0.1);
+
+  const p = boss.hp / boss.maxHp;
+  if (p <= ROUND.phase2 && boss.phase === 1) {
+    boss.phase = 2;
+    boss.cd = Math.min(boss.cd, 1.2);
+    toast('BOSS 进入第二阶段', 1500, COLORS.boss);
+  } else if (p <= ROUND.phase3 && boss.phase === 2) {
+    boss.phase = 3;
+    boss.cd = Math.min(boss.cd, 1.0);
+    toast('BOSS 进入第三阶段 · 弹幕加速', 1500, COLORS.boss);
+  }
+
+  if (boss.hp <= 0) {
+    boss.alive = false;
+    for (let i = 0; i < 60; i++) spawnSpark(boss.x, boss.y, boss.z, COLORS.boss, 2.2);
+    endGame(true);
+  }
+  updateHud();
+}
+
+/** 血条比例，给 UI 用（避免 UI 自己再写一遍 clamp） */
+export function bossHpRatio(): number {
+  return clamp(boss.hp / boss.maxHp, 0, 1);
+}
