@@ -23,7 +23,8 @@ export interface Achievement {
 function defs(): Achievement[] {
   return [
     { id: 'nofx-1', title: '无伤 Level 1', desc: '在 Level 1 击破 boss，全程不被击中', at: 0 },
-    { id: 'nofx-2', title: '无伤 Level 2', desc: '在 Level 2 击破 boss，全程不被击中', at: 0 }
+    { id: 'nofx-2', title: '无伤 Level 2', desc: '在 Level 2 击破 boss，全程不被击中', at: 0 },
+    { id: 'nofx-3', title: '无伤 Level 3', desc: '在 Level 3 击破 boss，全程不被击中', at: 0 }
   ];
 }
 

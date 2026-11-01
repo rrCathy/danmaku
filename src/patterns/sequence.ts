@@ -52,8 +52,25 @@ export const SEQUENCES_D2: Record<number, PatternName[]> = {
       'sweepLow', 'sweepHigh', 'rain', 'satBurst', 'dive', 'lowHigh', 'ring', 'stair']
 };
 
+/**
+ * 难度 3：形状弹幕 · 微操穿梭（参考东方）。
+ *
+ * 全部是规则形状 —— 花瓣 / 光芒 / 雨 / 喷泉 / 柱 / 锥，
+ * 每一招的缝隙都清晰可读，靠在缝里挪一小步过。
+ * 顺序：先教形状阅读（花瓣/圆圈/放射/螺旋），再教环境弹幕（雨/喷泉），最后全混合。
+ */
+export const SEQUENCES_D3: Record<number, PatternName[]> = {
+  // 花瓣（形状基线）→ 圆圈（同心对照）→ 放射光芒 → 螺旋 → 喷泉（抛物线入门）
+  1: ['petal', 'ring', 'radial', 'spiral', 'fountain'],
+  // 环境弹幕打头：全图雨（读多个圈）→ 锥（贴边微移）→ 花瓣 → 双螺旋 → 喷泉 → 光芒
+  2: ['downpour', 'cone', 'petal', 'counterSpiral', 'fountain', 'radial', 'ring', 'spiral'],
+  // 反雨最难读（预判上升），放开头压轴交替；墙类一概不进
+  3: ['uprain', 'cone', 'downpour', 'petal', 'fountain', 'spiral', 'counterSpiral',
+      'radial', 'ring', 'feint', 'satBurst']
+};
+
 export function sequenceFor(phase: number, difficulty: DifficultyKey = 1): PatternName[] {
-  const table = difficulty === 2 ? SEQUENCES_D2 : SEQUENCES;
+  const table = difficulty === 3 ? SEQUENCES_D3 : difficulty === 2 ? SEQUENCES_D2 : SEQUENCES;
   return table[phase] || table[1];
 }
 
@@ -81,5 +98,13 @@ export const PATTERN_LABELS: Record<PatternName, { name: string; hint: string }>
   sniper: { name: '预判狙', hint: '按你的速度打提前量 —— 站着不动会被三发同时命中' },
   gate: { name: '闸门', hint: '两道墙缺口错开 —— 穿过第一道后必须横移到第二个口' },
   feint: { name: '假坠', hint: '紫色下落，到半空突然改水平冲你 —— 颜色在说谎' },
-  risenare: { name: '涌裂', hint: '地涌升到 2.9m 炸开一圈 —— 起手就要拉开距离' }
+  risenare: { name: '涌裂', hint: '地涌升到 2.9m 炸开一圈 —— 起手就要拉开距离' },
+
+  // ---- 难度 3 新增（形状弹幕 · 微操）----
+  petal: { name: '花瓣环', hint: '俯视呈花瓣 —— 沿花瓣之间的沟挪，别横穿' },
+  radial: { name: '放射光芒', hint: '多束光线，束间低/高交替 —— 挪到两束之间的扇形缝' },
+  downpour: { name: '全图雨', hint: '满场读秒落雨 —— 看亮圈挪半步，别跑，跑会撞下一批' },
+  fountain: { name: '喷泉', hint: '抛物线落点在环带 —— 贴 boss 或退到 12m 外都安全' },
+  uprain: { name: '反雨', hint: '地下往上升的柱子 —— 预判它到你这层的时刻，横移出柱' },
+  cone: { name: '放射锥', hint: '锥状喷射、逐波重瞄 —— 贴着锥边持续微移' }
 };

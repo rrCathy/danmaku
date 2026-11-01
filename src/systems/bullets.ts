@@ -102,12 +102,16 @@ export function updateBullets(dt: number): void {
       b.vz += (dz / l * spd - b.vz) * k;
     }
 
+    // 抛物线弹（喷泉）：只有显式带 grav 的弹受影响，旧图案 grav=undefined 零变化
+    if (b.grav) b.vy -= b.grav * dt;
+
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     b.z += b.vz * dt;
     b.life -= dt;
     b.rgb = heightRGB(b.y);   // 颜色永远跟着当前高度走
-    b.cls = b.kind === 'rain' ? 'rain' : clsName(b.y);
+    // 落雨类的语义分段固定为 rain（诊断文案「落点雨」），其余按当前高度重算
+    b.cls = (b.kind === 'rain' || b.kind === 'downpour') ? 'rain' : clsName(b.y);
 
     if (opts.trailMode === 1 || opts.trailMode === 3) {
       b.tk -= dt;
@@ -119,8 +123,15 @@ export function updateBullets(dt: number): void {
       }
     }
 
-    if (b.kind === 'rain' && b.y <= 0.12) {
+    if ((b.kind === 'rain' || b.kind === 'downpour' || b.kind === 'fountain') && b.y <= 0.12) {
       for (let k = 0; k < 5; k++) spawnSpark(b.x, 0.15, b.z, COLORS.rain, 0.8);
+      bullets.splice(i, 1);
+      continue;
+    }
+
+    // 反雨：升到高空后消散（和地涌相反方向的同一句话：高度色带永远说实话）
+    if (b.kind === 'uprain' && b.y > 7.6) {
+      for (let k = 0; k < 3; k++) spawnSpark(b.x, b.y, b.z, b.rgb, 0.5);
       bullets.splice(i, 1);
       continue;
     }

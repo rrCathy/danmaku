@@ -373,6 +373,221 @@ export function feint(): void {
   }
 }
 
+/* ============================================================
+ * 难度 3 新增 · 形状弹幕与环境弹幕
+ *
+ * 主题：**细微移动**（参考东方）。每一招都是规则形状 ——
+ * 花瓣 / 光芒 / 点阵雨 / 喷泉抛物线 / 上升柱 / 锥形喷射，
+ * 缝隙清晰、有节奏，靠在缝里挪一小步过，不是靠跑。
+ * ============================================================ */
+
+/**
+ * 花瓣环：径向速度按玫瑰线调制的一圈弹，俯视呈花瓣。
+ *
+ * v_r(θ) = base + amp·cos(k·θ)：快弹勾出花瓣的尖，慢弹聚在花瓣的谷，
+ * 飞行 0.5s 后五瓣花就显形。缝隙（谷与谷之间）是安全区 —— 沿着沟挪。
+ */
+export function petalRing(): void {
+  const ringsN = boss.phase >= 3 ? 3 : 2;
+  boss.flash = 0.45;
+  for (let rw = 0; rw < ringsN; rw++) {
+    later(0.42 + rw * 0.62, (function (idx) {
+      return function () {
+        if (!boss.alive) return;
+        const k = idx === 0 ? 5 : idx === 1 ? 6 : 4;   // 花瓣数逐圈变，读图不读记忆
+        const rot = random() * TAU;
+        const n = 24;
+        const h = idx === 1 ? 1.62 : 1.18;             // 两圈错开高度，读层再读形
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * TAU + rot;
+          const vr = 7.2 + 2.9 * Math.cos(k * a);
+          addBullet(boss.x, h, boss.z, Math.cos(a) * vr, 0, Math.sin(a) * vr,
+            0.19, clsOf(h), 'petal');
+        }
+      };
+    })(rw));
+  }
+}
+
+/**
+ * 放射光芒：从 boss 向多方向射出的「光线」—— 每束是一串等间隔连发。
+ *
+ * 高度在束与束之间低/高交替：一束贴地（起跳躲），相邻一束在 2.3m（别跳）。
+ * 站在原地会被任意一束扫到，得挪到两束之间的扇形缝里。
+ */
+export function radialRays(): void {
+  const beams = boss.phase >= 3 ? 12 : 10;
+  const per = 5;
+  const step = 0.088;            // 连发间隔 → 弹间距约 1.05m，正好一个人身位
+  const sp = 12.2;
+  boss.flash = 0.5;
+  const base = random() * TAU;
+  for (let b = 0; b < beams; b++) {
+    const ang = base + (b / beams) * TAU;
+    const h = (b % 2 === 0) ? 0.62 : 2.32;
+    for (let i = 0; i < per; i++) {
+      later(0.42 + i * step, (function (aa, hh) {
+        return function () {
+          if (!boss.alive) return;
+          addBullet(boss.x, hh, boss.z, Math.cos(aa) * sp, 0, Math.sin(aa) * sp,
+            0.18, clsOf(hh), 'radial');
+        };
+      })(ang, h));
+    }
+  }
+}
+
+/**
+ * 全图雨：整个场地下起规律的雨，地面亮圈读秒后垂直砸落。
+ *
+ * 落点按面积均匀撒开（√r 抵消面积偏置），不追着玩家 —— 这是「全地图」的字面意思。
+ * 每颗都有亮圈 + 落速偏慢，所以难在「同时读多个圈」，不在反应速度。
+ * 刻意压着密度：宁可稀一点，也别做成走位抽卡。
+ */
+export function downpour(): void {
+  const waves = boss.phase >= 3 ? 3 : 2;
+  const perWave = 16;
+  boss.flash = 0.5;
+  for (let w = 0; w < waves; w++) {
+    later(0.45 + w * 0.92, (function (idx) {
+      return function () {
+        if (!boss.alive) return;
+        for (let i = 0; i < perWave; i++) {
+          const a = random() * TAU;
+          const rr = Math.sqrt(random()) * (ARENA_R - 1.6);
+          const x = Math.cos(a) * rr;
+          const z = Math.sin(a) * rr;
+          // 落点离玩家至少 1.1m：正下方不能天降，给读圈留出意义
+          if (Math.hypot(x - player.x, z - player.z) < 1.1) continue;
+          const delay = 1.05 + idx * 0.12 + i * 0.012;
+          rings.push({ x, z, r: 1.05, t: delay, dur: delay });
+          later(delay, (function (xx, zz) {
+            return function () {
+              addBullet(xx, 10.5, zz, 0, -11.5, 0, 0.30, 'rain', 'downpour');
+            };
+          })(x, z));
+        }
+      };
+    })(w));
+  }
+}
+
+/**
+ * 喷泉：从 boss 脚下把一圈圈子弹斜抛出去，画出抛物线落回地面。
+ *
+ * 带重力的弹（Bullet.grav），升的时候颜色红→青，落回来又青→红 ——
+ * 读颜色就知道它在弧线的哪一段。圈与圈相位错开，俯视像转动的花瓣喷泉。
+ * 落点带（半径约 10m 的环）是它的杀伤区，贴 boss 或远退都安全。
+ */
+export function fountain(): void {
+  const ringsN = boss.phase >= 3 ? 4 : 3;
+  const n = 16;
+  const sp = 13.2;
+  const elev = 58 * Math.PI / 180;
+  const vy = Math.sin(elev) * sp;
+  const vh = Math.cos(elev) * sp;
+  const gx = boss.x, gz = boss.z;
+  boss.flash = 0.5;
+  for (let rw = 0; rw < ringsN; rw++) {
+    later(0.42 + rw * 0.4, (function (idx) {
+      return function () {
+        const rot = idx * 0.34 + random() * 0.12;
+        for (let i = 0; i < n; i++) {
+          const a = rot + (i / n) * TAU;
+          addBullet(gx, 0.35, gz, Math.cos(a) * vh, vy, Math.sin(a) * vh,
+            0.21, 'low', 'fountain');
+          bullets[bullets.length - 1].grav = 15.5;
+        }
+        for (let k = 0; k < 5; k++) spawnSpark(gx, 0.4, gz, COLORS.low, 0.9);
+      };
+    })(rw));
+  }
+}
+
+/**
+ * 反雨：boss 脚下的地面裂开，弹幕从地下往上升 —— 倒挂的雨。
+ *
+ * 发射点地面亮圈读秒，然后一串弹垂直升起。颜色一路红→紫说「它到第几层了」，
+ * 玩家要预判「它升到我这层时，我还站在柱子里吗」。柱子不追人，横移半步就出。
+ */
+export function uprain(): void {
+  const waves = boss.phase >= 3 ? 3 : 2;
+  const cols = 11;
+  boss.flash = 0.55;
+  for (let w = 0; w < waves; w++) {
+    later(0.42 + w * 0.78, function () {
+      if (!boss.alive) return;
+      const base = random() * TAU;
+      for (let i = 0; i < cols; i++) {
+        const a = base + (i / cols) * TAU + rand(-0.12, 0.12);
+        const rr = rand(2.4, 8.2);
+        const x = boss.x + Math.cos(a) * rr;
+        const z = boss.z + Math.sin(a) * rr;
+        if (Math.hypot(x, z) > ARENA_R - 1.2) continue;
+
+        rings.push({ x, z, r: 0.85, t: 0.62, dur: 0.62, cls: 'rise' });
+        later(0.62, (function (xx, zz) {
+          return function () {
+            for (let s = 0; s < 3; s++) {
+              later(s * 0.24, function () {
+                addBullet(xx, 0.15, zz, 0, 10.8, 0, 0.24, 'low', 'uprain');
+              });
+            }
+          };
+        })(x, z));
+      }
+    });
+  }
+}
+
+/**
+ * 放射锥：朝玩家方向喷出一束锥状弹幕，像手电筒的光锥。
+ *
+ * 锥内三层（中轴 1 + 内环 6 + 外环 12）：锥心最密，锥缘留缝。
+ * 每一波重新瞄准 —— 站着不动会被下一波盖住，得贴着锥边持续微移。
+ */
+export function coneBurst(): void {
+  const waves = boss.phase >= 3 ? 4 : 3;
+  boss.flash = 0.5;
+  for (let w = 0; w < waves; w++) {
+    later(0.42 + w * 0.34, function () {
+      if (!boss.alive) return;
+      // 锥轴 = boss → 玩家（每波重瞄）
+      let ax = player.x - boss.x;
+      let ay = (player.y + 0.8) - boss.y;
+      let az = player.z - boss.z;
+      const al = Math.hypot(ax, ay, az) || 1;
+      ax /= al; ay /= al; az /= al;
+      // 与轴正交的两个基向量
+      let p1x = -az, p1y = 0, p1z = ax;
+      const p1l = Math.hypot(p1x, p1y, p1z) || 1;
+      p1x /= p1l; p1z /= p1l;
+      const p2x = ay * p1z - az * p1y;
+      const p2y = az * p1x - ax * p1z;
+      const p2z = ax * p1y - ay * p1x;
+
+      const sp = 13.8;
+      const layers: Array<[number, number, number]> = [
+        [0, 1, 0],            // 中轴 1 发
+        [0.105, 6, 0.5],      // 内环 6 发（半角约 6°）
+        [0.25, 12, 0.2]       // 外环 12 发（半角约 14°）
+      ];
+      for (let li = 0; li < layers.length; li++) {
+        const tanA = layers[li][0], cnt = layers[li][1], phase = layers[li][2];
+        for (let i = 0; i < cnt; i++) {
+          const phi = phase + (i / cnt) * TAU;
+          const dx = ax + (p1x * Math.cos(phi) + p2x * Math.sin(phi)) * tanA;
+          const dy = ay + (p1y * Math.cos(phi) + p2y * Math.sin(phi)) * tanA;
+          const dz = az + (p1z * Math.cos(phi) + p2z * Math.sin(phi)) * tanA;
+          const dl = Math.hypot(dx, dy, dz) || 1;
+          addBullet(boss.x, boss.y, boss.z, dx / dl * sp, dy / dl * sp, dz / dl * sp,
+            0.18, clsOf(boss.y), 'cone');
+        }
+      }
+    });
+  }
+}
+
 /** 生成时用的粗分段（与 clsName 的段界不同，1:1 保留历史行为） */
 function clsOf(h: number): HClass {
   return h < 1.05 ? 'low' : h < 2.05 ? 'mid' : 'high';

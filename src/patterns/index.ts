@@ -7,12 +7,13 @@
  * 想复现某一局：见 main.ts 的 ?pat= / ?seed= 与 __dbg.run()。
  */
 import { boss, later, lasers, session, walls } from '../state';
-import { SEQUENCES_D2, getSequenceMode, sequenceFor } from './sequence';
+import { SEQUENCES_D2, SEQUENCES_D3, getSequenceMode, sequenceFor } from './sequence';
 import { random } from '../core/random';
 import { fanShot, ringShot, spreadShot } from './emitters';
 import {
-  counterSpiral, diveShot, feint, gate, jumpWall, laserSweep, lowHigh, mineShot, orbitShot,
-  rainShot, risenare, riseShot, satBurst, sniper, spiralShot, stairShot, wallShot
+  coneBurst, counterSpiral, diveShot, downpour, feint, fountain, gate, jumpWall,
+  laserSweep, lowHigh, mineShot, orbitShot, petalRing, radialRays, rainShot, risenare,
+  riseShot, satBurst, sniper, spiralShot, stairShot, uprain, wallShot
 } from './shots';
 
 import type { PatternName } from '../types';
@@ -33,18 +34,27 @@ for (let ph = 1; ph <= 3; ph++) {
   D2_POOL[ph] = Array.from(new Set(SEQUENCES_D2[ph]));
 }
 
+/** 难度 3 的随机池：同上，取序列去重（墙类从一开始就不在序列里） */
+const D3_POOL: Record<number, PatternName[]> = {};
+for (let ph = 1; ph <= 3; ph++) {
+  D3_POOL[ph] = Array.from(new Set(SEQUENCES_D3[ph]));
+}
+
 export function poolFor(phase: number): PatternName[] {
+  if (session.difficulty === 3) return D3_POOL[phase] || D3_POOL[1];
   if (session.difficulty === 2) return D2_POOL[phase] || D2_POOL[1];
   return PATTERNS[phase] || PATTERNS[1];
 }
 
-/** 全部 21 种，按"想单独测某个图案"的顺序排（给训练场 / ?pat= 用） */
+/** 全部 27 种，按"想单独测某个图案"的顺序排（给训练场 / ?pat= 用） */
 export const ALL_PATTERNS: PatternName[] = [
   // 难度 1
   'sweepLow', 'sweepHigh', 'spread', 'ring', 'stair', 'rise', 'lowHigh', 'dive',
   'rain', 'mine', 'laser', 'wall', 'spiral', 'counterSpiral', 'satBurst', 'orbit',
   // 难度 2
-  'jumpWall', 'sniper', 'gate', 'feint', 'risenare'
+  'jumpWall', 'sniper', 'gate', 'feint', 'risenare',
+  // 难度 3（形状弹幕 · 微操）
+  'petal', 'radial', 'downpour', 'fountain', 'uprain', 'cone'
 ];
 
 /**
@@ -160,6 +170,26 @@ export function runPattern(name: PatternName | string): void {
       break;
     case 'risenare':
       risenare();
+      break;
+
+    /* ---- 难度 3（形状弹幕 · 微操）---- */
+    case 'petal':
+      petalRing();
+      break;
+    case 'radial':
+      radialRays();
+      break;
+    case 'downpour':
+      downpour();
+      break;
+    case 'fountain':
+      fountain();
+      break;
+    case 'uprain':
+      uprain();
+      break;
+    case 'cone':
+      coneBurst();
       break;
   }
 }

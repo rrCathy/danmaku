@@ -329,7 +329,8 @@ export function initUi(): void {
   const diffBtns = document.querySelectorAll<HTMLElement>('.lv-card');
   for (let i = 0; i < diffBtns.length; i++) {
     diffBtns[i].addEventListener('click', function () {
-      setDifficulty(Number(diffBtns[i].dataset.diff) === 2 ? 2 : 1);
+      const d = Number(diffBtns[i].dataset.diff);
+      setDifficulty(d === 3 ? 3 : d === 2 ? 2 : 1);
     });
   }
   setDifficulty(session.difficulty);

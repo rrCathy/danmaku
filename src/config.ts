@@ -87,6 +87,7 @@ export const BOSS = {
 /**
  * 难度只改三样东西：出招密度、弹速、默认读 Aid。
  * 玩家血量 / 判定 / 场地一律不动 —— 这样两档难度之间只有一个变量在变。
+ * Level 3 在此基础上换了图案池（形状弹幕 · 微操），同样不动玩家参数。
  */
 export interface Difficulty {
   key: DifficultyKey;
@@ -117,6 +118,14 @@ export const DIFFICULTIES: Record<DifficultyKey, Difficulty> = {
     cdBase: 1.42,
     cdJitter: [0.85, 1.05],
     bulletSpeed: 1.1
+  },
+  3: {
+    key: 3,
+    name: 'Level 3',
+    note: '27 种图案 · 形状弹幕 · 微操穿梭',
+    cdBase: 1.12,
+    cdJitter: [0.85, 1.0],
+    bulletSpeed: 1.18
   }
 };
 

@@ -15,7 +15,20 @@ export type BulletKind =
   | 'wall' | 'sat' | 'stair' | 'dive' | 'mine' | 'mineLive'
   | 'rise' | 'mineBurst'
   /** 诱饵：降到半空突然改成水平冲刺 */
-  | 'feint';
+  | 'feint'
+  // ---- 难度 3 新增（形状弹幕 / 环境弹幕）----
+  /** 花瓣环：径向速度按玫瑰线调制，俯视呈花瓣 */
+  | 'petal'
+  /** 放射光芒：从一点向多方向射出的光线串 */
+  | 'radial'
+  /** 全图雨：覆盖整个场地的规律落雨 */
+  | 'downpour'
+  /** 喷泉：带重力的斜抛弹（抛物线） */
+  | 'fountain'
+  /** 反雨：从地下往上升的弹幕柱 */
+  | 'uprain'
+  /** 放射锥：朝一个方向的锥状喷射 */
+  | 'cone';
 
 export interface Bullet {
   x: number; y: number; z: number;
@@ -33,6 +46,8 @@ export interface Bullet {
   fuse?: number;
   /** 1 = 不参与碰撞（地雷本体） */
   noHit?: number;
+  /** 重力加速度 m/s²（喷泉的抛物线用）。不设 = 匀速直线，所有旧图案不受影响 */
+  grav?: number;
   trail: number[] | null;
   tk: number;
 }
@@ -151,17 +166,19 @@ export interface Projected {
   s: number;
 }
 
-/** 16 种弹幕图案的标识 */
+/** 弹幕图案的标识 */
 export type PatternName =
   // 第一难度（标准）
   | 'sweepLow' | 'spread' | 'ring' | 'stair' | 'rise'
   | 'sweepHigh' | 'rain' | 'satBurst' | 'dive' | 'lowHigh'
   | 'orbit' | 'spiral' | 'wall' | 'laser' | 'mine' | 'counterSpiral'
   // 第二难度（高压）新增
-  | 'jumpWall' | 'sniper' | 'gate' | 'risenare' | 'feint';
+  | 'jumpWall' | 'sniper' | 'gate' | 'risenare' | 'feint'
+  // 第三难度（形状弹幕 · 微操）新增
+  | 'petal' | 'radial' | 'downpour' | 'fountain' | 'uprain' | 'cone';
 
-/** 难度编号。1 = 标准，2 = 高压 */
-export type DifficultyKey = 1 | 2;
+/** 难度编号。1 = 标准，2 = 高压，3 = 形状微操 */
+export type DifficultyKey = 1 | 2 | 3;
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'over' | 'training';
 export type EndReason = 'hp' | 'time';
