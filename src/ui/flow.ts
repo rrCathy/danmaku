@@ -8,9 +8,10 @@ import { COLORS } from '../core/color';
 import { isTouch } from '../core/device';
 import { flags } from '../input/flags';
 import { look, lookHintOn, reqLock } from '../input/pointer';
-import { boss, bullets, clock, opts, player, reset, setState, state, stats, training } from '../state';
+import { boss, bullets, clock, opts, player, reset, session, setState, state, stats, training } from '../state';
 import { clearField, selectPattern } from '../systems/training';
-import { initTrainPanel, refreshTrainPanel, showTrainPanel } from './training';
+import { initTrainPanel, openTrainPick, refreshTrainPanel } from './training';
+import { initOverlays, syncOverlays } from './overlays';
 import type { EndReason, PatternName } from '../types';
 import { el } from './dom';
 import { toast } from './toast';
@@ -18,6 +19,8 @@ import { toast } from './toast';
 const TRAIL_NAMES = ['关闭', '拖尾（已飞过的路径）', '预测（接下来往哪飞）', '拖尾 + 预测'];
 let trailBtnEl: HTMLElement | null = null;
 let miniBtnEl: HTMLElement | null = null;
+/** 从哪个状态进入暂停的（训练场暂停后要继续练，不是继续打 boss） */
+let pausedFrom: 'playing' | 'training' | null = null;
 
 /* ============ 镜头 ============ */
 export function enterOrbit(silent: boolean): void {
@@ -116,16 +119,18 @@ function requestLandscape(): void {
 export function startGame(): void {
   requestLandscape();
   reset();
+  pausedFrom = null;
+  session.mode = 'game';
   setState('playing');
   el.startOverlay.classList.add('hidden');
   el.endOverlay.classList.add('hidden');
-  showTrainPanel(false);
   document.body.classList.remove('training');
   flags.jump = false;
   flags.fire = false;
   // PC：开局顺手锁定鼠标，之后移动鼠标就是转视角（失败了也没关系，点画面即可）
   if (look.ok) reqLock();
   lookHintOn();
+  syncOverlays();
   toast(isTouch ? '击破 boss 即可通关 · 限时 2 分钟' : '击破 boss 即可通关 · 移动鼠标转视角', 2000, COLORS.player);
 }
 
@@ -137,47 +142,84 @@ export function startGame(): void {
 export function startTraining(pattern?: PatternName): void {
   requestLandscape();
   reset();
+  pausedFrom = null;
+  session.mode = 'training';
   setState('training');
   el.startOverlay.classList.add('hidden');
   el.endOverlay.classList.add('hidden');
   flags.jump = false;
   flags.fire = false;
   initTrainPanel();
-  showTrainPanel(true);
   document.body.classList.add('training');
   selectPattern(pattern || (training.pattern as PatternName) || (TRAINING.first as PatternName));
   refreshTrainPanel();
+  // 训练场也锁指针：鼠标转视角要跟正常对局一致（早先不锁，导致鼠标划到画外没反应）
+  if (look.ok) reqLock();
   lookHintOn();
+  syncOverlays();
   toast('训练场 · 换个格子就换一招', 1800, COLORS.player);
 }
 
-export function togglePause(): void {
-  if (state === 'playing') {
-    setState('paused');
-    toast('已暂停 · 按 P 或点击画面继续', 100000, COLORS.player);
-  } else if (state === 'paused') {
-    setState('playing');
-    el.toast.classList.remove('on');
-  }
+/**
+ * 暂停 / 继续。
+ *
+ * 暂停时必须把「从哪儿暂停的」记住 —— 训练场暂停后要继续练，不是继续打 boss。
+ * 暂停时顺手放掉指针锁，否则鼠标被吃住点不到卡片。
+ */
+export function pauseGame(): void {
+  if (state !== 'playing' && state !== 'training') return;
+  pausedFrom = state;
+  setState('paused');
+  if (document.pointerLockElement) document.exitPointerLock();
+  openTrainPick();          // 训练场：顺便把选招区刷成最新
   lookHintOn();
+  syncOverlays();
+}
+
+export function resumeGame(): void {
+  if (state !== 'paused') return;
+  setState(pausedFrom || 'playing');
+  pausedFrom = null;
+  el.toast.classList.remove('on');
+  relock();
+  lookHintOn();
+  syncOverlays();
+}
+
+/** 回到对局 / 训练时把指针锁回去，否则鼠标会划到画面外 */
+export function relock(): void {
+  if (!look.ok) return;
+  if (state === 'playing' || state === 'training') reqLock();
+}
+
+export function togglePause(): void {
+  if (state === 'paused') resumeGame();
+  else pauseGame();
+}
+
+/** 暂停卡上的「重开」：从训练场暂停就重开训练场 */
+export function restartLast(): void {
+  if (session.mode === 'training') startTraining(training.pattern as PatternName);
+  else startGame();
 }
 
 export function backToMenu(): void {
   reset();
   clearField();
+  pausedFrom = null;
   setState('menu');
   if (document.pointerLockElement) document.exitPointerLock();
   lookHintOn();
-  showTrainPanel(false);
   document.body.classList.remove('training');
   el.endOverlay.classList.add('hidden');
   el.startOverlay.classList.remove('hidden');
+  syncOverlays();
 }
 
 export function endGame(win: boolean, reason?: EndReason): void {
   if (state === 'over') return;
+  pausedFrom = null;
   setState('over');
-  showTrainPanel(false);
   document.body.classList.remove('training');
   if (document.pointerLockElement) document.exitPointerLock();
   lookHintOn();
@@ -218,6 +260,7 @@ export function endGame(win: boolean, reason?: EndReason): void {
   el.endStats.innerHTML = html;
 
   el.endOverlay.classList.remove('hidden');
+  syncOverlays();
 }
 
 /* ============ 初始化 ============ */
@@ -243,4 +286,6 @@ export function initUi(): void {
   document.getElementById('btnTrain')!.addEventListener('click', function () { startTraining(); });
   document.getElementById('btnRestart')!.addEventListener('click', startGame);
   document.getElementById('btnMenu')!.addEventListener('click', backToMenu);
+
+  initOverlays();
 }

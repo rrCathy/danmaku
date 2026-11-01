@@ -42,6 +42,10 @@ export const training = {
   nextIn: 0
 };
 
+/* ============ 会话模式 ============ */
+/** 本局是正常对局还是训练场：暂停卡的重开、选招区的显隐都看它 */
+export const session = { mode: 'game' as 'game' | 'training' };
+
 /* ============ 开关 ============ */
 export const opts = { shadows: true, guides: true, hitbox: false, trailMode: 1, mini: true };
 

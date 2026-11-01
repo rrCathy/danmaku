@@ -128,7 +128,8 @@ export function initPointer(): void {
   });
 
   window.addEventListener('pointerdown', function (e) {
-    if (state !== 'playing') return;
+    // 训练场同样需要摇杆 / 转视角手势
+    if (state !== 'playing' && state !== 'training') return;
     const target = e.target as HTMLElement | null;
     const onBtn = target && target.closest && target.closest('button');
     if (onBtn) return;

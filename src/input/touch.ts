@@ -5,7 +5,7 @@
  * 手机上手指出处不固定，固定摇杆会让人找不到。
  */
 import { state } from '../state';
-import { cycleCam } from '../ui/flow';
+import { cycleCam, togglePause } from '../ui/flow';
 import { flags } from './flags';
 import { keys } from './keyboard';
 import type { InputDir } from '../types';
@@ -68,10 +68,19 @@ export function initTouchButtons(): void {
     });
   }
 
+  // 触屏没有 P 键，暂停（进而返回说明）要靠这个按钮
+  const pauseEl = document.getElementById('btnPause');
+  if (pauseEl) {
+    pauseEl.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      togglePause();
+    });
+  }
+
   if (jumpEl) {
     jumpEl.addEventListener('pointerdown', function (e) {
       e.preventDefault();
-      if (state === 'playing') flags.jump = true;
+      if (state === 'playing' || state === 'training') flags.jump = true;
       jumpEl.classList.add('down');
     });
     jumpEl.addEventListener('pointerup', function () { jumpEl.classList.remove('down'); });
@@ -82,7 +91,7 @@ export function initTouchButtons(): void {
   if (dashEl) {
     dashEl.addEventListener('pointerdown', function (e) {
       e.preventDefault();
-      if (state === 'playing') flags.dash = true;
+      if (state === 'playing' || state === 'training') flags.dash = true;
       dashEl.classList.add('down');
     });
     dashEl.addEventListener('pointerup', function () { dashEl.classList.remove('down'); });

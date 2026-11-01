@@ -9,9 +9,10 @@ import { toast } from '../ui/toast';
 import { opts, state } from '../state';
 import { flags } from './flags';
 import {
-  cycleCam, cycleTrail, enterOrbit, startGame, toggleMini,
+  cycleCam, cycleTrail, enterOrbit, restartLast, startGame, toggleMini,
   togglePause, togglePolar
 } from '../ui/flow';
+import { closeHelp, isHelpOpen, toggleHelp } from '../ui/overlays';
 
 export const keys: Record<string, boolean> = Object.create(null);
 
@@ -23,7 +24,9 @@ const KEYMAP: Record<string, string> = {
   ShiftLeft: 'shift', ShiftRight: 'shift',
   ArrowUp: 'arrowup', ArrowDown: 'arrowdown',
   ArrowLeft: 'arrowleft', ArrowRight: 'arrowright',
-  Escape: 'escape', Enter: 'enter'
+  Escape: 'escape', Enter: 'enter',
+  // 物理键位映射：不管 Shift 有没有按、输入法是什么状态，都能开操作卡
+  Slash: '?'
 };
 
 function keyOf(e: KeyboardEvent): string {
@@ -49,8 +52,10 @@ export function initKeyboard(): void {
     if (k === 'g') { opts.shadows = !opts.shadows; toast(opts.shadows ? '地面影子：开' : '地面影子：关', 900, COLORS.player); }
     if (k === 'h') { opts.guides = !opts.guides; toast(opts.guides ? '高度引导线：开' : '高度引导线：关', 900, COLORS.player); }
     if (k === 'k') { opts.hitbox = !opts.hitbox; toast(opts.hitbox ? '判定框：显示' : '判定框：隐藏', 900, COLORS.player); }
-    if (k === 'p' && (state === 'playing' || state === 'paused')) togglePause();
-    if (k === 'r' && state !== 'menu') startGame();
+    if (k === 'p' && (state === 'playing' || state === 'paused' || state === 'training')) togglePause();
+    if (k === '?' || k === '/') toggleHelp();
+    if (k === 'escape' && isHelpOpen()) closeHelp();
+    if (k === 'r' && state !== 'menu') restartLast();
     if (k === 'enter' && state === 'menu') startGame();
   });
 

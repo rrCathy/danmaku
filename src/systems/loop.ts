@@ -10,7 +10,6 @@ import { updateLasers, updateWalls } from './hazards';
 import { updateGhosts, updateParticles, updateRings } from './effects';
 import { updateTraining } from './training';
 import { updateHud } from '../ui/hud';
-import { updateTrainHud } from '../ui/training';
 import { toast } from '../ui/toast';
 import { endGame } from '../ui/flow';
 
@@ -57,5 +56,4 @@ export function updateGame(dt: number): void {
   }
 
   updateHud();
-  if (trainingMode) updateTrainHud();
 }

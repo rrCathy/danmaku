@@ -1,7 +1,7 @@
 # 2.5E 弹幕 · 项目交接文档
 
 > 交接对象：接手这个验证装置的下一个人 / 下一个自己
-> 版本：v0.8　｜　整理时间：2026-11-01
+> 版本：v0.9　｜　整理时间：2026-11-01
 > 仓库：`github.com/rrCathy/danmaku`　｜　线上：<https://rrcathy.github.io/danmaku/>
 
 ---
@@ -27,13 +27,14 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | v0.8 |
-| 形态 | **Vite + TypeScript 多模块**，39 个 `.ts` + 2 个 `.css`，零运行时依赖（无 CDN / 字体 / 图片 / WebGL） |
-| 源码规模 | 4,029 行 TS + 309 行 CSS |
-| 构建产物 | `dist/assets/index-*.js` **57.6 KB**（gzip 21.3 KB）+ `index-*.css` 15.5 KB |
+| 版本 | v0.9 |
+| 形态 | **Vite + TypeScript 多模块**，40 个 `.ts` + 2 个 `.css`，零运行时依赖（无 CDN / 字体 / 图片 / WebGL） |
+| 源码规模 | 4,172 行 TS + 335 行 CSS |
+| 构建产物 | `dist/assets/index-*.js` **58.8 KB**（gzip 21.5 KB）+ `index-*.css` 16.6 KB |
 | 渲染 | canvas 2D + 手写透视投影（`project()`），不用 3D 库 |
 | 实测帧率 | **60.4 fps**（1440×900，headless Chromium 软件渲染，8 秒连续作战） |
 | 运行时错误 | **0**（v0.6 每次开局会留 1 条未捕获的 pointer lock 拒绝，已修） |
+| 退出与暂停 | 对局/训练场都能 `P` 暂停 → 继续 / 重开 / 操作方式 / 返回说明 |
 | 行为一致性 | **14/14 场景与 v0.6 逐位一致**（`?seq=random`，方法见 §9） |
 | 出招可控 | 固定序列（默认）+ `?seq=random` 回退 + `?seed=` 逐位复现 |
 | 移动端 | 沿用 v0.6 的触屏布局与横竖屏处理，**本轮重构未重新实测真机** |
@@ -114,15 +115,17 @@ ui/*           →  只读 state，写 DOM
 | `patterns/sequence.ts` | 固定出招序列 + 图案中文名/解法提示 | `SEQUENCES` `PATTERN_LABELS` |
 | `patterns/shots.ts` | 16 种图案的具体实现 | `rainShot()` `wallShot()` … |
 | `render/index.ts` | 绘制总入口（深度排序只对实体做） | `render()` |
-| `ui/flow.ts` | 开始 / 暂停 / 结束 / 镜头 / 极坐标 / 开关 | `startGame()` `endGame()` `togglePolar()` |
+| `ui/flow.ts` | 开始 / 暂停 / 结束 / 镜头 / 极坐标 / 开关 | `startGame()` `pauseGame()` `resumeGame()` `endGame()` |
+| `ui/overlays.ts` | 暂停卡 / 操作方式卡的显隐与状态回退 | `syncOverlays()` `openHelp()` `toggleHelp()` |
 | `ui/hud.ts` | 血条、计时、阶段 | `updateHud()` |
 | `ui/diag.ts` | 受击诊断面板 | `renderDiag()` |
-| `ui/training.ts` | 训练场面板（16 格 + 弹速 + 受击计数） | `initTrainPanel()` `refreshTrainPanel()` |
+| `ui/training.ts` | 训练场「选招式」区（挂在暂停卡里） | `initTrainPanel()` `openTrainPick()` `refreshTrainPanel()` |
 
 ### 状态与实体（`src/state.ts`）
 
 ```
 state: menu | playing | paused | over | training   （只在 ui/flow.ts 里被改）
+session.mode: game | training                      （暂停卡的重开、选招区显隐都看它）
 clock: { elapsed, timeLeft, slowT, dmgFlash }（只在 systems/ 里被改）
 
 player     玩家           boss       boss
@@ -266,10 +269,22 @@ boss.cast  本局实际出过的招（48 条上限）
 | 玩家 | 会死 | 不扣血，受击仍走完整诊断链 |
 | 出招 | 固定序列 + boss cd | 面板选中的图案每 2.8 s 重放 |
 
+**选招式是暂停时做的事**（v0.9 改的）。v0.8 把它做成左下角常驻面板，结果：
+
+- 手机上压住虚拟摇杆，训练场根本没法移动
+- 训练场刻意不锁指针（为了能点面板），于是鼠标视角也废了
+
+现在的规矩：
+
+- 练习时画面和正常对局一样干净，**指针照常锁定**（鼠标转视角 / 触屏右半屏搓）
+- `P` 暂停 → 暂停卡里多出「选招式」：16 格 + 弹速 0.5/1/1.5 + 受击计数 + 再来一发
+- 点一格 = 换招 + 自动继续；调弹速留在暂停卡里（设置类动不打断）
+- 换招时清零 `stats` 与诊断日志，「受击 N 次」才是"这一招我挨了几下"
+- 暂停即 `exitPointerLock()`，否则鼠标被吃住点不到卡片；继续时 `relock()`
+
 实现要点：
 - `systems/training.ts` 的 `selectPattern()` 会先 `clearField()`（含 timers），否则上一招的延迟回调会串进新招
-- 训练场**不锁指针**：要能点面板；转视角用右键拖动或 Q/E
-- 切图案、弹速、受击计数都在 `ui/training.ts` 的面板里；`updateTrainHud()` 每帧只在文字变化时写 DOM
+- 面板显隐统一由 `ui/overlays.ts: syncOverlays()` 决定，别在别处直接 toggle
 
 ---
 
@@ -326,6 +341,20 @@ auto=1&dbg=1&t=14&pat=sat&drive=wa
 | 训练场可用 | 16 个图案逐个 `?train=1&pat=X&t=2.5` | 全部 `fired=true`、hp 保持 100、`timeLeft` 冻结 120、0 报错 |
 | 弹速倍率 | `?train=1&pat=spread&speed=0.5/1/1.5`，取场上子弹平均速度比 | 0.500 / 1.000 / 1.500（精确） |
 | 回归 | `tools/equiv.mjs`（已默认加 `?seq=random`） | 14/14 逐位一致 |
+
+### v0.9 的增量验证
+
+| 断言 | 做法 | 结果 |
+|---|---|---|
+| 暂停能回主界面 | 开局 → `P` → 点「返回说明」 | 回到菜单，三张遮罩显隐正确 |
+| 操作卡自动暂停 | 对局中按 `?` | `state=paused`，关掉后回到对局 |
+| 对局暂停不出现选招 | 对局 `P` | `#trainPick` 隐藏 |
+| 训练场暂停才出现选招 | `?train=1` → `P` | 16 格可见，卡片加宽 |
+| 选招自动继续 | 点「地雷」 | 切到 mine、`state=training`、计时继续走 |
+| 桌面转视角 | 训练场右键拖动 | `cam.yaw 0.300 → 1.380` |
+| 手机转视角 | 训练场右半屏上下搓 | `cam.pitch 0.460 → 0.160` |
+| 手机摇杆不被遮挡 | 训练场取摇杆中心 `elementFromPoint` | 命中 canvas（无覆盖）；按住 0.7 s 位移 5.7 m |
+| 帧率 | 全新 headless 实例 | 60.4 fps（连续两次） |
 
 > 踩坑记录：加训练场时 `frame()` 的更新条件还写着 `state === 'playing'`，
 > 结果面板能点、图案"选了"，但 `clock.elapsed` 一直是 0 —— 画面其实冻着。
@@ -398,6 +427,9 @@ auto=1&dbg=1&t=14&pat=sat&drive=wa
 - **ESM 循环依赖是存在的**（`state ↔ ui/hud`、`bullets ↔ ui/flow`、`camera ↔ state`），
   只要不在模块顶层解引用这些绑定就安全；新增顶层副作用前先想清楚加载顺序。
 - **新增状态时先搜 `'playing'`**：`frame()`、指针、跳/冲刺按钮、HUD 都有判断，漏一个就是"界面在动、世界是冻的"。
+- **不要在 HUD 上放常驻大面板**：手机端左下角是摇杆的地盘，压上去就等于把移动锁死。要用就放进暂停卡。
+- **`onAfterResize()` 必须在首次 `resize()` 之前注册**，否则摇杆会停在 (0,0) 直到用户改窗口大小。
+- **暂停 / 继续要成对处理指针锁**：暂停 `exitPointerLock()`（露出光标点卡片），继续 `relock()`（否则鼠标划到画外）。
 - **随机一律走 `core/random.ts`**，不要直接 `Math.random()`（相机抖动除外，它按帧率调用，会破坏快进复现）。
 - 改完跑一遍：`npm run typecheck` → `npm run build` → `?auto=1&dbg=1` 看 `__dbg.counts.hp`、帧率、控制台无报错 → 截图。
 

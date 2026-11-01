@@ -19,7 +19,7 @@ import { cam, updateCamera } from './core/camera';
 import { canvas, H, W, onAfterResize, resize } from './core/screen';
 import { isTouch } from './core/device';
 import { heightRGB } from './core/color';
-import { boss, bullets, clock, later, lasers, player, reset, rings, state, training, walls } from './state';
+import { boss, bullets, clock, later, lasers, player, reset, rings, session, state, training, walls } from './state';
 import { getSeed, setSeed } from './core/random';
 import { SEQUENCES, getSequenceMode, setSequenceMode, sequenceFor } from './patterns/sequence';
 import { setSpeed } from './systems/training';
@@ -62,8 +62,9 @@ function frame(t: number): void {
 }
 
 /* ============ 启动 ============ */
-resize();
+// 先挂 resize 回调再首次 resize，否则摇杆停在 (0,0) 直到用户改变窗口大小
 onAfterResize(stickHome);
+resize();
 
 if (isTouch) {
   cam.dist = 13.4; cam.cd = 13.4;
@@ -197,6 +198,7 @@ if (/[?&]dbg=1/.test(location.search)) {
     get bullets() { return bullets; },
     get clock() { return clock; },
     get training() { return training; },
+    get session() { return session; },
     get sequence() {
       const seq = sequenceFor(boss.phase);
       return { mode: getSequenceMode(), index: boss.seq, next: seq[boss.seq % seq.length] };
