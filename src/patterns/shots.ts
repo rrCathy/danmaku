@@ -75,26 +75,23 @@ export function spiralShot(): void {
   }
 }
 
-/** 墙缝：一整面立体弹墙推进，只留一个缺口 */
-export function wallShot(): void {
-  const dirA = random() * TAU;
-  const nx = Math.cos(dirA), nz = Math.sin(dirA);   // 推进方向（朝场地中心）
-  const tx = -nz, tz = nx;                          // 墙面切线
+/**
+ * 推一面墙：从场地边缘朝中心推进的立体弹墙，带一个缺口。
+ * 抽出来是为了让「墙缝」和「闸门」共用同一套弹道数学。
+ */
+function pushWall(
+  nx: number, nz: number,
+  gapPos: number, gapW: number,
+  rows: number, speed: number, delay: number
+): void {
+  const tx = -nz, tz = nx;
   const D = ARENA_R - 0.4;
   const halfW = 8.5;
 
-  // 缺口放在玩家切线位置附近（保证可达但需要移动）
-  const pu = player.x * tx + player.z * tz;
-  const gapPos = clamp(pu + rand(-2.6, 2.6), -halfW + 1.6, halfW - 1.6);
-  const gapW = 1.35;
+  walls.push({ nx, nz, tx, tz, D, halfW, gapPos, gapW, t: delay, dur: delay });
 
-  walls.push({ nx, nz, tx, tz, D, halfW, gapPos, gapW, t: 1.15, dur: 1.15 });
-  boss.flash = 0.5;
-
-  later(1.15, function () {
+  later(delay, function () {
     if (!boss.alive) return;
-    const rows = 4;
-    const sp = 7.2;
     const step = 0.66;
     for (let u = -halfW; u <= halfW; u += step) {
       if (Math.abs(u - gapPos) < gapW) continue;    // 缺口
@@ -102,7 +99,7 @@ export function wallShot(): void {
         const h = 0.42 + k * 0.82;
         const px = nx * D + tx * u;
         const pz = nz * D + tz * u;
-        addBullet(px, h, pz, -nx * sp, 0, -nz * sp, 0.21, clsOf(h), 'wall');
+        addBullet(px, h, pz, -nx * speed, 0, -nz * speed, 0.21, clsOf(h), 'wall');
       }
     }
     // 缺口地面标记，帮玩家确认“洞在这里”
@@ -110,6 +107,21 @@ export function wallShot(): void {
     const gz = nz * (D - 3) + tz * gapPos;
     rings.push({ x: gx, z: gz, r: gapW + 0.5, t: 0.55, dur: 0.55, cls: 'gap' });
   });
+}
+
+/** 墙缝：一整面立体弹墙推进，只留一个缺口 */
+export function wallShot(): void {
+  const dirA = random() * TAU;
+  const nx = Math.cos(dirA), nz = Math.sin(dirA);   // 推进方向（朝场地中心）
+  const tx = -nz, tz = nx;                          // 墙面切线
+  const halfW = 8.5;
+
+  // 缺口放在玩家切线位置附近（保证可达但需要移动）
+  const pu = player.x * tx + player.z * tz;
+  const gapPos = clamp(pu + rand(-2.6, 2.6), -halfW + 1.6, halfW - 1.6);
+
+  boss.flash = 0.5;
+  pushWall(nx, nz, gapPos, 1.35, 4, 7.2, 1.15);
 }
 
 /** 旋转激光：低扫（要跳）/ 高扫（别跳），从场地边缘横过 */
@@ -237,6 +249,128 @@ export function lowHigh(): void {
       addBullet(src.x, src.y, src.z, v.x, v.y, v.z, 0.24, 'high', 'sweep');
     }
   });
+}
+
+/* ============================================================
+ * 难度 2 新增
+ *
+ * 设计原则：**能靠侧移解决的，一律不算难**。
+ * 下面每一招都至少堵死一条"侧移"路线。
+ * ============================================================ */
+
+/**
+ * 跃墙：横跨全场、**没有缺口**的贴地弹墙。
+ *
+ * 这是"侧移无效"的正面回答：墙横跨 ±11m（比场地还宽），速度 9.4 比玩家 8.4 快 ——
+ * 往后跑会被追上，往侧边跑墙比场地宽。唯一的解是**跳**。
+ * 三波：低（跳）→ 高（别跳）→ 低（跳），间隔约 1.2s，正好卡住起跳节奏。
+ */
+export function jumpWall(): void {
+  const plan: Array<[number, number]> = [[0.35, 0.55], [1.55, 3.1], [2.75, 0.55]];
+  boss.flash = 0.4;
+  for (let i = 0; i < plan.length; i++) {
+    const delay = plan[i][0];
+    const hh = plan[i][1];
+    later(delay, (function (h) {
+      return function () {
+        if (!boss.alive) return;
+        // 朝玩家方向推进，横向覆盖整场
+        let nx = player.x - boss.x, nz = player.z - boss.z;
+        const l = Math.hypot(nx, nz) || 1;
+        nx /= l; nz /= l;
+        const tx = -nz, tz = nx;
+        const sp = 9.4;
+        // 覆盖整场：场地半径 18，所以横向铺 ±18 —— 侧面没有尽头可跑
+        for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.8) {
+          addBullet(boss.x + tx * u, h, boss.z + tz * u,
+            nx * sp, 0, nz * sp, 0.23, clsOf(h), 'wall');
+        }
+      };
+    })(hh));
+  }
+}
+
+/** 预判狙：按玩家当前速度打提前量，三个高度同时来 —— 站着不动必被三发一起命中 */
+export function sniper(): void {
+  const rounds = boss.phase >= 3 ? 3 : 2;
+  boss.flash = 0.45;
+  for (let k = 0; k < rounds; k++) {
+    later(0.45 + k * 0.62, function () {
+      if (!boss.alive) return;
+      const lead = 0.3;
+      const tx = player.x + player.vx * lead;
+      const tz = player.z + player.vz * lead;
+      const hs = [0.55, 1.55, 2.75];
+      for (let i = 0; i < hs.length; i++) {
+        const v = aimVel(boss, tx, hs[i], tz, 16);
+        addBullet(boss.x, boss.y, boss.z, v.x, v.y, v.z, 0.20, clsOf(hs[i]), 'sat');
+      }
+    });
+  }
+}
+
+/** 闸门：两道同向推进的墙，缺口错开约 4.4m —— 穿过第一道后必须立刻横移到第二个口 */
+export function gate(): void {
+  const dirA = random() * TAU;
+  const nx = Math.cos(dirA), nz = Math.sin(dirA);
+  const tx = -nz, tz = nx;
+  const pu = player.x * tx + player.z * tz;
+  const gapA = clamp(pu - 2.2 + rand(-0.4, 0.4), -6.9, 6.9);
+  const gapB = clamp(pu + 2.2 + rand(-0.4, 0.4), -6.9, 6.9);
+
+  boss.flash = 0.5;
+  pushWall(nx, nz, gapA, 1.35, 4, 7.6, 1.05);
+  later(1.05, function () {
+    if (!boss.alive) return;
+    pushWall(nx, nz, gapB, 1.35, 4, 7.6, 0.75);
+  });
+}
+
+/** 涌裂：地涌升到 2.9m 炸开一圈 —— 贴脸站桩会被"柱子 + 环"同时处理，必须提前拉距离 */
+export function risenare(): void {
+  const n = boss.phase >= 3 ? 3 : 2;
+  boss.flash = 0.4;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU + rand(-0.4, 0.4);
+    const rr = rand(2.0, 4.8);
+    let x = player.x + Math.cos(a) * rr;
+    let z = player.z + Math.sin(a) * rr;
+    const d = Math.hypot(x, z);
+    if (d > ARENA_R - 1.4) { x *= (ARENA_R - 1.5) / d; z *= (ARENA_R - 1.5) / d; }
+
+    rings.push({ x, z, r: 0.85, t: 0.8, dur: 0.8, cls: 'rise' });
+    later(0.8, (function (xx, zz) {
+      return function () {
+        addBullet(xx, 0.2, zz, 0, 13.5, 0, 0.30, 'mid', 'rise');
+        later(0.2, function () {
+          const h = 2.9;
+          const rot = random() * TAU;
+          for (let k = 0; k < 10; k++) {
+            const aa = rot + (k / 10) * TAU;
+            addBullet(xx, h, zz, Math.cos(aa) * 7.6, 0, Math.sin(aa) * 7.6, 0.20, clsOf(h), 'ring');
+          }
+          for (let k = 0; k < 6; k++) spawnSpark(xx, h, zz, COLORS.mid, 0.6);
+        });
+      };
+    })(x, z));
+  }
+}
+
+/** 假坠：紫色高空弹落到 1.78m 突然改成水平冲刺 —— 颜色说"还很高"，其实在打你腰 */
+export function feint(): void {
+  const n = boss.phase >= 3 ? 4 : 3;
+  boss.flash = 0.45;
+  for (let i = 0; i < n; i++) {
+    const a = random() * TAU;
+    const rr = rand(2.0, 5.4);
+    let x = player.x + Math.cos(a) * rr;
+    let z = player.z + Math.sin(a) * rr;
+    const d = Math.hypot(x, z);
+    if (d > ARENA_R - 1.5) { x *= (ARENA_R - 1.5) / d; z *= (ARENA_R - 1.5) / d; }
+
+    addBullet(x, 8.6, z, 0, -13, 0, 0.30, 'high', 'feint');
+    bullets[bullets.length - 1].fuse = 1;   // 1 = 还没变向
+  }
 }
 
 /** 生成时用的粗分段（与 clsName 的段界不同，1:1 保留历史行为） */

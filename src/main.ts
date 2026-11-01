@@ -14,7 +14,7 @@
 import './styles/base.css';
 import './styles/app.css';
 
-import { CAM_PRESETS } from './config';
+import { CAM_PRESETS, DIFFICULTIES } from './config';
 import { cam, updateCamera } from './core/camera';
 import { canvas, H, W, onAfterResize, resize } from './core/screen';
 import { isTouch } from './core/device';
@@ -30,7 +30,7 @@ import { keys, initKeyboard } from './input/keyboard';
 import { initPointer } from './input/pointer';
 import { initTouchButtons, stickHome } from './input/touch';
 import { flags } from './input/flags';
-import { initUi, startGame, startTraining, togglePolar } from './ui/flow';
+import { initUi, setDifficulty, startGame, startTraining, togglePolar } from './ui/flow';
 import { updateHud } from './ui/hud';
 import { ALL_PATTERNS, runPattern } from './patterns';
 import type { PatternName } from './patterns';
@@ -90,7 +90,10 @@ const PAT_ALIAS: Record<string, PatternName> = {
   ring: 'ring', spiral: 'spiral', wall: 'wall', laser: 'laser', sat: 'satBurst',
   spread: 'spread', rain: 'rain', orbit: 'orbit', stair: 'stair', dive: 'dive',
   mine: 'mine', rise: 'rise', counter: 'counterSpiral', lowhigh: 'lowHigh',
-  sweeplow: 'sweepLow', sweephigh: 'sweepHigh'
+  sweeplow: 'sweepLow', sweephigh: 'sweepHigh',
+  // 难度 2
+  jump: 'jumpWall', jumpwall: 'jumpWall', sniper: 'sniper', gate: 'gate',
+  feint: 'feint', snare: 'risenare', risenare: 'risenare'
 };
 
 function resolvePattern(raw: string): PatternName | undefined {
@@ -99,6 +102,10 @@ function resolvePattern(raw: string): PatternName | undefined {
 }
 
 const SEARCH = location.search;
+
+// ?diff=2 直接进高压；必须在开局前设好，出招池与弹速都看它
+const diffMatch = SEARCH.match(/[?&]diff=([12])/);
+if (diffMatch) setDifficulty(parseInt(diffMatch[1], 10) === 2 ? 2 : 1);
 
 // 种子必须在任何出招之前设好：?seed=20261101
 const seedMatch = SEARCH.match(/[?&]seed=(-?\d+)/);
@@ -199,6 +206,7 @@ if (/[?&]dbg=1/.test(location.search)) {
     get clock() { return clock; },
     get training() { return training; },
     get session() { return session; },
+    get difficulty() { return DIFFICULTIES[session.difficulty]; },
     get sequence() {
       const seq = sequenceFor(boss.phase);
       return { mode: getSequenceMode(), index: boss.seq, next: seq[boss.seq % seq.length] };

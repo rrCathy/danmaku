@@ -94,7 +94,9 @@ export function refreshTrainPanel(): void {
   const stat = document.getElementById('tpStat');
   if (stat) {
     const label = PATTERN_LABELS[training.pattern as PatternName];
-    stat.textContent = label.name + ' · 受击 ' + stats.hits + ' 次 · 弹速 ' + training.speed + '×';
+    const sp = training.speed * session.bulletSpeed;
+    stat.textContent = label.name + ' · 受击 ' + stats.hits + ' 次 · 弹速 ' +
+      (Math.round(sp * 100) / 100).toString() + '×';
   }
 }
 

@@ -5,6 +5,8 @@
  * 不需要在 3000 行里找魔法数字。每个常量后面的注释写的是「改了会发生什么」。
  */
 
+import type { DifficultyKey } from './types';
+
 /* ============ 场地 ============ */
 /** 圆形战场半径（米）。玩家的活动半径是 ARENA_R - 1.0。 */
 export const ARENA_R = 18;
@@ -80,6 +82,43 @@ export const BOSS = {
   /** 出招间隔随机抖动范围 */
   cdJitter: [0.9, 1.15] as const,
 } as const;
+
+/* ============ 难度 ============ */
+/**
+ * 难度只改三样东西：出招密度、弹速、默认读 Aid。
+ * 玩家血量 / 判定 / 场地一律不动 —— 这样两档难度之间只有一个变量在变。
+ */
+export interface Difficulty {
+  key: DifficultyKey;
+  name: string;
+  /** 一句话卖点，显示在菜单上 */
+  note: string;
+  /** boss 出招间隔基数（秒） */
+  cdBase: number;
+  /** 出招间隔随机抖动 */
+  cdJitter: readonly [number, number];
+  /** 敌方子弹速度倍率（玩家弹不受影响） */
+  bulletSpeed: number;
+}
+
+export const DIFFICULTIES: Record<DifficultyKey, Difficulty> = {
+  1: {
+    key: 1,
+    name: '标准',
+    note: '16 种图案 · 留出反应时间',
+    cdBase: BOSS.cdBase,
+    cdJitter: BOSS.cdJitter,
+    bulletSpeed: 1
+  },
+  2: {
+    key: 2,
+    name: '高压',
+    note: '21 种图案 · 出招更密 · 弹速 +10%',
+    cdBase: 1.42,
+    cdJitter: [0.85, 1.05],
+    bulletSpeed: 1.1
+  }
+};
 
 /* ============ 相机 ============ */
 export const CAM_PRESETS = [

@@ -1,8 +1,8 @@
 /** boss：环绕运动、出招节奏、阶段与狂暴。 */
-import { BOSS, ROUND } from '../config';
+import { BOSS, DIFFICULTIES, ROUND } from '../config';
 import { COLORS } from '../core/color';
 import { clamp, lerp, rand } from '../core/math';
-import { boss, clock, state } from '../state';
+import { boss, clock, session, state } from '../state';
 import { spawnSpark } from './effects';
 import { pickPattern, runPattern } from '../patterns';
 import { updateHud } from '../ui/hud';
@@ -31,9 +31,10 @@ export function updateBoss(dt: number): void {
   boss.cd -= dt;
   if (boss.cd <= 0) {
     runPattern(pickPattern());
-    boss.cd = BOSS.cdBase * (1 - (boss.phase - 1) * BOSS.cdPerPhase)
+    const diff = DIFFICULTIES[session.difficulty];
+    boss.cd = diff.cdBase * (1 - (boss.phase - 1) * BOSS.cdPerPhase)
       / (boss.enraged ? BOSS.cdRage : 1)
-      * rand(BOSS.cdJitter[0], BOSS.cdJitter[1]);
+      * rand(diff.cdJitter[0], diff.cdJitter[1]);
   }
 }
 

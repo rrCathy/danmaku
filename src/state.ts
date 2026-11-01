@@ -12,7 +12,7 @@ import { resetCameraTarget } from './core/camera';
 import { updateHud } from './ui/hud';
 import { renderDiag } from './ui/diag';
 import type {
-  Boss, Bullet, GameState, Ghost, HitLog, Laser, Particle,
+  Boss, Bullet, DifficultyKey, GameState, Ghost, HitLog, Laser, Particle,
   PatternName, Player, Ring, Shot, Stats, Timer, Wall
 } from './types';
 
@@ -44,7 +44,13 @@ export const training = {
 
 /* ============ 会话模式 ============ */
 /** 本局是正常对局还是训练场：暂停卡的重开、选招区的显隐都看它 */
-export const session = { mode: 'game' as 'game' | 'training' };
+export const session = {
+  mode: 'game' as 'game' | 'training',
+  /** 当前难度：影响出招密度与弹速 */
+  difficulty: 1 as DifficultyKey,
+  /** 难度带来的弹速倍率（1 = 标准）。子弹工厂直接读它，避免每颗弹查表 */
+  bulletSpeed: 1
+};
 
 /* ============ 开关 ============ */
 export const opts = { shadows: true, guides: true, hitbox: false, trailMode: 1, mini: true };

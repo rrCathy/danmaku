@@ -2,7 +2,7 @@
  * 流程与开关：开始 / 暂停 / 结束 / 切镜头 / 极坐标 / 轨迹线 / 雷达。
  * 所有会写 `state` 的地方都在这个文件里，别处只读。
  */
-import { CAM_PRESETS, ROUND, TRAINING } from '../config';
+import { CAM_PRESETS, DIFFICULTIES, ROUND, TRAINING } from '../config';
 import { cam, polar } from '../core/camera';
 import { COLORS } from '../core/color';
 import { isTouch } from '../core/device';
@@ -12,7 +12,7 @@ import { boss, bullets, clock, opts, player, reset, session, setState, state, st
 import { clearField, selectPattern } from '../systems/training';
 import { initTrainPanel, openTrainPick, refreshTrainPanel } from './training';
 import { initOverlays, syncOverlays } from './overlays';
-import type { EndReason, PatternName } from '../types';
+import type { DifficultyKey, EndReason, PatternName } from '../types';
 import { el } from './dom';
 import { toast } from './toast';
 
@@ -21,6 +21,23 @@ let trailBtnEl: HTMLElement | null = null;
 let miniBtnEl: HTMLElement | null = null;
 /** 从哪个状态进入暂停的（训练场暂停后要继续练，不是继续打 boss） */
 let pausedFrom: 'playing' | 'training' | null = null;
+
+/* ============ 难度 ============ */
+/**
+ * 切难度只做三件事：记编号、换弹速倍率、更新菜单上的按钮与说明。
+ * 出招密度由 `systems/boss.ts` 读 DIFFICULTIES 决定，选招池由 patterns 读 session.difficulty。
+ */
+export function setDifficulty(k: DifficultyKey): void {
+  session.difficulty = k;
+  session.bulletSpeed = DIFFICULTIES[k].bulletSpeed;
+
+  const btns = document.querySelectorAll<HTMLElement>('.diff-btn');
+  for (let i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('on', Number(btns[i].dataset.diff) === k);
+  }
+  const note = document.getElementById('diffNote');
+  if (note) note.textContent = DIFFICULTIES[k].note;
+}
 
 /* ============ 镜头 ============ */
 export function enterOrbit(silent: boolean): void {
@@ -286,6 +303,14 @@ export function initUi(): void {
   document.getElementById('btnTrain')!.addEventListener('click', function () { startTraining(); });
   document.getElementById('btnRestart')!.addEventListener('click', startGame);
   document.getElementById('btnMenu')!.addEventListener('click', backToMenu);
+
+  const diffBtns = document.querySelectorAll<HTMLElement>('.diff-btn');
+  for (let i = 0; i < diffBtns.length; i++) {
+    diffBtns[i].addEventListener('click', function () {
+      setDifficulty(Number(diffBtns[i].dataset.diff) === 2 ? 2 : 1);
+    });
+  }
+  setDifficulty(session.difficulty);
 
   initOverlays();
 }

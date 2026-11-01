@@ -1,9 +1,9 @@
 /** 顶部血条 / 计时 / 阶段标签。每帧刷新一次，纯 DOM 文本与宽度。 */
-import { ROUND } from '../config';
+import { DIFFICULTIES, ROUND } from '../config';
 import { polar } from '../core/camera';
 import { clamp } from '../core/math';
 import { PATTERN_LABELS } from '../patterns/sequence';
-import { boss, clock, player, state, training } from '../state';
+import { boss, clock, player, session, state, training } from '../state';
 import { dashButtonEl } from '../input/touch';
 import { camSubEl, el } from './dom';
 
@@ -36,10 +36,11 @@ export function updateHud(): void {
   el.timer.classList.toggle('warn', !inTraining && clock.timeLeft <= ROUND.rageAt);
 
   if (inTraining) {
-    el.phaseTag.textContent = 'TRAINING · ' + PATTERN_LABELS[training.pattern].name +
-      ' · 弹速 ' + training.speed + '×';
+    el.phaseTag.textContent = '训练 · ' + PATTERN_LABELS[training.pattern].name +
+      ' · 弹速 ' + (training.speed * session.bulletSpeed).toFixed(2).replace(/\.?0+$/, '') + '×';
   } else {
-    el.phaseTag.textContent = 'PHASE ' + boss.phase + ' · ' + (boss.enraged ? '狂暴' : '试作型 boss');
+    el.phaseTag.textContent = 'PHASE ' + boss.phase + ' · ' +
+      DIFFICULTIES[session.difficulty].name + (boss.enraged ? ' · 狂暴' : '');
   }
 
   const dashEl = dashButtonEl();

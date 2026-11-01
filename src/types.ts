@@ -13,7 +13,9 @@ export type HClass = 'low' | 'mid' | 'high' | 'rain';
 export type BulletKind =
   | 'sweep' | 'spread' | 'rain' | 'orbit' | 'ring' | 'spiral'
   | 'wall' | 'sat' | 'stair' | 'dive' | 'mine' | 'mineLive'
-  | 'rise' | 'mineBurst';
+  | 'rise' | 'mineBurst'
+  /** 诱饵：降到半空突然改成水平冲刺 */
+  | 'feint';
 
 export interface Bullet {
   x: number; y: number; z: number;
@@ -151,9 +153,15 @@ export interface Projected {
 
 /** 16 种弹幕图案的标识 */
 export type PatternName =
+  // 第一难度（标准）
   | 'sweepLow' | 'spread' | 'ring' | 'stair' | 'rise'
   | 'sweepHigh' | 'rain' | 'satBurst' | 'dive' | 'lowHigh'
-  | 'orbit' | 'spiral' | 'wall' | 'laser' | 'mine' | 'counterSpiral';
+  | 'orbit' | 'spiral' | 'wall' | 'laser' | 'mine' | 'counterSpiral'
+  // 第二难度（高压）新增
+  | 'jumpWall' | 'sniper' | 'gate' | 'risenare' | 'feint';
+
+/** 难度编号。1 = 标准，2 = 高压 */
+export type DifficultyKey = 1 | 2;
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'over' | 'training';
 export type EndReason = 'hp' | 'time';

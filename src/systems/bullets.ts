@@ -10,7 +10,7 @@ import { random } from '../core/random';
 import { segPointDist } from '../core/math';
 import { cam } from '../core/camera';
 import { isTouch } from '../core/device';
-import { boss, bullets, clock, logs, opts, player, pshots, rings, state, stats, training } from '../state';
+import { boss, bullets, clock, logs, opts, player, pshots, rings, session, state, stats, training } from '../state';
 import { spawnSpark } from './effects';
 import { damageBoss } from './boss';
 import { updateHud } from '../ui/hud';
@@ -24,8 +24,8 @@ export function addBullet(
   vx: number, vy: number, vz: number,
   r: number, cls: HClass, kind: Bullet['kind']
 ): void {
-  // 训练场的弹速倍率在这里统一生效：所有图案都走这个工厂，不用各自改
-  const k = training.speed;
+  // 难度倍率 × 训练场倍率，在这里统一生效：所有图案都走这个工厂，不用各自改
+  const k = session.bulletSpeed * training.speed;
   bullets.push({
     x, y, z,
     px: x, py: y, pz: z,
@@ -75,6 +75,19 @@ export function updateBullets(dt: number): void {
           for (let k = 0; k < 4; k++) spawnSpark(b.x, b.y, b.z, COLORS.rain, 0.8);
         }
       }
+    }
+
+    // 诱饵：降到 1.78m 突然改成水平冲刺 —— 紫色说"还很高"，实际在打你腰
+    if (b.kind === 'feint' && b.fuse && b.y <= 1.78) {
+      b.fuse = 0;
+      b.y = 1.78;
+      const dx = player.x - b.x, dz = player.z - b.z;
+      const dl = Math.hypot(dx, dz) || 1;
+      const sp = 9.6;
+      b.vx = dx / dl * sp;
+      b.vz = dz / dl * sp;
+      b.vy = 0;
+      for (let k = 0; k < 5; k++) spawnSpark(b.x, b.y, b.z, COLORS.high, 0.7);
     }
 
     if (b.homing) {

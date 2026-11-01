@@ -6,13 +6,13 @@
  *
  * 想复现某一局：见 main.ts 的 ?pat= / ?seed= 与 __dbg.run()。
  */
-import { boss, later, lasers, walls } from '../state';
-import { getSequenceMode, sequenceFor } from './sequence';
+import { boss, later, lasers, session, walls } from '../state';
+import { SEQUENCES_D2, getSequenceMode, sequenceFor } from './sequence';
 import { random } from '../core/random';
 import { fanShot, ringShot, spreadShot } from './emitters';
 import {
-  counterSpiral, diveShot, laserSweep, lowHigh, mineShot, orbitShot,
-  rainShot, riseShot, satBurst, spiralShot, stairShot, wallShot
+  counterSpiral, diveShot, feint, gate, jumpWall, laserSweep, lowHigh, mineShot, orbitShot,
+  rainShot, risenare, riseShot, satBurst, sniper, spiralShot, stairShot, wallShot
 } from './shots';
 
 import type { PatternName } from '../types';
@@ -27,10 +27,24 @@ export const PATTERNS: Record<number, PatternName[]> = {
       'stair', 'dive', 'mine', 'rise', 'counterSpiral', 'lowHigh']
 };
 
-/** 全部 16 种，按"想单独测某个图案"的顺序排（给训练场 / ?pat= 用） */
+/** 难度 2 的随机池：直接取该阶段序列去重 —— 序列和池子不会打架 */
+const D2_POOL: Record<number, PatternName[]> = {};
+for (let ph = 1; ph <= 3; ph++) {
+  D2_POOL[ph] = Array.from(new Set(SEQUENCES_D2[ph]));
+}
+
+export function poolFor(phase: number): PatternName[] {
+  if (session.difficulty === 2) return D2_POOL[phase] || D2_POOL[1];
+  return PATTERNS[phase] || PATTERNS[1];
+}
+
+/** 全部 21 种，按"想单独测某个图案"的顺序排（给训练场 / ?pat= 用） */
 export const ALL_PATTERNS: PatternName[] = [
+  // 难度 1
   'sweepLow', 'sweepHigh', 'spread', 'ring', 'stair', 'rise', 'lowHigh', 'dive',
-  'rain', 'mine', 'laser', 'wall', 'spiral', 'counterSpiral', 'satBurst', 'orbit'
+  'rain', 'mine', 'laser', 'wall', 'spiral', 'counterSpiral', 'satBurst', 'orbit',
+  // 难度 2
+  'jumpWall', 'sniper', 'gate', 'feint', 'risenare'
 ];
 
 /**
@@ -42,14 +56,14 @@ export const ALL_PATTERNS: PatternName[] = [
  */
 export function pickPattern(): PatternName {
   if (getSequenceMode() === 'sequence') {
-    const seq = sequenceFor(boss.phase);
+    const seq = sequenceFor(boss.phase, session.difficulty);
     const name = seq[boss.seq % seq.length];
     boss.seq++;
     return name;
   }
 
-  // v0.6 行为：池内随机 + 避免连续重复
-  const pool = PATTERNS[boss.phase] || PATTERNS[1];
+  // 随机模式：池内随机 + 避免连续重复
+  const pool = poolFor(boss.phase);
   let p = pool[Math.floor(random() * pool.length)];
   if (p === boss.last && pool.length > 1) {
     p = pool[(pool.indexOf(p) + 1) % pool.length];
@@ -129,6 +143,23 @@ export function runPattern(name: PatternName | string): void {
       break;
     case 'lowHigh':
       later(0.1, lowHigh);
+      break;
+
+    /* ---- 难度 2 ---- */
+    case 'jumpWall':
+      jumpWall();
+      break;
+    case 'sniper':
+      sniper();
+      break;
+    case 'gate':
+      gate();
+      break;
+    case 'feint':
+      feint();
+      break;
+    case 'risenare':
+      risenare();
       break;
   }
 }
