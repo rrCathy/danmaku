@@ -105,6 +105,6 @@ export const PATTERN_LABELS: Record<PatternName, { name: string; hint: string }>
   radial: { name: '放射光芒', hint: '多束光线，束间低/高交替 —— 挪到两束之间的扇形缝' },
   downpour: { name: '全图雨', hint: '满场读秒落雨 —— 看亮圈挪半步，别跑，跑会撞下一批' },
   fountain: { name: '喷泉', hint: '抛物线落点在环带 —— 贴 boss 或退到 12m 外都安全' },
-  uprain: { name: '反雨', hint: '地下往上升的柱子 —— 预判它到你这层的时刻，横移出柱' },
+  uprain: { name: '反雨', hint: '从地面背面穿地升到 1.5m —— 横移出柱，或跳过它的顶' },
   cone: { name: '放射锥', hint: '锥状喷射、逐波重瞄 —— 贴着锥边持续微移' }
 };

@@ -505,10 +505,11 @@ export function fountain(): void {
 }
 
 /**
- * 反雨：boss 脚下的地面裂开，弹幕从地下往上升 —— 倒挂的雨。
+ * 反雨（真反雨）：弹幕在**地面的背面**（负 y），像雨一样坠向地面、
+ * 穿过地面继续升到约 1.5 m 就结束。
  *
- * 发射点地面亮圈读秒，然后一串弹垂直升起。颜色一路红→紫说「它到第几层了」，
- * 玩家要预判「它升到我这层时，我还站在柱子里吗」。柱子不追人，横移半步就出。
+ * 透过网格地板能看到红弹在地下"坠"过来 —— 穿地瞬间颜色红→橙→黄，
+ * 就是"它到第几层了"的直读。柱子不追人：横移半步出柱，或跳过 1.5 m 的顶。
  */
 export function uprain(): void {
   const waves = boss.phase >= 3 ? 3 : 2;
@@ -529,8 +530,9 @@ export function uprain(): void {
         later(0.62, (function (xx, zz) {
           return function () {
             for (let s = 0; s < 3; s++) {
-              later(s * 0.24, function () {
-                addBullet(xx, 0.15, zz, 0, 10.8, 0, 0.24, 'low', 'uprain');
+              later(s * 0.22, function () {
+                // 负 y 出生 = 地面背面；匀速穿地，到 1.5 m 结束
+                addBullet(xx, -2.2, zz, 0, 5.8, 0, 0.24, 'low', 'uprain');
               });
             }
           };

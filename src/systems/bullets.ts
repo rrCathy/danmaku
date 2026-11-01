@@ -129,8 +129,8 @@ export function updateBullets(dt: number): void {
       continue;
     }
 
-    // 反雨：升到高空后消散（和地涌相反方向的同一句话：高度色带永远说实话）
-    if (b.kind === 'uprain' && b.y > 7.6) {
+    // 反雨（真反雨）：从地面背面穿地升到约 1.5m 就结束 —— 轨迹短，颜色全程在低层
+    if (b.kind === 'uprain' && b.y > 1.5) {
       for (let k = 0; k < 3; k++) spawnSpark(b.x, b.y, b.z, b.rgb, 0.5);
       bullets.splice(i, 1);
       continue;
@@ -170,7 +170,9 @@ export function updateBullets(dt: number): void {
       }
     }
 
-    if (b.life <= 0 || b.y < -1.2 || Math.hypot(b.x, b.z) > ARENA_R + 8) {
+    // 出界清除。uprain 出生在负 y（地面背面），下界放宽到 -3.5，其余弹维持 -1.2
+    const yOut = b.kind === 'uprain' ? b.y < -3.5 : b.y < -1.2;
+    if (b.life <= 0 || yOut || Math.hypot(b.x, b.z) > ARENA_R + 8) {
       bullets.splice(i, 1);
       continue;
     }
