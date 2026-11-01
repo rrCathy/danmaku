@@ -104,7 +104,7 @@ export interface Difficulty {
 export const DIFFICULTIES: Record<DifficultyKey, Difficulty> = {
   1: {
     key: 1,
-    name: '标准',
+    name: 'Level 1',
     note: '16 种图案 · 留出反应时间',
     cdBase: BOSS.cdBase,
     cdJitter: BOSS.cdJitter,
@@ -112,7 +112,7 @@ export const DIFFICULTIES: Record<DifficultyKey, Difficulty> = {
   },
   2: {
     key: 2,
-    name: '高压',
+    name: 'Level 2',
     note: '21 种图案 · 出招更密 · 弹速 +10%',
     cdBase: 1.42,
     cdJitter: [0.85, 1.05],

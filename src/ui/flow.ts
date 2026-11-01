@@ -15,6 +15,7 @@ import { initOverlays, syncOverlays } from './overlays';
 import type { DifficultyKey, EndReason, PatternName } from '../types';
 import { el } from './dom';
 import { toast } from './toast';
+import { allAchievements, unlockNoHit } from './achievements';
 
 const TRAIL_NAMES = ['关闭', '拖尾（已飞过的路径）', '预测（接下来往哪飞）', '拖尾 + 预测'];
 let trailBtnEl: HTMLElement | null = null;
@@ -31,7 +32,7 @@ export function setDifficulty(k: DifficultyKey): void {
   session.difficulty = k;
   session.bulletSpeed = DIFFICULTIES[k].bulletSpeed;
 
-  const btns = document.querySelectorAll<HTMLElement>('.diff-btn');
+  const btns = document.querySelectorAll<HTMLElement>('.lv-card');
   for (let i = 0; i < btns.length; i++) {
     btns[i].classList.toggle('on', Number(btns[i].dataset.diff) === k);
   }
@@ -221,6 +222,7 @@ export function restartLast(): void {
 }
 
 export function backToMenu(): void {
+  renderAchievements();
   reset();
   clearField();
   pausedFrom = null;
@@ -242,24 +244,44 @@ export function endGame(win: boolean, reason?: EndReason): void {
   lookHintOn();
 
   const used = ROUND.time - Math.max(0, clock.timeLeft);
+  const diffName = DIFFICULTIES[session.difficulty].name;
+  const noHit = stats.hits === 0;
+
+  // 结算卡第二行：难度 + 用时/坚持 + 受击次数（受击是核心指标，永远可见）
+  el.endMeta.innerHTML =
+    '<span class="em-chip">' + diffName + '</span>' +
+    '<span class="em-item">受击 <b class="' + (noHit ? 'em-zero' : '') + '">' + stats.hits + '</b> 次</span>' +
+    '<span class="em-item">用时 <b>' + used.toFixed(1) + '</b> 秒</span>';
+
   if (win) {
     el.endKicker.textContent = 'BOSS DEFEATED';
-    el.endTitle.textContent = '击破';
+    el.endTitle.textContent = noHit ? '无伤击破' : '击破';
     el.endTitle.style.color = '#8ff0ff';
-    el.endLead.textContent = '用时 ' + used.toFixed(1) + ' 秒击破 boss，受击 ' + stats.hits + ' 次。' +
+    el.endLead.textContent = '在 ' + diffName + ' 用时 ' + used.toFixed(1) + ' 秒击破 boss，受击 ' + stats.hits + ' 次。' +
       '如果是第一次玩，请回想：每次被击中时，你是否能说出“我为什么被打中”？';
   } else if (reason === 'time') {
     el.endKicker.textContent = 'TIMEOUT';
     el.endTitle.textContent = '超时';
     el.endTitle.style.color = '#ffb46a';
-    el.endLead.textContent = '2 分钟结束，boss 剩余 ' + Math.ceil(boss.hp) + ' 点血量。' +
+    el.endLead.textContent = diffName + ' · 2 分钟结束，boss 剩余 ' + Math.ceil(boss.hp) + ' 点血量。' +
       '超时说明输出窗口不够 —— 但也可能是「不敢靠近输出」造成的，看看受击类型分布。';
   } else {
     el.endKicker.textContent = 'DEFEATED';
     el.endTitle.textContent = '被击坠';
     el.endTitle.style.color = '#ff8aa8';
-    el.endLead.textContent = '坚持了 ' + used.toFixed(1) + ' 秒，boss 剩余 ' + Math.ceil(boss.hp) + ' 点血量。' +
+    el.endLead.textContent = diffName + ' · 坚持了 ' + used.toFixed(1) + ' 秒，boss 剩余 ' + Math.ceil(boss.hp) + ' 点血量。' +
       '重点看下面的受击分布：哪一类最多，就说明哪一类最“读不出来”。';
+  }
+
+  // 无伤成就：只有通关且 0 受击才算。新解锁才弹提示。
+  if (win && noHit && unlockNoHit(session.difficulty)) {
+    el.endBadge.className = 'end-badge unlock';
+    el.endBadge.innerHTML = '<b>成就解锁</b><span>无伤 ' + diffName + '</span>';
+  } else if (win && noHit) {
+    el.endBadge.className = 'end-badge';
+    el.endBadge.innerHTML = '<b>无伤</b><span>' + diffName + ' · 成就已达成</span>';
+  } else {
+    el.endBadge.className = 'end-badge hidden';
   }
 
   const cells: Array<[string, number, string]> = [
@@ -304,13 +326,30 @@ export function initUi(): void {
   document.getElementById('btnRestart')!.addEventListener('click', startGame);
   document.getElementById('btnMenu')!.addEventListener('click', backToMenu);
 
-  const diffBtns = document.querySelectorAll<HTMLElement>('.diff-btn');
+  const diffBtns = document.querySelectorAll<HTMLElement>('.lv-card');
   for (let i = 0; i < diffBtns.length; i++) {
     diffBtns[i].addEventListener('click', function () {
       setDifficulty(Number(diffBtns[i].dataset.diff) === 2 ? 2 : 1);
     });
   }
   setDifficulty(session.difficulty);
+  renderAchievements();
 
   initOverlays();
+}
+
+/** 主界面底部成就条：解锁 = 亮，未解锁 = 灰。每次回主界面都会刷新。 */
+export function renderAchievements(): void {
+  const bar = document.getElementById('achBar');
+  if (!bar) return;
+  const list = allAchievements();
+  let html = '';
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i];
+    const on = a.at > 0;
+    html += '<span class="ach' + (on ? ' on' : '') + '">' +
+      '<span class="dot"></span>' + a.title +
+      (on ? '<em>已达成</em>' : '<em>未达成</em>') + '</span>';
+  }
+  bar.innerHTML = html;
 }

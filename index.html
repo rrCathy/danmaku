@@ -81,35 +81,42 @@
   </div>
 
     <div class="overlay" id="startOverlay">
-    <div class="card start-card">
-      <div class="kicker">2.5E DANMAKU · READABILITY PROTOTYPE v0.9</div>
-      <h1>平面移动，<span>立体弹幕</span></h1>
-      <p class="lead">你只能在地面上走，子弹却在三维里飞。读懂<b>「它现在在第几层」</b>，是这个装置唯一要验证的事。</p>
+    <div class="start-screen">
+      <div class="ss-glow" aria-hidden="true"></div>
 
-      <div class="hlegend">
-        <div class="hl-bar"></div>
-        <div class="hl-ticks">
-          <span><b>0m</b> 起跳</span>
-          <span><b>1.8m</b> 侧走</span>
-          <span><b>4.6m</b> 别跳</span>
-          <span><b>12m</b> 从下面过</span>
-        </div>
+      <div class="ss-kicker">2.5E DANMAKU <i>·</i> READABILITY PROTOTYPE</div>
+      <h1 class="ss-title">平面移动<span>立体弹幕</span></h1>
+      <p class="ss-sub">你只能在地面上走，子弹却在三维里飞。<br>读懂<b>「它现在在第几层」</b>，是唯一要验证的事。</p>
+
+      <div class="ss-levels">
+        <button class="lv-card on" data-diff="1" type="button">
+          <b>Level 1</b>
+          <span>16 种图案</span>
+          <i>留出反应时间</i>
+        </button>
+        <button class="lv-card" data-diff="2" type="button">
+          <b>Level 2</b>
+          <span>21 种图案</span>
+          <i>出招更密 · 弹速 +10%</i>
+        </button>
+      </div>
+      <div class="ss-note" id="diffNote">16 种图案 · 留出反应时间</div>
+
+      <button class="ss-start" id="btnStart" type="button"><span>开始测试</span></button>
+
+      <div class="ss-actions">
+        <button class="btn ghost" id="btnTrain" type="button">训练场</button>
+        <button class="btn link" id="btnHelp" type="button">操作方式</button>
       </div>
 
-      <div class="diff-pick">
-        <span class="diff-lab">难度</span>
-        <button class="diff-btn on" data-diff="1" type="button">标准</button>
-        <button class="diff-btn" data-diff="2" type="button">高压</button>
-        <span class="diff-note" id="diffNote">16 种图案 · 留出反应时间</span>
+      <div class="ss-legend">
+        <span class="ss-bar"></span>
+        <span class="ss-ticks">
+          <b>0m</b> 起跳 · <b>1.8m</b> 侧走 · <b>4.6m</b> 别跳 · <b>12m</b> 从下面过
+        </span>
       </div>
 
-      <div class="start-actions">
-        <button class="btn" id="btnStart">开始测试</button>
-        <button class="btn ghost" id="btnTrain">训练场</button>
-        <button class="btn link" id="btnHelp">操作方式</button>
-      </div>
-
-      <div class="start-goal">2 分钟击破 boss · 每次被击中，都要能说出「为什么」</div>
+      <div class="ss-ach" id="achBar"></div>
     </div>
   </div>
 
@@ -121,7 +128,7 @@
         <button class="btn" id="btnResume">继续</button>
         <button class="btn ghost" id="btnPauseRestart">重开</button>
         <button class="btn ghost" id="btnPauseHelp">操作方式</button>
-        <button class="btn ghost" id="btnPauseMenu">返回说明</button>
+        <button class="btn ghost" id="btnPauseMenu">返回主界面</button>
       </div>
 
       <div id="trainPick" class="hidden">
@@ -173,7 +180,7 @@
           <div class="hr"><kbd>跳</kbd><span>右下圆键，空中再按 = 二段跳</span></div>
           <div class="hr"><kbd>右半屏</kbd><span>上下搓 = 调俯仰</span></div>
           <div class="hr"><kbd>极轴</kbd><span>右侧按钮开极坐标 · 自动开火</span></div>
-          <div class="hr"><kbd>暂停</kbd><span>右侧按钮，可返回说明</span></div>
+          <div class="hr"><kbd>暂停</kbd><span>右侧按钮，可返回主界面</span></div>
         </section>
       </div>
       <div class="help-note">颜色永远跟着<b>当前高度</b>走：一颗弹从 10.5m 落下来会紫 → 蓝 → 青 → 黄 → 红地变色。</div>
@@ -185,10 +192,12 @@
     <div class="card">
       <div class="kicker" id="endKicker">RESULT</div>
       <h1 id="endTitle">击破</h1>
+      <div class="end-meta" id="endMeta"></div>
       <p class="lead" id="endLead"></p>
       <div id="endStats"></div>
+      <div id="endBadge" class="end-badge hidden"></div>
       <button class="btn" id="btnRestart">再来一局 (R)</button>
-      <button class="btn ghost" id="btnMenu" style="margin-left:10px">返回说明</button>
+      <button class="btn ghost" id="btnMenu" style="margin-left:10px">返回主界面</button>
       <div class="hintline">
         复盘建议：如果某一类弹幕的受击次数明显偏高，先怀疑是“高度读不出来”，而不是“玩家太菜”。
       </div>

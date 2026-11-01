@@ -1,7 +1,7 @@
 {
   "name": "danmaku",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "2.5E 弹幕 · 三维可读性验证装置",
   "scripts": {

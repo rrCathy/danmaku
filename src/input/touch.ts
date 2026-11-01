@@ -68,7 +68,7 @@ export function initTouchButtons(): void {
     });
   }
 
-  // 触屏没有 P 键，暂停（进而返回说明）要靠这个按钮
+  // 触屏没有 P 键，暂停（进而返回主界面）要靠这个按钮
   const pauseEl = document.getElementById('btnPause');
   if (pauseEl) {
     pauseEl.addEventListener('pointerdown', function (e) {

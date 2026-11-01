@@ -25,8 +25,10 @@ export const el = {
   helpOverlay: must('helpOverlay'),
   endKicker: must('endKicker'),
   endTitle: must('endTitle'),
+  endMeta: must('endMeta'),
   endLead: must('endLead'),
-  endStats: must('endStats')
+  endStats: must('endStats'),
+  endBadge: must('endBadge')
 };
 
 export const camSubEl = document.getElementById('camSub');

@@ -19,7 +19,7 @@ import { cam, updateCamera } from './core/camera';
 import { canvas, H, W, onAfterResize, resize } from './core/screen';
 import { isTouch } from './core/device';
 import { heightRGB } from './core/color';
-import { boss, bullets, clock, later, lasers, player, reset, rings, session, state, training, walls } from './state';
+import { boss, bullets, clock, later, lasers, player, reset, rings, session, state, stats, training, walls } from './state';
 import { getSeed, setSeed } from './core/random';
 import { SEQUENCES, getSequenceMode, setSequenceMode, sequenceFor } from './patterns/sequence';
 import { setSpeed } from './systems/training';
@@ -30,7 +30,7 @@ import { keys, initKeyboard } from './input/keyboard';
 import { initPointer } from './input/pointer';
 import { initTouchButtons, stickHome } from './input/touch';
 import { flags } from './input/flags';
-import { initUi, setDifficulty, startGame, startTraining, togglePolar } from './ui/flow';
+import { endGame, initUi, setDifficulty, startGame, startTraining, togglePolar } from './ui/flow';
 import { updateHud } from './ui/hud';
 import { ALL_PATTERNS, runPattern } from './patterns';
 import type { PatternName } from './patterns';
@@ -216,9 +216,12 @@ if (/[?&]dbg=1/.test(location.search)) {
     seed: function () { return getSeed(); },
     train: function (n?: string) { startTraining(n ? resolvePattern(n) : undefined); },
     setSpeed: function (v: number) { setSpeed(v); },
+    get stats() { return stats; },
     heightRGB,
     dash: function () { flags.dash = true; },
-    run: function (n: string) { runPattern(n); }
+    run: function (n: string) { runPattern(n); },
+    /** 直接走结算链路（成就/无伤徽章都在 endGame 里） */
+    end: function (win: boolean) { endGame(win, win ? undefined : 'hp'); }
   };
 }
 
