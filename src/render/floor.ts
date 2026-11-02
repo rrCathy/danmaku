@@ -7,11 +7,13 @@ import { clock, rings } from '../state';
 
 export function drawGroundCircle(
   x: number, z: number, r: number,
-  stroke: string | null, fill: string | null, lw?: number
+  stroke: string | null, fill: string | null, lw?: number, seg?: number
 ): void {
+  // 段数降到 12：地面上的小圆投影用 12 边足够，单颗从 44 次 project 降到 12 次
+  const N = seg || 12;
   const pts = [];
-  for (let i = 0; i <= 44; i++) {
-    const a = i / 44 * TAU;
+  for (let i = 0; i <= N; i++) {
+    const a = i / N * TAU;
     const p = project(x + Math.cos(a) * r, 0.03, z + Math.sin(a) * r);
     if (!p) return;
     pts.push(p);

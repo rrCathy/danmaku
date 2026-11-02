@@ -294,6 +294,7 @@ export function drawParticle(pa: Particle, p: Projected): void {
 }
 
 export function drawPlayer(p: Projected): void {
+  if (!opts.playerBox) return;   // 碰撞箱显示开关（B）
   const blink = player.inv > 0 && Math.floor(player.inv * 22) % 2 === 0;
   const air = player.y > 0.08;
 

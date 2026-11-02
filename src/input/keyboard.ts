@@ -10,7 +10,7 @@ import { opts, state } from '../state';
 import { flags } from './flags';
 import {
   cycleCam, cycleTrail, enterOrbit, restartLast, startGame,
-  toggleFreeze, toggleGuides, toggleHitbox, toggleMini, togglePause, togglePolar, toggleShadows
+  toggleFreeze, toggleGuides, toggleHitbox, toggleMini, togglePause, togglePlayerBox, togglePolar, toggleShadows
 } from '../ui/flow';
 import { closeHelp, isHelpOpen, toggleHelp } from '../ui/overlays';
 
@@ -20,7 +20,7 @@ const KEYMAP: Record<string, string> = {
   KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd',
   KeyJ: 'j', KeyQ: 'q', KeyE: 'e', KeyC: 'c',
   KeyV: 'v', KeyT: 't', KeyM: 'm', KeyP: 'p', KeyR: 'r',
-  KeyG: 'g', KeyH: 'h', KeyK: 'k', KeyF: 'f', Space: ' ',
+  KeyG: 'g', KeyH: 'h', KeyK: 'k', KeyF: 'f', KeyB: 'b', Space: ' ',
   ShiftLeft: 'shift', ShiftRight: 'shift',
   ArrowUp: 'arrowup', ArrowDown: 'arrowdown',
   ArrowLeft: 'arrowleft', ArrowRight: 'arrowright',
@@ -52,6 +52,7 @@ export function initKeyboard(): void {
     if (k === 'g') toggleShadows();
     if (k === 'h') toggleGuides();
     if (k === 'k') toggleHitbox();
+    if (k === 'b') togglePlayerBox();
     if (k === 'f') toggleFreeze();
     if (k === 'p' && (state === 'playing' || state === 'paused' || state === 'training')) togglePause();
     if (k === '?' || k === '/') toggleHelp();

@@ -22,16 +22,20 @@ function drawShadowAt(x: number, z: number, worldR: number, alpha: number): void
 }
 
 export function drawShadows(): void {
-  // 子弹：用彩色地面投影环（比黑色阴影更易读）
+  // 子弹投影：只给「明显离地」的弹画，并限制总数 —— 全量画是 gate 那种弹墙卡顿的主因
+  const MAX_SHADOWS = 56;
+  let drawn = 0;
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
-    if (b.y < 0.25) continue;
+    if (b.y < 0.9) continue;                 // 贴地弹不需要投影
+    if (drawn >= MAX_SHADOWS) break;
+    drawn++;
     const a = clamp(1 - b.y / 14, 0.18, 0.8);
     drawGroundCircle(
       b.x, b.z, b.r * 1.5,
       'rgba(' + b.rgb + ',' + (0.62 * a).toFixed(3) + ')',
       'rgba(' + b.rgb + ',' + (0.11 * a).toFixed(3) + ')',
-      1.7
+      1.7, 10
     );
     // 影子中心的小亮点，帮助判断落点
     const c = project(b.x, 0.04, b.z);
@@ -51,7 +55,7 @@ export function drawGuides(): void {
   ctx.lineWidth = 1;
   for (let i = 0; i < bullets.length; i++) {
     const b = bullets[i];
-    if (b.y < 0.4) continue;
+    if (b.y < 1.2) continue;      // 低弹的引导线没信息量，还费 —— 只画明显离地的
     const p1 = project(b.x, b.y, b.z);
     const p2 = project(b.x, 0.03, b.z);
     if (!p1 || !p2) continue;

@@ -136,6 +136,13 @@ export function toggleHitbox(): void {
   syncSettings();
 }
 
+/** 碰撞箱显示/隐藏（玩家的判定光棒本体） */
+export function togglePlayerBox(): void {
+  opts.playerBox = !opts.playerBox;
+  toast(opts.playerBox ? '碰撞箱：显示' : '碰撞箱：隐藏', 900, COLORS.player);
+  syncSettings();
+}
+
 /** 训练场定格：冻结时间但保留相机控制，用来从各角度观察子弹的 3D 建模 */
 export function toggleFreeze(): void {
   if (state !== 'training') return;
@@ -152,6 +159,7 @@ function settingsState(key: string): { on: boolean; label: string } {
     case 'shadows': return { on: opts.shadows, label: opts.shadows ? '开' : '关' };
     case 'guides': return { on: opts.guides, label: opts.guides ? '开' : '关' };
     case 'hitbox': return { on: opts.hitbox, label: opts.hitbox ? '显示' : '隐藏' };
+    case 'playerBox': return { on: opts.playerBox, label: opts.playerBox ? '显示' : '隐藏' };
     case 'mini': return { on: opts.mini, label: opts.mini ? '开' : '关' };
     case 'trail': return { on: opts.trailMode > 0, label: TRAIL_LABELS[opts.trailMode] };
     default: return { on: false, label: '' };
@@ -159,7 +167,7 @@ function settingsState(key: string): { on: boolean; label: string } {
 }
 
 const SET_KEYS: Record<string, string> = {
-  shadows: 'G', guides: 'H', hitbox: 'K', mini: 'M', trail: 'T'
+  shadows: 'G', guides: 'H', hitbox: 'K', playerBox: 'B', mini: 'M', trail: 'T'
 };
 
 /** 把设置面板每个按钮刷成当前开关状态（任何入口改了 opts 都要调它） */
@@ -186,6 +194,7 @@ function initSettings(): void {
         case 'shadows': toggleShadows(); break;
         case 'guides': toggleGuides(); break;
         case 'hitbox': toggleHitbox(); break;
+        case 'playerBox': togglePlayerBox(); break;
         case 'mini': toggleMini(); break;
         case 'trail': cycleTrail(); break;
       }
