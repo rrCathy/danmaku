@@ -293,81 +293,191 @@ export function drawParticle(pa: Particle, p: Projected): void {
   ctx.globalAlpha = 1;
 }
 
+/* ============ 玩家：3D 几何小人 ============ */
+
+/** 水平横截面圆 → 屏幕多边形（3D 逐点投影，俯视时自然收拢） */
+function ringPts(cx: number, cz: number, y: number, r: number, seg: number): Array<{ x: number; y: number }> | null {
+  const out: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < seg; i++) {
+    const a = i / seg * TAU;
+    const q = project(cx + Math.cos(a) * r, y, cz + Math.sin(a) * r);
+    if (!q) return null;
+    out.push(q);
+  }
+  return out;
+}
+
+/** 截锥侧面（两个水平环之间的条带，逐段四边形填充） */
+function band(cx: number, cz: number, y0: number, r0: number, y1: number, r1: number,
+  seg: number, fill: string, stroke?: string): void {
+  const A = ringPts(cx, cz, y0, r0, seg);
+  const B = ringPts(cx, cz, y1, r1, seg);
+  if (!A || !B) return;
+  ctx.fillStyle = fill;
+  for (let i = 0; i < seg; i++) {
+    const j = (i + 1) % seg;
+    ctx.beginPath();
+    ctx.moveTo(A[i].x, A[i].y);
+    ctx.lineTo(A[j].x, A[j].y);
+    ctx.lineTo(B[j].x, B[j].y);
+    ctx.lineTo(B[i].x, B[i].y);
+    ctx.closePath();
+    ctx.fill();
+  }
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(A[0].x, A[0].y);
+    for (let i = 1; i < A.length; i++) ctx.lineTo(A[i].x, A[i].y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(B[0].x, B[0].y);
+    for (let i = 1; i < B.length; i++) ctx.lineTo(B[i].x, B[i].y);
+    ctx.stroke();
+  }
+}
+
 export function drawPlayer(p: Projected): void {
-  if (!opts.playerBox) return;   // 碰撞箱显示开关（B）
   const blink = player.inv > 0 && Math.floor(player.inv * 22) % 2 === 0;
   const air = player.y > 0.08;
+  const s = p.s;
+  const PX = player.x, PY = player.y, PZ = player.z;
 
-  /* 玩家 = 判定胶囊本身（不画人物模型）。
-   * 画法用「一根粗光棒 + 核心点」而不是圆头胶囊 —— 端圆在低角度透视下会缩成椭圆，
-   * 看起来像"套着一个莫名的椭圆"。光棒在屏幕上的粗细直接就是判定截面。 */
-  const b0 = project(player.x, player.y + PLAYER.bodyLow, player.z);
-  const b1 = project(player.x, player.y + PLAYER.bodyHigh, player.z);
-  if (!b0 || !b1) return;
-  const r0 = Math.max(2, PLAYER.hitR * b0.s);
-  const cx = (b0.x + b1.x) / 2, cy = (b0.y + b1.y) / 2;
+  ctx.globalAlpha = blink ? 0.45 : 1;
 
-  ctx.globalAlpha = blink ? 0.42 : 1;
+  // 辉光：脚下光晕，定位用
+  const gp = project(PX, PY + 0.9, PZ);
+  if (gp) {
+    const gr = Math.max(12, 1.0 * s);
+    const g = glowSprite(COLORS.player);
+    ctx.globalAlpha *= 0.38;
+    ctx.drawImage(g, gp.x - gr, gp.y - gr, gr * 2, gr * 2);
+    ctx.globalAlpha = blink ? 0.45 : 1;
+  }
 
-  // 辉光：远处也能看见自己
-  const gr = Math.max(10, 0.8 * p.s);
-  const g = glowSprite(COLORS.player);
-  ctx.globalAlpha *= 0.5;
-  ctx.drawImage(g, cx - gr, cy - gr, gr * 2, gr * 2);
-  ctx.globalAlpha = blink ? 0.42 : 1;
+  /* 模型比例（世界单位，脚底 y=0）：
+   *   头顶 1.68 / 头球心 1.50 r0.15
+   *   肩 1.26 r0.165，腰 0.80 r0.155，裙 0.56-0.80 r0.21→0.155
+   *   判定胶囊 0.57-1.03（直径 0.26）完全藏在裙+躯干内部（最窄处直径 0.31） */
 
-  // 擦弹圈（K 开时）：判定胶囊外扩 GRAZE_R 的半透明光壳。
-  // 用「比本体粗一圈的柔和实线」表达范围 —— 不画虚线（会变成一排横杠）、不画线框椭圆。
-  if (opts.hitbox) {
-    ctx.strokeStyle = 'rgba(255,214,120,0.15)';
-    ctx.lineWidth = Math.max(4, (PLAYER.hitR + GRAZE_R) * 2 * b0.s);
-    ctx.lineCap = 'round';
+  // 腿（3D 线段）
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(96,200,180,0.95)';
+  ctx.lineWidth = Math.max(1.6, 0.06 * s);
+  for (let li = 0; li < 2; li++) {
+    const sx = li === 0 ? -0.085 : 0.085;
+    const a = project(PX + sx * 0.6, PY + 0.60, PZ);
+    const b = project(PX + sx, PY + (air ? 0.18 : 0.03), PZ);
+    if (a && b) {
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+  }
+
+  // 裙（截锥：0.56 r0.21 → 0.80 r0.155）
+  band(PX, PZ, PY + 0.56, 0.21, PY + 0.80, 0.155, 10, 'rgba(52,150,138,0.92)', 'rgba(150,255,230,0.5)');
+
+  // 躯干（0.80 r0.155 → 肩 1.26 r0.165）
+  band(PX, PZ, PY + 0.80, 0.155, PY + 1.26, 0.165, 10, 'rgba(96,214,190,0.95)', 'rgba(190,255,240,0.6)');
+
+  // 领口/肩线：一条亮环
+  band(PX, PZ, PY + 1.24, 0.166, PY + 1.28, 0.15, 10, 'rgba(232,255,248,0.95)');
+
+  // 手臂
+  ctx.strokeStyle = 'rgba(140,240,215,0.95)';
+  ctx.lineWidth = Math.max(1.4, 0.045 * s);
+  for (let ai = 0; ai < 2; ai++) {
+    const sx = ai === 0 ? -1 : 1;
+    const a = project(PX + sx * 0.15, PY + 1.22, PZ);
+    const b = project(PX + sx * 0.27, PY + (air ? 1.40 : 0.92), PZ);
+    if (a && b) {
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+  }
+
+  // 颈
+  const na = project(PX, PY + 1.26, PZ);
+  const nb = project(PX, PY + 1.38, PZ);
+  if (na && nb) {
+    ctx.strokeStyle = 'rgba(210,255,240,0.9)';
+    ctx.lineWidth = Math.max(1.2, 0.035 * s);
     ctx.beginPath();
-    ctx.moveTo(b0.x, b0.y);
-    ctx.lineTo(b1.x, b1.y);
-    ctx.stroke();
-    // 边缘一圈极淡的描边，让范围边界可读
-    ctx.strokeStyle = 'rgba(255,214,120,0.05)';
-    ctx.lineWidth = Math.max(5, (PLAYER.hitR + GRAZE_R) * 2 * b0.s + 1.5);
+    ctx.moveTo(na.x, na.y);
+    ctx.lineTo(nb.x, nb.y);
     ctx.stroke();
   }
 
-  // 本体光棒：屏幕上的粗细 = 判定截面直径
-  ctx.strokeStyle = 'rgba(' + COLORS.player + ',0.9)';
-  ctx.lineWidth = r0 * 2;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(b0.x, b0.y);
-  ctx.lineTo(b1.x, b1.y);
-  ctx.stroke();
+  // 头（球：投影中心 + 半径，俯视永远是个圆）
+  const head = project(PX, PY + 1.50, PZ);
+  if (head) {
+    const hr = Math.max(2.4, 0.155 * (head.s || s));
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, hr, 0, TAU);
+    ctx.fillStyle = 'rgba(245,255,252,0.98)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(120,235,205,0.9)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    // 刘海：头顶前半圈的一道弧，给一点朝向感
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, hr * 0.72, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.strokeStyle = 'rgba(90,200,180,0.85)';
+    ctx.lineWidth = Math.max(1, hr * 0.22);
+    ctx.stroke();
+  }
 
-  // 内芯：细白线，指示胶囊轴
-  ctx.strokeStyle = 'rgba(240,255,252,0.55)';
-  ctx.lineWidth = Math.max(1, r0 * 0.35);
-  ctx.beginPath();
-  ctx.moveTo(b0.x, b0.y);
-  ctx.lineTo(b1.x, b1.y);
-  ctx.stroke();
-
-  // 判定核心点
-  ctx.beginPath();
-  ctx.arc(cx, cy, Math.max(2, r0 * 0.5), 0, TAU);
-  ctx.fillStyle = 'rgba(240,255,252,0.98)';
-  ctx.fill();
-
-  // 跳跃高度竖线：让「离地多高」有直接读数
+  // 跳跃高度竖线
   if (air) {
-    const gp2 = project(player.x, 0.03, player.z);
-    const fp = project(player.x, player.y + PLAYER.bodyLow, player.z);
-    if (gp2 && fp) {
+    const g0 = project(PX, 0.03, PZ);
+    const f0 = project(PX, PY, PZ);
+    if (g0 && f0) {
       ctx.beginPath();
-      ctx.moveTo(fp.x, fp.y);
-      ctx.lineTo(gp2.x, gp2.y);
+      ctx.moveTo(f0.x, f0.y);
+      ctx.lineTo(g0.x, g0.y);
       ctx.strokeStyle = 'rgba(' + COLORS.player + ',0.25)';
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 4]);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+  }
+
+  // 判定胶囊（B 开关）：光棒 + 核心点 —— 完全在模型身体内部
+  if (opts.playerBox) {
+    const b0 = project(PX, PY + PLAYER.bodyLow, PZ);
+    const b1 = project(PX, PY + PLAYER.bodyHigh, PZ);
+    if (b0 && b1) {
+      const r0 = Math.max(2, PLAYER.hitR * b0.s);
+      // 擦弹圈（K）：判定胶囊外扩 GRAZE_R 的柔光壳
+      if (opts.hitbox) {
+        ctx.strokeStyle = 'rgba(255,214,120,0.16)';
+        ctx.lineWidth = Math.max(4, (PLAYER.hitR + GRAZE_R) * 2 * b0.s);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(b0.x, b0.y);
+        ctx.lineTo(b1.x, b1.y);
+        ctx.stroke();
+      }
+      // 判定光棒
+      ctx.strokeStyle = 'rgba(255,255,255,0.26)';
+      ctx.lineWidth = r0 * 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(b0.x, b0.y);
+      ctx.lineTo(b1.x, b1.y);
+      ctx.stroke();
+      // 核心点
+      const cx = (b0.x + b1.x) / 2, cy = (b0.y + b1.y) / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.max(2, r0 * 0.5), 0, TAU);
+      ctx.fillStyle = 'rgba(240,255,252,0.98)';
+      ctx.fill();
     }
   }
 

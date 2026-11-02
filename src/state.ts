@@ -56,7 +56,7 @@ export const session = {
 };
 
 /* ============ 开关 ============ */
-export const opts = { shadows: false, guides: false, hitbox: true, playerBox: true, trailMode: 0, mini: true };
+export const opts = { shadows: false, guides: false, hitbox: false, playerBox: true, trailMode: 0, mini: true };
 
 /* ============ 流程状态 ============ */
 export let state: GameState = 'menu';
