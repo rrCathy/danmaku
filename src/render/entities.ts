@@ -392,40 +392,42 @@ export function drawPlayer(p: Projected): void {
    * 判定胶囊 0.57~1.03 正好落在躯干下半段（0.40 宽 > 胶囊 0.26） */
 
   const faces: FaceCmd[] = [];
+  if (opts.playerModel) {
 
-  // 腿（两条，中间留 0.02 缝，避免面重叠闪）
-  pushBlock(faces, PX - W(0.198), PX - W(0.010), Y(0), Y(0.60), PZ - W(0.095), PZ + W(0.095), '64,166,152', 0.98);
-  pushBlock(faces, PX + W(0.010), PX + W(0.198), Y(0), Y(0.60), PZ - W(0.095), PZ + W(0.095), '64,166,152', 0.98);
+    // 腿（两条，中间留 0.02 缝，避免面重叠闪）
+    pushBlock(faces, PX - W(0.198), PX - W(0.010), Y(0), Y(0.60), PZ - W(0.095), PZ + W(0.095), '64,166,152', 0.98);
+    pushBlock(faces, PX + W(0.010), PX + W(0.198), Y(0), Y(0.60), PZ - W(0.095), PZ + W(0.095), '64,166,152', 0.98);
 
-  // 躯干
-  pushBlock(faces, PX - W(0.20), PX + W(0.20), Y(0.60), Y(1.20), PZ - W(0.095), PZ + W(0.095), '104,220,196', 0.98);
+    // 躯干
+    pushBlock(faces, PX - W(0.20), PX + W(0.20), Y(0.60), Y(1.20), PZ - W(0.095), PZ + W(0.095), '104,220,196', 0.98);
 
-  // 手臂（跳跃时整体上抬，读作“举起来了”）
-  const ay0 = air ? 0.96 : 0.58;
-  const ay1 = air ? 1.56 : 1.18;
-  pushBlock(faces, PX - W(0.295), PX - W(0.20), Y(ay0), Y(ay1), PZ - W(0.095), PZ + W(0.095), '84,196,176', 0.98);
-  pushBlock(faces, PX + W(0.20), PX + W(0.295), Y(ay0), Y(ay1), PZ - W(0.095), PZ + W(0.095), '84,196,176', 0.98);
+    // 手臂（跳跃时整体上抬，读作“举起来了”）
+    const ay0 = air ? 0.96 : 0.58;
+    const ay1 = air ? 1.56 : 1.18;
+    pushBlock(faces, PX - W(0.295), PX - W(0.20), Y(ay0), Y(ay1), PZ - W(0.095), PZ + W(0.095), '84,196,176', 0.98);
+    pushBlock(faces, PX + W(0.20), PX + W(0.295), Y(ay0), Y(ay1), PZ - W(0.095), PZ + W(0.095), '84,196,176', 0.98);
 
-  // 头
-  pushBlock(faces, PX - W(0.20), PX + W(0.20), Y(1.20), Y(1.60), PZ - W(0.20), PZ + W(0.20), '238,252,250', 0.99);
+    // 头
+    pushBlock(faces, PX - W(0.20), PX + W(0.20), Y(1.20), Y(1.60), PZ - W(0.20), PZ + W(0.20), '238,252,250', 0.99);
 
-  // 护目带（比头略大 0.005，避免与头面 z-fighting；四面同色 → 任何视角都读得出朝向无关）
-  pushBlock(faces, PX - W(0.206), PX + W(0.206), Y(1.35), Y(1.43), PZ - W(0.206), PZ + W(0.206), '38,124,136', 0.96);
+    // 护目带（比头略大 0.005，避免与头面 z-fighting；四面同色 → 任何视角都读得出朝向无关）
+    pushBlock(faces, PX - W(0.206), PX + W(0.206), Y(1.35), Y(1.43), PZ - W(0.206), PZ + W(0.206), '38,124,136', 0.96);
 
-  // 画家算法：远的先画
-  faces.sort(function (a, b) { return b.z - a.z; });
-  for (let i = 0; i < faces.length; i++) {
-    const f = faces[i];
-    ctx.beginPath();
-    ctx.moveTo(f.pts[0].x, f.pts[0].y);
-    for (let k = 1; k < 4; k++) ctx.lineTo(f.pts[k].x, f.pts[k].y);
-    ctx.closePath();
-    ctx.fillStyle = f.fill;
-    ctx.fill();
-    // 极细暗描边：方块之间的接缝在暗背景里更清楚
-    ctx.strokeStyle = 'rgba(6,18,24,0.40)';
-    ctx.lineWidth = 0.8;
-    ctx.stroke();
+    // 画家算法：远的先画
+    faces.sort(function (a, b) { return b.z - a.z; });
+    for (let i = 0; i < faces.length; i++) {
+      const f = faces[i];
+      ctx.beginPath();
+      ctx.moveTo(f.pts[0].x, f.pts[0].y);
+      for (let k = 1; k < 4; k++) ctx.lineTo(f.pts[k].x, f.pts[k].y);
+      ctx.closePath();
+      ctx.fillStyle = f.fill;
+      ctx.fill();
+      // 极细暗描边：方块之间的接缝在暗背景里更清楚
+      ctx.strokeStyle = 'rgba(6,18,24,0.40)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
   }
 
   // 跳跃高度竖线

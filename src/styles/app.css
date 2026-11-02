@@ -89,11 +89,27 @@ body.touch #lookHint{display:none}
 .btn:hover{background:linear-gradient(180deg,rgba(110,232,255,.34),rgba(110,232,255,.12));
            box-shadow:0 0 28px rgba(110,232,255,.28)}
 .btn.ghost{border-color:rgba(160,190,230,.28);background:transparent;color:rgba(200,220,245,.85)}
-#endStats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:18px 0 26px}
-#endStats .s{border:1px solid rgba(255,255,255,.08);border-radius:4px;padding:11px 12px;
-             background:rgba(255,255,255,.02)}
-#endStats .s .n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
-#endStats .s .l{font-size:10px;letter-spacing:.14em;color:var(--dim);margin-top:3px}
+#endStats{margin:18px 0 26px}
+/* 擦弹条：大数字 + 三个胶囊小标签，横向一条读完 */
+.stat-graze{display:flex;align-items:center;gap:9px;padding:11px 16px;border-radius:8px;
+  border:1px solid rgba(255,224,138,.22);
+  background:linear-gradient(90deg,rgba(255,224,138,.12),rgba(255,224,138,.015))}
+.sg-n{font-size:26px;line-height:1;font-weight:800;color:#ffe08a;font-variant-numeric:tabular-nums}
+.sg-t{font-size:9px;letter-spacing:.3em;color:rgba(255,224,138,.72);
+  align-self:flex-end;padding-bottom:2px}
+.sg-parts{display:flex;gap:8px;margin-left:auto}
+.sg-parts span{display:flex;align-items:baseline;gap:6px;padding:3px 10px;border-radius:999px;
+  background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.07)}
+.sg-parts i{font-style:normal;font-size:10px;letter-spacing:.06em;color:rgba(190,215,245,.6)}
+.sg-parts b{font-size:13px;color:#e8f4ff;font-variant-numeric:tabular-nums}
+/* 受击分布：两列条形图（比五个空方块信息密度高得多） */
+.stat-bars{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;margin-top:14px}
+.sb{display:flex;align-items:center;gap:10px}
+.sb-k{flex:none;width:48px;font-size:11px;letter-spacing:.06em;color:rgba(190,215,245,.72)}
+.sb-t{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.055);overflow:hidden}
+.sb-t i{display:block;height:100%;border-radius:3px;transition:width .4s ease}
+.sb-v{flex:none;min-width:16px;text-align:right;font-size:13px;font-weight:700;
+  font-variant-numeric:tabular-nums}
 .hintline{font-size:11.5px;color:rgba(190,215,245,.6);line-height:1.75;margin-top:18px;
           border-left:2px solid rgba(110,232,255,.3);padding-left:12px}
 
@@ -198,10 +214,17 @@ body.touch .card .kicker{font-size:9px}
 body.touch .card .lead{font-size:11.5px;line-height:1.65;margin-bottom:12px}
 body.touch .btn{padding:11px 26px;font-size:13px}
 body.touch .hintline{display:none}
-body.touch #endStats{gap:6px;margin:12px 0 16px}
-body.touch #endStats .s{padding:7px 8px}
-body.touch #endStats .s .n{font-size:17px}
-body.touch #endStats .s .l{font-size:8.5px}
+body.touch #endStats{margin:11px 0 15px}
+body.touch .stat-graze{padding:8px 11px;gap:7px}
+body.touch .sg-n{font-size:19px}
+body.touch .sg-parts{gap:5px}
+body.touch .sg-parts span{padding:2px 7px;gap:4px}
+body.touch .sg-parts i{font-size:8.5px}
+body.touch .sg-parts b{font-size:11px}
+body.touch .stat-bars{gap:6px 14px;margin-top:9px}
+body.touch .sb-k{width:40px;font-size:9.5px}
+body.touch .sb-t{height:5px}
+body.touch .sb-v{font-size:11px}
 
 /* 竖屏提示 */
 #rotate{display:none;position:fixed;inset:0;z-index:60;background:#04060e;
@@ -402,11 +425,6 @@ body.touch .pause-card.wide .pause-actions .btn{padding:9px 12px;font-size:12px}
 .end-badge.hidden{display:none}
 
 /* 擦弹汇总行（结算） */
-.g-row{display:flex;align-items:baseline;gap:12px;justify-content:center;
-  margin:2px 0 10px;padding:7px 10px;border-radius:6px;
-  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
-.g-row b{font-size:15px;letter-spacing:.14em;color:#ffe08a;font-variant-numeric:tabular-nums}
-.g-row span{font-size:10.5px;letter-spacing:.05em;color:rgba(190,215,245,.6)}
 
 /* 擦弹小闪（弹身白色脉冲由粒子系统承担） */
 

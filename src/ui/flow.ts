@@ -143,6 +143,13 @@ export function togglePlayerBox(): void {
   syncSettings();
 }
 
+/** 人物模型（方块人本体）显示开关。关掉只剩辉光 + 判定胶囊，视线最干净 */
+export function togglePlayerModel(): void {
+  opts.playerModel = !opts.playerModel;
+  toast(opts.playerModel ? '人物模型：显示' : '人物模型：隐藏', 900, COLORS.player);
+  syncSettings();
+}
+
 /** 训练场定格：冻结时间但保留相机控制，用来从各角度观察子弹的 3D 建模 */
 export function toggleFreeze(): void {
   if (state !== 'training') return;
@@ -160,6 +167,7 @@ function settingsState(key: string): { on: boolean; label: string } {
     case 'guides': return { on: opts.guides, label: opts.guides ? '开' : '关' };
     case 'hitbox': return { on: opts.hitbox, label: opts.hitbox ? '显示' : '隐藏' };
     case 'playerBox': return { on: opts.playerBox, label: opts.playerBox ? '显示' : '隐藏' };
+    case 'playerModel': return { on: opts.playerModel, label: opts.playerModel ? '显示' : '隐藏' };
     case 'mini': return { on: opts.mini, label: opts.mini ? '开' : '关' };
     case 'trail': return { on: opts.trailMode > 0, label: TRAIL_LABELS[opts.trailMode] };
     default: return { on: false, label: '' };
@@ -167,7 +175,7 @@ function settingsState(key: string): { on: boolean; label: string } {
 }
 
 const SET_KEYS: Record<string, string> = {
-  shadows: 'G', guides: 'H', hitbox: 'K', playerBox: 'B', mini: 'M', trail: 'T'
+  shadows: 'G', guides: 'H', hitbox: 'K', playerBox: 'B', playerModel: 'N', mini: 'M', trail: 'T'
 };
 
 /** 把设置面板每个按钮刷成当前开关状态（任何入口改了 opts 都要调它） */
@@ -209,6 +217,7 @@ function initSettings(): void {
         case 'guides': toggleGuides(); break;
         case 'hitbox': toggleHitbox(); break;
         case 'playerBox': togglePlayerBox(); break;
+        case 'playerModel': togglePlayerModel(); break;
         case 'mini': toggleMini(); break;
         case 'trail': cycleTrail(); break;
       }
@@ -396,23 +405,35 @@ export function endGame(win: boolean, reason?: EndReason): void {
     el.endBadge.className = 'end-badge hidden';
   }
 
-  const cells: Array<[string, number, string]> = [
-    ['受击次数', stats.hits, '#ff9ab4'],
-    ['低空弹', stats.low, 'rgb(' + COLORS.low + ')'],
-    ['中空弹', stats.mid, 'rgb(' + COLORS.mid + ')'],
-    ['高空弹', stats.high, 'rgb(' + COLORS.high + ')'],
-    ['落点雨', stats.rain, 'rgb(' + COLORS.rain + ')']
+  // 受击分布：低空 / 中空 / 高空 / 落点雨。受击总数已在上面的大数字里，这里不重复
+  const dist: Array<[string, number, string]> = [
+    ['低空弹', stats.low, COLORS.low],
+    ['中空弹', stats.mid, COLORS.mid],
+    ['高空弹', stats.high, COLORS.high],
+    ['落点雨', stats.rain, COLORS.rain]
   ];
-  let html = '';
-  for (let i = 0; i < cells.length; i++) {
-    html += '<div class="s"><div class="n" style="color:' + cells[i][2] + '">' + cells[i][1] + '</div>' +
-      '<div class="l">' + cells[i][0] + '</div></div>';
+  let maxV = 1;
+  for (let i = 0; i < dist.length; i++) if (dist[i][1] > maxV) maxV = dist[i][1];
+  let bars = '';
+  for (let i = 0; i < dist.length; i++) {
+    const n = dist[i][1];
+    const w = n <= 0 ? 0 : Math.max(5, Math.round(n / maxV * 100));
+    bars += '<div class="sb"><span class="sb-k">' + dist[i][0] + '</span>' +
+      '<div class="sb-t"><i style="width:' + w + '%;background:rgb(' + dist[i][2] + ')"></i></div>' +
+      '<b class="sb-v" style="color:rgb(' + dist[i][2] + ')">' + n + '</b></div>';
   }
-  // 擦弹行：擦弹是「读懂弹幕」的证据 —— 受击少 + 擦弹多 = 又稳又敢贴
-  const gRow = '<div class="g-row"><b>GRAZE ' + stats.graze + '</b><span>' +
-    '擦头 ' + stats.grazeHead + ' · 擦脚 ' + stats.grazeFoot + ' · 擦身 ' + stats.grazeBody +
-    '</span></div>';
-  el.endStats.innerHTML = gRow + html;
+
+  // 擦弹：擦头 / 擦身 / 擦脚三联。受击少 + 擦弹多 = 又稳又敢贴
+  el.endStats.innerHTML =
+    '<div class="stat-graze">' +
+      '<b class="sg-n">' + stats.graze + '</b><span class="sg-t">GRAZE</span>' +
+      '<div class="sg-parts">' +
+        '<span><i>擦头</i><b>' + stats.grazeHead + '</b></span>' +
+        '<span><i>擦身</i><b>' + stats.grazeBody + '</b></span>' +
+        '<span><i>擦脚</i><b>' + stats.grazeFoot + '</b></span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="stat-bars">' + bars + '</div>';
 
   el.endOverlay.classList.remove('hidden');
   syncOverlays();
