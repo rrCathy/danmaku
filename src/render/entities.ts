@@ -3,7 +3,7 @@ import { boss, bullets, opts, pshots, player } from '../state';
 import { GRAZE_R, PLAYER } from '../config';
 import type { Bullet, Particle, Projected, Shot } from '../types';
 import { TAU, clamp } from '../core/math';
-import { project } from '../core/camera';
+import { cam, project } from '../core/camera';
 import { COLORS } from '../core/color';
 import { ctx } from '../core/screen';
 import { glowSprite } from '../core/sprites';
@@ -293,56 +293,75 @@ export function drawParticle(pa: Particle, p: Projected): void {
   ctx.globalAlpha = 1;
 }
 
-/* ============ 玩家：3D 几何小人 ============ */
+/* ============ 玩家：MC 风格方块人 ============ */
 
-/** 水平横截面圆 → 屏幕多边形（3D 逐点投影，俯视时自然收拢） */
-function ringPts(cx: number, cz: number, y: number, r: number, seg: number): Array<{ x: number; y: number }> | null {
-  const out: Array<{ x: number; y: number }> = [];
-  for (let i = 0; i < seg; i++) {
-    const a = i / seg * TAU;
-    const q = project(cx + Math.cos(a) * r, y, cz + Math.sin(a) * r);
-    if (!q) return null;
-    out.push(q);
-  }
-  return out;
+/** 待绘制的一个面：四点（已投影）+ 填充色 + 平均深度 */
+interface FaceCmd {
+  z: number;
+  pts: Array<{ x: number; y: number }>;
+  fill: string;
 }
 
-/** 截锥侧面（两个水平环之间的条带，逐段四边形填充） */
-function band(cx: number, cz: number, y0: number, r0: number, y1: number, r1: number,
-  seg: number, fill: string, stroke?: string): void {
-  const A = ringPts(cx, cz, y0, r0, seg);
-  const B = ringPts(cx, cz, y1, r1, seg);
-  if (!A || !B) return;
-  ctx.fillStyle = fill;
-  for (let i = 0; i < seg; i++) {
-    const j = (i + 1) % seg;
-    ctx.beginPath();
-    ctx.moveTo(A[i].x, A[i].y);
-    ctx.lineTo(A[j].x, A[j].y);
-    ctx.lineTo(B[j].x, B[j].y);
-    ctx.lineTo(B[i].x, B[i].y);
-    ctx.closePath();
-    ctx.fill();
+/** 把 "r,g,b" 按亮度 k 调暗 */
+function shadeRGB(rgb: string, k: number): string {
+  const q = rgb.split(',');
+  return Math.round(Number(q[0]) * k) + ',' +
+    Math.round(Number(q[1]) * k) + ',' +
+    Math.round(Number(q[2]) * k);
+}
+
+/**
+ * MC 风格方块：轴对齐长方体，自动背面剔除 + 按法线做明暗（顶面最亮、底面最暗）。
+ * 只把朝向相机的那几个面塞进 out，由调用方按深度排序后统一绘制。
+ */
+function pushBlock(
+  out: FaceCmd[],
+  x0: number, x1: number, y0: number, y1: number, z0: number, z1: number,
+  rgb: string, alpha: number
+): void {
+  const cs: Array<[number, number, number]> = [
+    [x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1],
+    [x0, y1, z0], [x1, y1, z0], [x1, y1, z1], [x0, y1, z1]
+  ];
+  const sp: Projected[] = [];
+  for (let i = 0; i < 8; i++) {
+    const q = project(cs[i][0], cs[i][1], cs[i][2]);
+    if (!q) return;
+    sp.push(q);
   }
-  if (stroke) {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(A[0].x, A[0].y);
-    for (let i = 1; i < A.length; i++) ctx.lineTo(A[i].x, A[i].y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(B[0].x, B[0].y);
-    for (let i = 1; i < B.length; i++) ctx.lineTo(B[i].x, B[i].y);
-    ctx.stroke();
+
+  const hx = (x1 - x0) * 0.5, hy = (y1 - y0) * 0.5, hz = (z1 - z0) * 0.5;
+  const cx = x0 + hx, cy = y0 + hy, cz = z0 + hz;
+
+  // 六个面：顶点下标 / 外法线 / 亮度
+  const faces: Array<{ v: number[]; n: number[]; k: number }> = [
+    { v: [0, 1, 2, 3], n: [0, -1, 0], k: 0.55 },   // 底面
+    { v: [4, 5, 6, 7], n: [0, 1, 0], k: 1.00 },    // 顶面
+    { v: [0, 1, 5, 4], n: [0, 0, -1], k: 0.86 },   // -z
+    { v: [3, 2, 6, 7], n: [0, 0, 1], k: 0.74 },    // +z
+    { v: [0, 3, 7, 4], n: [-1, 0, 0], k: 0.80 },   // -x
+    { v: [1, 2, 6, 5], n: [1, 0, 0], k: 0.93 }     // +x
+  ];
+
+  for (let f = 0; f < faces.length; f++) {
+    const n = faces[f].n;
+    const fx = cx + n[0] * hx, fy = cy + n[1] * hy, fz = cz + n[2] * hz;
+    // 背面剔除：面法线必须朝向相机
+    if ((cam.eye.x - fx) * n[0] + (cam.eye.y - fy) * n[1] + (cam.eye.z - fz) * n[2] <= 0) continue;
+    const vv = faces[f].v;
+    const a = sp[vv[0]], b = sp[vv[1]], c2 = sp[vv[2]], d = sp[vv[3]];
+    out.push({
+      z: (a.z + b.z + c2.z + d.z) * 0.25,
+      pts: [{ x: a.x, y: a.y }, { x: b.x, y: b.y }, { x: c2.x, y: c2.y }, { x: d.x, y: d.y }],
+      fill: 'rgba(' + shadeRGB(rgb, faces[f].k) + ',' + alpha + ')'
+    });
   }
 }
 
 /** ── 人物模型整体缩放 ──
- * 下面的坐标是按 1.86m 的设计稿写的（脚底 y=0），实际绘制时整体乘 MODEL_SCALE。
- * 调大小只改这一个数：1.00 = 1.86m ／ 0.85 ≈ 1.58m ／ 0.75 ≈ 1.39m。
- * 注意：判定胶囊（PLAYER.hitR / bodyLow / bodyHigh）**不受这里影响**，它是玩法参数。 */
-const MODEL_SCALE = 0.85;
+ * 设计稿总高 1.6m（脚底 y=0，MC 比例：腿 0.60 / 躯干 0.60 / 头 0.40）。
+ * 调大小只改这一个数。判定胶囊（PLAYER.*）是玩法参数，不受这里影响。 */
+const MODEL_SCALE = 1.0;
 
 export function drawPlayer(p: Projected): void {
   const blink = player.inv > 0 && Math.floor(player.inv * 22) % 2 === 0;
@@ -350,120 +369,62 @@ export function drawPlayer(p: Projected): void {
   const s = p.s;
   const PX = player.x, PY = player.y, PZ = player.z;
   const MS = MODEL_SCALE;
-  /** 设计稿高度 → 世界高度（含整体缩放） */
   const Y = function (h: number): number { return PY + h * MS; };
+  const W = function (v: number): number { return v * MS; };
 
-  ctx.globalAlpha = blink ? 0.45 : 1;
+  ctx.globalAlpha = blink ? 0.5 : 1;
 
   // 辉光：躯干中段一圈柔光，远处也能一眼定位自己
-  const gp = project(PX, Y(1.10), PZ);
+  const gp = project(PX, Y(0.95), PZ);
   if (gp) {
-    const gr = Math.max(12, 1.05 * MS * s);
+    const gr = Math.max(12, 0.95 * MS * s);
     const g = glowSprite(COLORS.player);
-    ctx.globalAlpha *= 0.30;
+    ctx.globalAlpha *= 0.26;
     ctx.drawImage(g, gp.x - gr, gp.y - gr, gr * 2, gr * 2);
-    ctx.globalAlpha = blink ? 0.45 : 1;
+    ctx.globalAlpha = blink ? 0.5 : 1;
   }
 
-  /* 设计稿比例（乘 MODEL_SCALE 之前；总高 1.86，7.3 头身）：
-   *   腿      0    ~ 0.98
-   *   短裙    0.78 r0.198（下摆）→ 1.14 r0.118（裙腰）
-   *   收腰    1.18 r0.100（最细，直径 0.20 = 肩宽 0.57）
-   *   上腹    1.28 r0.126 → 胸 1.38 r0.152 → 肩 1.48 r0.174（肩宽 0.348）
-   *   颈      1.52 ~ 1.62；头 球心 1.73 r0.128（头宽 = 肩宽 0.73） */
+  /* MC 比例（设计稿，乘 MS 前；总高 1.6m）：
+   *   腿    y 0.00~0.60   宽 0.19×2（中间留缝）厚 0.19
+   *   躯干  y 0.60~1.20   宽 0.40  厚 0.19
+   *   手臂  y 0.58~1.18   宽 0.095 长 0.60（跳起时上抬到 0.96~1.56）
+   *   头    y 1.20~1.60   0.40 见方；护目带 1.35~1.43
+   * 判定胶囊 0.57~1.03 正好落在躯干下半段（0.40 宽 > 胶囊 0.26） */
 
-  // 腿（3D 线段，腿根藏在裙内）
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = 'rgba(96,200,180,0.95)';
-  ctx.lineWidth = Math.max(1.6, 0.072 * MS * s);
-  for (let li = 0; li < 2; li++) {
-    const sx = li === 0 ? -1 : 1;
-    const a = project(PX + sx * 0.080 * MS, Y(0.98), PZ);
-    const b = project(PX + sx * 0.098 * MS, Y(air ? 0.22 : 0.03), PZ);
-    if (a && b) {
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-    }
-  }
+  const faces: FaceCmd[] = [];
 
-  // 胯：裙底封口（实心盘，遮住裙内空腔，让腿和身体连成一体）
-  const hipBot = ringPts(PX, PZ, Y(0.76), 0.150 * MS, 10);
-  const hipTop = ringPts(PX, PZ, Y(0.80), 0.186 * MS, 10);
-  if (hipBot && hipTop) {
-    ctx.fillStyle = 'rgba(30,96,90,0.97)';
-    for (let i = 0; i < 10; i++) {
-      const j = (i + 1) % 10;
-      ctx.beginPath();
-      ctx.moveTo(hipBot[i].x, hipBot[i].y);
-      ctx.lineTo(hipBot[j].x, hipBot[j].y);
-      ctx.lineTo(hipTop[j].x, hipTop[j].y);
-      ctx.lineTo(hipTop[i].x, hipTop[i].y);
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
+  // 腿（两条，中间留 0.02 缝，避免面重叠闪）
+  pushBlock(faces, PX - W(0.198), PX - W(0.010), Y(0), Y(0.60), PZ - W(0.095), PZ + W(0.095), '64,166,152', 0.98);
+  pushBlock(faces, PX + W(0.010), PX + W(0.198), Y(0), Y(0.60), PZ - W(0.095), PZ + W(0.095), '64,166,152', 0.98);
 
-  // 短裙：下摆 0.78 r0.198 → 裙腰 1.14 r0.118（到大腿中段）
-  band(PX, PZ, Y(0.78), 0.198 * MS, Y(1.14), 0.118 * MS, 12, 'rgba(46,140,130,0.95)', 'rgba(150,255,230,0.40)');
+  // 躯干
+  pushBlock(faces, PX - W(0.20), PX + W(0.20), Y(0.60), Y(1.20), PZ - W(0.095), PZ + W(0.095), '104,220,196', 0.98);
 
-  // 躯干：多段拟合沙漏（腰 1.18 r0.100 → 胸 1.38 r0.152 → 肩 1.48 r0.174）
-  band(PX, PZ, Y(1.14), 0.118 * MS, Y(1.18), 0.100 * MS, 12, 'rgba(88,206,182,0.96)');
-  band(PX, PZ, Y(1.18), 0.100 * MS, Y(1.28), 0.126 * MS, 12, 'rgba(92,210,186,0.96)');
-  band(PX, PZ, Y(1.28), 0.126 * MS, Y(1.38), 0.152 * MS, 12, 'rgba(96,214,190,0.96)');
-  band(PX, PZ, Y(1.38), 0.152 * MS, Y(1.48), 0.174 * MS, 12, 'rgba(100,218,194,0.96)');
-  // 肩顶：两级收弧，做出圆肩（避免一条平盖子）
-  band(PX, PZ, Y(1.48), 0.174 * MS, Y(1.52), 0.136 * MS, 12, 'rgba(120,226,202,0.96)', 'rgba(226,255,246,0.35)');
-  band(PX, PZ, Y(1.52), 0.136 * MS, Y(1.55), 0.078 * MS, 12, 'rgba(150,236,214,0.95)');
+  // 手臂（跳跃时整体上抬，读作“举起来了”）
+  const ay0 = air ? 0.96 : 0.58;
+  const ay1 = air ? 1.56 : 1.18;
+  pushBlock(faces, PX - W(0.295), PX - W(0.20), Y(ay0), Y(ay1), PZ - W(0.095), PZ + W(0.095), '84,196,176', 0.98);
+  pushBlock(faces, PX + W(0.20), PX + W(0.295), Y(ay0), Y(ay1), PZ - W(0.095), PZ + W(0.095), '84,196,176', 0.98);
 
-  // 手臂（肩 → 手，末端一个小手圆点；跳跃时抬成 V 字）
-  ctx.strokeStyle = 'rgba(140,240,215,0.95)';
-  ctx.lineWidth = Math.max(1.4, 0.050 * MS * s);
-  for (let ai = 0; ai < 2; ai++) {
-    const sx = ai === 0 ? -1 : 1;
-    const a = project(PX + sx * 0.162 * MS, Y(1.44), PZ);
-    const b = project(PX + sx * (air ? 0.30 : 0.238) * MS, Y(air ? 1.56 : 1.00), PZ);
-    if (a && b) {
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, Math.max(1.2, 0.026 * MS * s), 0, TAU);
-      ctx.fillStyle = 'rgba(170,250,228,0.95)';
-      ctx.fill();
-    }
-  }
+  // 头
+  pushBlock(faces, PX - W(0.20), PX + W(0.20), Y(1.20), Y(1.60), PZ - W(0.20), PZ + W(0.20), '238,252,250', 0.99);
 
-  // 颈
-  const na = project(PX, Y(1.52), PZ);
-  const nb = project(PX, Y(1.62), PZ);
-  if (na && nb) {
-    ctx.strokeStyle = 'rgba(210,255,240,0.92)';
-    ctx.lineWidth = Math.max(1.2, 0.048 * MS * s);
+  // 护目带（比头略大 0.005，避免与头面 z-fighting；四面同色 → 任何视角都读得出朝向无关）
+  pushBlock(faces, PX - W(0.206), PX + W(0.206), Y(1.35), Y(1.43), PZ - W(0.206), PZ + W(0.206), '38,124,136', 0.96);
+
+  // 画家算法：远的先画
+  faces.sort(function (a, b) { return b.z - a.z; });
+  for (let i = 0; i < faces.length; i++) {
+    const f = faces[i];
     ctx.beginPath();
-    ctx.moveTo(na.x, na.y);
-    ctx.lineTo(nb.x, nb.y);
-    ctx.stroke();
-  }
-
-  // 头（球：投影中心 + 半径，俯视永远是个圆）
-  const head = project(PX, Y(1.73), PZ);
-  if (head) {
-    const hr = Math.max(2.0, 0.128 * MS * (head.s || s));
-    ctx.beginPath();
-    ctx.arc(head.x, head.y, hr, 0, TAU);
-    ctx.fillStyle = 'rgba(245,255,252,0.98)';
+    ctx.moveTo(f.pts[0].x, f.pts[0].y);
+    for (let k = 1; k < 4; k++) ctx.lineTo(f.pts[k].x, f.pts[k].y);
+    ctx.closePath();
+    ctx.fillStyle = f.fill;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(120,235,205,0.9)';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    // 刘海：头顶前半圈的一道弧，给一点朝向感
-    ctx.beginPath();
-    ctx.arc(head.x, head.y, hr * 0.68, Math.PI * 1.16, Math.PI * 1.84);
-    ctx.strokeStyle = 'rgba(90,200,180,0.85)';
-    ctx.lineWidth = Math.max(1, hr * 0.18);
+    // 极细暗描边：方块之间的接缝在暗背景里更清楚
+    ctx.strokeStyle = 'rgba(6,18,24,0.40)';
+    ctx.lineWidth = 0.8;
     ctx.stroke();
   }
 
@@ -483,7 +444,7 @@ export function drawPlayer(p: Projected): void {
     }
   }
 
-  // 判定（B 开关）：**判定胶囊本体**（半径 hitR、高 bodyLow~bodyHigh）—— 这是玩法参数，不随模型缩放
+  // 判定（B 开关）：判定胶囊本体（半径 hitR、高 bodyLow~bodyHigh）—— 玩法参数，不随模型缩放
   if (opts.playerBox) {
     const b0 = project(PX, PY + PLAYER.bodyLow, PZ);   // 下沿
     const b1 = project(PX, PY + PLAYER.bodyHigh, PZ);  // 上沿
@@ -502,7 +463,7 @@ export function drawPlayer(p: Projected): void {
         ctx.stroke();
       }
 
-      // 胶囊形状：屏幕空间沿轴线方向做两个半圆 + 两条侧边（任意视角都成立）
+      // 胶囊形状：屏幕空间沿轴线做两个半圆 + 两条侧边（任意视角都成立）
       const ax = b1.x - b0.x, ay = b1.y - b0.y;
       const al = Math.hypot(ax, ay) || 1;
       const ux = ax / al, uy = ay / al;          // 轴向（下沿 → 上沿）
@@ -514,12 +475,12 @@ export function drawPlayer(p: Projected): void {
         ctx.closePath();
       };
 
-      // 半透明体积：只给一点点，别糊成一块粉色
+      // 半透明体积：只给一点点
       path();
       ctx.fillStyle = 'rgba(200,255,236,0.07)';
       ctx.fill();
 
-      // 轮廓：细白青线（像调试叠层，不像身上长了个东西）
+      // 轮廓：细白青线（像调试叠层）
       path();
       ctx.strokeStyle = 'rgba(205,255,238,0.55)';
       ctx.lineWidth = 1.1;
