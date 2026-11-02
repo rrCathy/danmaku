@@ -247,9 +247,11 @@ export function updateBullets(dt: number): void {
         b.vx = -b.vx; b.vz = -b.vz;
       }
     }
-    // 波浪：y 随时间流动（行波）—— 波峰不是钉在切向某个位置，站着不动会被浪谷扫到
-    if (b.kind === 'wave' && b.waveU !== undefined) {
-      b.y = 1.45 + 1.15 * Math.sin(b.waveU + clock.elapsed * (b.waveW || 0));
+    // 波浪：整排同步脉动（主项只看时间，次项是 ±0.18 的空间纹理）。
+    // 之前写成行波时波峰以 3.8m/s 沿切向走，玩家跟着跑就永远在安全的高处 —— 等于没修。
+    if (b.kind === 'wave') {
+      b.y = 1.45 + 1.15 * Math.sin((b.waveP || 0) + 2.4 * clock.elapsed)
+        + 0.18 * Math.sin(b.waveU || 0);
     }
 
     b.life -= dt;

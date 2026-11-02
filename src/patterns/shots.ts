@@ -710,33 +710,37 @@ export function grenadeShot(): void {
 }
 
 /**
- * 波浪：三排会"翻滚"的立体浪。
+ * 波浪：三排**同步脉动**的浪，整排一起高、一起低。
  *
- * 关键不是排数，是 **y 随时间流动**：y = 1.45 + 1.15·sin(0.58u + φ + 2.2t)。
- * 之前写成静态波形（y 只依赖 u），波峰在切向上是钉死的 —— 玩家找到波峰站进去就永远安全。
- * 现在波峰以 ω/k ≈ 3.8 m/s 沿切向走，站在任何位置都会周期性地遇到浪谷，
- * 必须真的跳；三排相位差 1.6 rad（≈0.73s），正好卡一次跳跃的滞空。
+ * 为什么不是行波：行波（y 依赖 u + ωt）的波峰以 ω/k≈3.8 m/s 沿切向走，
+ * 比玩家 8.4 m/s 慢 —— 玩家跟着波峰跑就永远站在高处，等于没修。
+ * 现在主项只依赖时间（整排同高），次项 ±0.18 只做视觉纹理：
+ *
+ *   y = 1.45 + 1.15·sin(排相位 + 2.4t) + 0.18·sin(0.9u)
+ *
+ * 同一时刻整排的高度差只有 0.36m，切向上任何位置都会同时变低 —— 只能跳。
+ * 三排相位差 2π/3（≈0.87s），正好卡一次跳跃的滞空。
  */
 export function waveShot(): void {
   let nx = player.x - boss.x, nz = player.z - boss.z;
   const l = Math.hypot(nx, nz) || 1;
   nx /= l; nz /= l;
   const tx = -nz, tz = nx;
-  const phase0 = random() * TAU;
   const sp = 7.2;
   const rows = 3;
   const gap = 3.2;
   boss.flash = 0.45;
   for (let r = 0; r < rows; r++) {
-    const phase = phase0 + r * 1.6;
+    const phase = r * (TAU / rows);
     const back = -r * gap;
     for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.6) {
-      const y0 = 1.45 + 1.15 * Math.sin(u * 0.58 + phase);
+      const y0 = 1.45 + 1.15 * Math.sin(phase) + 0.18 * Math.sin(u * 0.9);
       addBullet(boss.x + nx * back + tx * u, y0, boss.z + nz * back + tz * u,
         nx * sp, 0, nz * sp, 0.2, clsOf(y0), 'wave');
       const b = bullets[bullets.length - 1];
-      b.waveU = u * 0.58 + phase;
-      b.waveW = 2.2;
+      b.waveP = phase;
+      b.waveU = u * 0.9;
+      b.life = 3.2;
     }
   }
 }
@@ -754,7 +758,7 @@ export function sweepLineShot(): void {
         const nx = Math.cos(ang), nz = Math.sin(ang);
         const tx = -nz, tz = nx;
         const dir = idx % 2 === 0 ? 1 : -1;
-        const sp = 5.0 * dir;
+        const sp = 8.0 * dir;   // 单程 20m / 8 = 2.5s，寿命 2.6s 正好扫完一遍
         const start = dir > 0 ? -10 : 10;
         for (let u = -13; u <= 13.01; u += 0.62) {
           addBullet(nx * start + tx * u, 0.55, nz * start + tz * u,
@@ -762,7 +766,7 @@ export function sweepLineShot(): void {
           const b = bullets[bullets.length - 1];
           b.oscLo = -10;
           b.oscHi = 10;
-          b.life = 5.0;        // 扫一个来回就退场，别叠到下一招头上
+          b.life = 2.6;        // 扫完单程就退场，绝不跨到下一招
         }
       };
     })(k));
@@ -788,6 +792,7 @@ export function gasterBlast(): void {
         const o = oi * 0.5;
         addBullet(ex + ux * s + px * o, 0.55, ez + uz * s + pz * o,
           ux * 15, 0, uz * 15, 0.2, 'low', 'gaster');
+        bullets[bullets.length - 1].life = 2.2;   // 束飞出去就退场
       }
     }
     for (let k = 0; k < 8; k++) spawnSpark(ex, 0.55, ez, COLORS.low, 1.2);
@@ -812,7 +817,7 @@ export function pinwheelShot(): void {
       b.orbW = w;
       b.orbX = 0;
       b.orbZ = 0;
-      b.life = 4.2;          // 转两圈左右退场
+      b.life = 2.0;          // 转满一个对称周期（120°）就退场
     }
   }
 }
@@ -855,7 +860,7 @@ export function stackWaves(): void {
           // 从边缘往中心收：站在场地中心也会被环扫到，没有死区
           addBullet(Math.cos(a) * 15.5, yy, Math.sin(a) * 15.5,
             -Math.cos(a) * sp, 0, -Math.sin(a) * sp, 0.19, clsOf(yy), 'stack');
-          bullets[bullets.length - 1].life = 4.6;
+          bullets[bullets.length - 1].life = 2.3;
         }
       };
     })(y, phase));

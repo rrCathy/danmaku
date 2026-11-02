@@ -93,9 +93,9 @@ export interface Bullet {
   orbW?: number;
   orbX?: number;
   orbZ?: number;
-  /** 波浪：切向相位 + 时间角速度。y 每帧按 sin(waveU + ω·t) 重算 —— 波峰会流动，站不住 */
+  /** 波浪：空间纹理相位 + 排相位。y 每帧按 sin(waveP + ω·t) 同步脉动 —— 整排同高，站哪都不行 */
   waveU?: number;
-  waveW?: number;
+  waveP?: number;
   trail: number[] | null;
   tk: number;
 }
