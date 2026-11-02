@@ -165,7 +165,7 @@ export const HITBOX_SPEC = {
 export const CAM_PRESETS = [
   { name: '低角斜后视', yaw: 0.30, pitch: 0.40, dist: 15.5 },
   { name: '高空俯视', yaw: 0.16, pitch: 0.95, dist: 20.0 },
-  { name: '侧向平视', yaw: 1.18, pitch: 0.19, dist: 16.0 },
+  { name: '侧向平视', yaw: 1.18, pitch: 0.05, dist: 16.0 },
   { name: '环绕 · 径向朝前', yaw: 0.30, pitch: 0.42, dist: 14.2, orbit: true }
 ] as const;
 

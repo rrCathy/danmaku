@@ -14,7 +14,7 @@ export type HClass = 'low' | 'mid' | 'high' | 'rain';
  * 碰撞箱跟视觉形状走：ball=球、box=膨胀 OBB、tetra=四面体四半平面、
  * arrow/ellip=头尾双球（胶囊扫掠近似）。尺寸倍数 len 相对 r。
  */
-export type BulletShape = 'ball' | 'arrow' | 'box' | 'ellip' | 'tetra';
+export type BulletShape = 'ball' | 'arrow' | 'box' | 'ellip' | 'tetra' | 'octa';
 
 /** 子弹来源图案。保留这个字段是为了按图案做统计，逻辑上不参与判定。 */
 export type BulletKind =

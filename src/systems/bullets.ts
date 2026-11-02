@@ -96,7 +96,7 @@ export function shapeDist(b: Bullet): number {
   if (shape === 'ball') {
     return distToPlayerAxis(b.x, b.y, b.z) - b.r;
   }
-  if (shape === 'arrow' || shape === 'ellip') {
+  if (shape === 'arrow' || shape === 'ellip' || shape === 'octa') {
     const dHead = distToPlayerAxis(b.x, b.y, b.z);
     const dTail = distToPlayerAxis(b.px, b.py, b.pz);
     return Math.min(dHead, dTail) - b.r;

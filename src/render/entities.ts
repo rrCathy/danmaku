@@ -45,13 +45,14 @@ export function drawBullet(b: Bullet, p: Projected): void {
     ctx.stroke();
   }
 
+  const shape = b.shape || 'ball';
   const g = glowSprite(b.rgb);
-  const gs = rp * 6.4;
-  ctx.globalAlpha = 0.85;
+  // 3D 形状弹幕只留一圈小柔光：大辉光会在盒子/锥体内部形成一颗"胶囊光斑"
+  const is3DShape = shape === 'box' || shape === 'arrow' || shape === 'tetra' || shape === 'octa';
+  const gs = is3DShape ? rp * 3.0 : rp * 6.4;
+  ctx.globalAlpha = is3DShape ? 0.34 : 0.85;
   ctx.drawImage(g, p.x - gs / 2, p.y - gs / 2, gs, gs);
   ctx.globalAlpha = 1;
-
-  const shape = b.shape || 'ball';
 
   if (shape === 'ball') {
     ctx.beginPath();
@@ -110,6 +111,65 @@ export function drawBullet(b: Bullet, p: Projected): void {
       ctx.moveTo(v[3].x, v[3].y); ctx.lineTo(v[7].x, v[7].y);
       ctx.strokeStyle = col + '0.9)';
       ctx.lineWidth = Math.max(1, rp * 0.22);
+      ctx.stroke();
+    }
+    return;
+  }
+
+  if (shape === 'octa') {
+    /* 狭长八面体（钻石/双锥）：6 顶点 = 前后两尖 + 腰部 4 点，8 个三角面。
+     * 放射锥用这个 —— 比锥体更"锐利"，从任何角度看都是立体的 */
+    const L = (b.len || 3.4) * b.r;
+    const hw = b.r * 0.62;
+    const tipF = localToScreen(b, B, L * 0.5, 0, 0);
+    const tipB = localToScreen(b, B, -L * 0.5, 0, 0);
+    const belt = [
+      localToScreen(b, B, 0, hw, hw),
+      localToScreen(b, B, 0, -hw, hw),
+      localToScreen(b, B, 0, -hw, -hw),
+      localToScreen(b, B, 0, hw, -hw)
+    ];
+    if (tipF && tipB && belt.every(function (q) { return q !== null; })) {
+      const f0 = tipF as { x: number; y: number };
+      const b0p = tipB as { x: number; y: number };
+      const bl = belt as Array<{ x: number; y: number }>;
+      // 8 个三角面：每个腰点与前后尖各组成两个面
+      for (let i = 0; i < 4; i++) {
+        const a1 = bl[i], a2 = bl[(i + 1) % 4];
+        // 朝前一侧
+        ctx.beginPath();
+        ctx.moveTo(f0.x, f0.y);
+        ctx.lineTo(a1.x, a1.y);
+        ctx.lineTo(a2.x, a2.y);
+        ctx.closePath();
+        ctx.fillStyle = col + (i % 2 === 0 ? '0.62)' : '0.4)');
+        ctx.fill();
+        // 朝后一侧
+        ctx.beginPath();
+        ctx.moveTo(b0p.x, b0p.y);
+        ctx.lineTo(a1.x, a1.y);
+        ctx.lineTo(a2.x, a2.y);
+        ctx.closePath();
+        ctx.fillStyle = col + (i % 2 === 0 ? '0.3)' : '0.48)');
+        ctx.fill();
+      }
+      // 腰部方框 + 4 条到两尖的棱
+      ctx.beginPath();
+      ctx.moveTo(bl[0].x, bl[0].y);
+      for (let i = 1; i < 4; i++) ctx.lineTo(bl[i].x, bl[i].y);
+      ctx.closePath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+      ctx.lineWidth = Math.max(0.8, rp * 0.13);
+      ctx.stroke();
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        ctx.moveTo(f0.x, f0.y);
+        ctx.lineTo(bl[i].x, bl[i].y);
+        ctx.moveTo(b0p.x, b0p.y);
+        ctx.lineTo(bl[i].x, bl[i].y);
+      }
+      ctx.strokeStyle = col + '0.95)';
+      ctx.lineWidth = Math.max(1, rp * 0.18);
       ctx.stroke();
     }
     return;
@@ -255,17 +315,20 @@ export function drawPlayer(p: Projected): void {
   ctx.drawImage(g, cx - gr, cy - gr, gr * 2, gr * 2);
   ctx.globalAlpha = blink ? 0.42 : 1;
 
-  // 擦弹圈（K 开时）：先在底层画一根更粗的黄色虚影，范围一眼可见
+  // 擦弹圈（K 开时）：判定胶囊外扩 GRAZE_R 的半透明光壳。
+  // 用「比本体粗一圈的柔和实线」表达范围 —— 不画虚线（会变成一排横杠）、不画线框椭圆。
   if (opts.hitbox) {
-    ctx.strokeStyle = 'rgba(255,224,138,0.42)';
-    ctx.lineWidth = Math.max(3, (PLAYER.hitR + GRAZE_R) * 2 * b0.s);
-    ctx.lineCap = 'butt';
-    ctx.setLineDash([5, 7]);
+    ctx.strokeStyle = 'rgba(255,214,120,0.15)';
+    ctx.lineWidth = Math.max(4, (PLAYER.hitR + GRAZE_R) * 2 * b0.s);
+    ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(b0.x, b0.y);
     ctx.lineTo(b1.x, b1.y);
     ctx.stroke();
-    ctx.setLineDash([]);
+    // 边缘一圈极淡的描边，让范围边界可读
+    ctx.strokeStyle = 'rgba(255,214,120,0.05)';
+    ctx.lineWidth = Math.max(5, (PLAYER.hitR + GRAZE_R) * 2 * b0.s + 1.5);
+    ctx.stroke();
   }
 
   // 本体光棒：屏幕上的粗细 = 判定截面直径

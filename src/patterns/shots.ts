@@ -583,7 +583,7 @@ export function coneBurst(): void {
           const dz = az + (p1z * Math.cos(phi) + p2z * Math.sin(phi)) * tanA;
           const dl = Math.hypot(dx, dy, dz) || 1;
           addBullet(boss.x, boss.y, boss.z, dx / dl * sp, dy / dl * sp, dz / dl * sp,
-            0.18, clsOf(boss.y), 'cone', 'arrow', 3.0);
+            0.18, clsOf(boss.y), 'cone', 'octa', 3.4);
         }
       }
     });

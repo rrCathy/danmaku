@@ -88,10 +88,10 @@ export function initPointer(): void {
     my = Math.max(-LOOK.maxStep, Math.min(LOOK.maxStep, my));
     if (polar.on) {
       // 极坐标模式相机刚性朝中心，横向转视角没有意义，横向位移一律忽略（更不能拿它推角色）
-      polar.pitch = Math.max(0.02, Math.min(1.55, polar.pitch + my * look.pitchSens));
+      polar.pitch = Math.max(-0.10, Math.min(1.55, polar.pitch + my * look.pitchSens));
     } else {
       cam.yaw -= mx * look.yawSens;                       // 鼠标右移 → 视角右转
-      cam.pitch = Math.max(0, Math.min(1.55, cam.pitch + my * look.pitchSens));
+      cam.pitch = Math.max(-0.12, Math.min(1.55, cam.pitch + my * look.pitchSens));
       cam.cy = cam.yaw;                                   // 零延迟：不给插值
       cam.cp = cam.pitch;
       cam.preset = -1;
@@ -163,14 +163,14 @@ export function initPointer(): void {
     if (drag.id !== null && e.pointerId === drag.id) {
       if (polar.on) {
         // 极坐标：横向转视角没有意义（相机刚性朝中心），纵向留给俯仰
-        polar.pitch = Math.max(0.02, Math.min(1.55, polar.pitch + (e.clientY - drag.y) * LOOK.dragPitch));
+        polar.pitch = Math.max(-0.10, Math.min(1.55, polar.pitch + (e.clientY - drag.y) * LOOK.dragPitch));
         drag.x = e.clientX;
         drag.y = e.clientY;
         return;
       }
       // 向右搓 → 视角右转（镜头绕玩家逆时针走），与主流第三人称一致
       cam.yaw -= (e.clientX - drag.x) * LOOK.dragYaw;
-      cam.pitch = Math.max(0, Math.min(1.55, cam.pitch + (e.clientY - drag.y) * LOOK.dragPitch));
+      cam.pitch = Math.max(-0.12, Math.min(1.55, cam.pitch + (e.clientY - drag.y) * LOOK.dragPitch));
       cam.cy = cam.yaw;           // 立即生效，不要插值拖拽
       cam.cp = cam.pitch;
       cam.preset = -1;

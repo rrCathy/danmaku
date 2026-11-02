@@ -66,18 +66,9 @@ export function render(): void {
   items.sort(function (a, b) { return b.z - a.z; });
   for (let i = 0; i < items.length; i++) items[i].fn();
 
-  // 玩家高亮轮廓：即使被近处弹幕遮住也能一眼定位
-  const pp2 = project(player.x, player.y + 0.7, player.z);
-  if (pp2) {
-    ctx.save();
-    ctx.globalAlpha = 0.55;
-    ctx.strokeStyle = 'rgba(200,255,235,0.95)';
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.ellipse(pp2.x, pp2.y, 0.33 * pp2.s, 0.70 * pp2.s, 0, 0, TAU);
-    ctx.stroke();
-    ctx.restore();
-  }
+  // 注意：这里曾经画过一个「玩家高亮轮廓椭圆」（0.33×0.70 屏幕空间，竖直长椭圆），
+  // 用来在被弹幕遮住时定位玩家。它和判定胶囊的画法叠在一起，看起来就像
+  // "人物被一个莫名的椭圆套着"。现在玩家 = 判定光棒本身（带辉光），这层已删除。
 
   if (clock.dmgFlash > 0) {
     ctx.fillStyle = 'rgba(255,44,76,' + (clock.dmgFlash * 0.22) + ')';
