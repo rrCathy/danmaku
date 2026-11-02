@@ -357,19 +357,20 @@ export function drawPlayer(p: Projected): void {
   }
 
   /* 模型比例（世界单位，脚底 y=0）：
-   *   躯干顶（颈底）= 判定胶囊顶 1.03 —— 碰撞箱从裙底一直够到脖子
-   *   肩 1.01 r0.165，腰 0.80 r0.155，裙 0.56-0.80 r0.21→0.155
-   *   颈 1.03-1.12，头球心 1.24 r0.15（头顶 1.39）
-   *   判定胶囊 0.57-1.03（直径 0.26）藏在裙+躯干内部（最窄处直径 0.31） */
+   *   胯 0.50-0.56 r0.155→0.175（封口，接腿）
+   *   短裙 0.50 r0.175 → 0.72 r0.145（腰线）
+   *   躯干：腰 0.72 r0.145 → 胸 0.90 r0.152 → 肩 1.03 r0.155（收腰沙漏）
+   *   颈 1.02-1.13，头球心 1.24 r0.15（头顶 1.39）
+   *   判定胶囊 0.57-1.03（直径 0.26）藏在裙+躯干内部（最窄腰处直径 0.29，余量 0.03） */
 
-  // 腿（3D 线段）
+  // 腿（3D 线段，腿根接在裙内、胯部封口处）
   ctx.lineCap = 'round';
   ctx.strokeStyle = 'rgba(96,200,180,0.95)';
-  ctx.lineWidth = Math.max(1.6, 0.06 * s);
+  ctx.lineWidth = Math.max(1.6, 0.055 * s);
   for (let li = 0; li < 2; li++) {
-    const sx = li === 0 ? -0.085 : 0.085;
-    const a = project(PX + sx * 0.6, PY + 0.60, PZ);
-    const b = project(PX + sx, PY + (air ? 0.18 : 0.03), PZ);
+    const sx = li === 0 ? -0.075 : 0.075;
+    const a = project(PX + sx * 0.7, PY + 0.52, PZ);
+    const b = project(PX + sx, PY + (air ? 0.16 : 0.03), PZ);
     if (a && b) {
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -378,22 +379,42 @@ export function drawPlayer(p: Projected): void {
     }
   }
 
-  // 裙（截锥：0.56 r0.21 → 0.80 r0.155）
-  band(PX, PZ, PY + 0.56, 0.21, PY + 0.80, 0.155, 10, 'rgba(52,150,138,0.92)', 'rgba(150,255,230,0.5)');
+  // 胯：裙底封口（填充一个水平圆盘，让腿和身体连起来，不露空腔）
+  const hipBot = ringPts(PX, PZ, PY + 0.50, 0.155, 10);
+  const hipTop = ringPts(PX, PZ, PY + 0.56, 0.175, 10);
+  if (hipBot && hipTop) {
+    ctx.fillStyle = 'rgba(34,104,96,0.96)';
+    for (let i = 0; i < 10; i++) {
+      const j = (i + 1) % 10;
+      ctx.beginPath();
+      ctx.moveTo(hipBot[i].x, hipBot[i].y);
+      ctx.lineTo(hipBot[j].x, hipBot[j].y);
+      ctx.lineTo(hipTop[j].x, hipTop[j].y);
+      ctx.lineTo(hipTop[i].x, hipTop[i].y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
 
-  // 躯干（0.80 r0.155 → 肩 1.26 r0.165）
-  band(PX, PZ, PY + 0.80, 0.155, PY + 1.03, 0.165, 10, 'rgba(96,214,190,0.95)', 'rgba(190,255,240,0.6)');
+  // 短裙（0.50 胯底 → 0.72 收腰 r0.145）：只到大腿根，不要拖到胸口
+  band(PX, PZ, PY + 0.50, 0.175, PY + 0.72, 0.145, 10, 'rgba(52,150,138,0.94)', 'rgba(150,255,230,0.45)');
+
+  // 腰（收腰）：0.72 r0.145 → 0.90 r0.152
+  band(PX, PZ, PY + 0.72, 0.145, PY + 0.90, 0.152, 10, 'rgba(96,214,190,0.95)', 'rgba(190,255,240,0.5)');
+
+  // 胸 → 肩：0.90 r0.152 → 1.03 r0.155
+  band(PX, PZ, PY + 0.90, 0.152, PY + 1.03, 0.155, 10, 'rgba(96,214,190,0.95)', 'rgba(190,255,240,0.6)');
 
   // 领口/肩线：一条亮环
-  band(PX, PZ, PY + 1.00, 0.166, PY + 1.05, 0.15, 10, 'rgba(232,255,248,0.95)');
+  band(PX, PZ, PY + 1.00, 0.156, PY + 1.04, 0.138, 10, 'rgba(232,255,248,0.95)');
 
-  // 手臂
+  // 手臂（肩略窄、手收进来一点）
   ctx.strokeStyle = 'rgba(140,240,215,0.95)';
-  ctx.lineWidth = Math.max(1.4, 0.045 * s);
+  ctx.lineWidth = Math.max(1.4, 0.042 * s);
   for (let ai = 0; ai < 2; ai++) {
     const sx = ai === 0 ? -1 : 1;
-    const a = project(PX + sx * 0.15, PY + 1.00, PZ);
-    const b = project(PX + sx * 0.27, PY + (air ? 1.12 : 0.72), PZ);
+    const a = project(PX + sx * 0.142, PY + 1.00, PZ);
+    const b = project(PX + sx * 0.235, PY + (air ? 1.10 : 0.70), PZ);
     if (a && b) {
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
