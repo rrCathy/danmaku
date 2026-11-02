@@ -784,8 +784,10 @@ export function waveShot(): void {
  * 看起来是一圈高、一圈低的浪头往外推，而不是一条线扫过场地。
  */
 export function rippleShot(): void {
-  const cx = player.x + rand(-1.5, 1.5);
-  const cz = player.z + rand(-1.5, 1.5);
+  // 以**场地原点**为中心丢石头，不是以玩家为中心 ——
+  // 跟着玩家走的水波只是"追人的圈"，玩家一直跑就永远在波前；钉在场地中心的才是环境级弹幕
+  const cx = 0;
+  const cz = 0;
   const layers = 7;          // 七圈才看得出"一圈高、一圈低"的波纹
   const n = 26;
   boss.flash = 0.45;
@@ -823,15 +825,16 @@ export function sweepLineShot(): void {
         const nx = Math.cos(ang), nz = Math.sin(ang);
         const tx = -nz, tz = nx;
         const dir = idx % 2 === 0 ? 1 : -1;
-        const sp = 8.0 * dir;   // 单程 20m / 8 = 2.5s，寿命 2.6s 正好扫完一遍
-        const start = dir > 0 ? -10 : 10;
-        for (let u = -13; u <= 13.01; u += 0.62) {
+        const sp = 8.0 * dir;
+        const start = dir > 0 ? -12 : 12;
+        // 墙长必须铺满整个场地直径（36m），否则玩家往边上一站就绕过去了
+        for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.62) {
           addBullet(nx * start + tx * u, 0.55, nz * start + tz * u,
             nx * sp, 0, nz * sp, 0.23, 'low', 'sweepLine', 'box', 2.2);
           const b = bullets[bullets.length - 1];
-          b.oscLo = -10;
-          b.oscHi = 10;
-          b.life = 2.6;        // 扫完单程就退场，绝不跨到下一招
+          b.oscLo = -12;
+          b.oscHi = 12;
+          b.life = 3.2;        // 24m / 8 = 3s 扫完一趟
         }
       };
     })(k));
