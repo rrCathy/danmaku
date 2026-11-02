@@ -244,6 +244,14 @@ body.touch #endStats .s .l{font-size:8.5px}
 .set-btn:hover{background:rgba(110,232,255,.10);border-color:rgba(110,232,255,.40);color:#eafcff}
 .set-btn.on{background:rgba(110,232,255,.20);border-color:rgba(110,232,255,.70);color:#f2fdff}
 .set-btn.on em{opacity:.8}
+/* 透视程度滑条：0=透视，1=正交 */
+.set-slider{display:flex;align-items:center;gap:10px;margin-top:6px;padding:8px 11px;
+  border-radius:3px;background:rgba(255,255,255,.03);
+  border:1px solid rgba(140,200,255,.14);font-size:10.5px;color:rgba(190,215,245,.62)}
+.set-slider span{letter-spacing:.06em;white-space:nowrap}
+.set-slider input{flex:1;min-width:0;height:3px;accent-color:#6ee8ff;cursor:pointer}
+.set-slider em{font-style:normal;font-size:9.5px;letter-spacing:.08em;color:#bfe9ff;
+  min-width:56px;text-align:right;white-space:nowrap}
 .tp-lab{letter-spacing:.14em;flex:none}
 .tp-speeds{display:flex;gap:5px}
 .tp-sp{font:inherit;font-size:10.5px;padding:4px 12px;border-radius:3px;cursor:pointer;

@@ -3,7 +3,7 @@
  * 所有会写 `state` 的地方都在这个文件里，别处只读。
  */
 import { CAM_PRESETS, DIFFICULTIES, ROUND, TRAINING } from '../config';
-import { cam, polar } from '../core/camera';
+import { cam, polar, projView } from '../core/camera';
 import { COLORS } from '../core/color';
 import { isTouch } from '../core/device';
 import { flags } from '../input/flags';
@@ -182,6 +182,20 @@ export function syncSettings(): void {
     const em = btns[i].querySelector('em');
     if (em) em.textContent = SET_KEYS[key] + ' · ' + st.label;
   }
+  // 透视程度滑条
+  const slider = document.getElementById('projSlider') as HTMLInputElement | null;
+  if (slider) slider.value = String(Math.round(projView.mix * 100));
+  const pLabel = document.getElementById('projLabel');
+  if (pLabel) pLabel.textContent = projLabelText(projView.mix);
+}
+
+/** 透视程度文案：0 → 1 从「透视」到「正交」 */
+function projLabelText(mix: number): string {
+  if (mix <= 0.01) return '透视';
+  if (mix >= 0.99) return '正交';
+  if (mix < 0.34) return '偏透视';
+  if (mix < 0.67) return '伪正交';
+  return '偏正交';
 }
 
 function initSettings(): void {
@@ -198,6 +212,14 @@ function initSettings(): void {
         case 'mini': toggleMini(); break;
         case 'trail': cycleTrail(); break;
       }
+    });
+  }
+  const slider = document.getElementById('projSlider') as HTMLInputElement | null;
+  if (slider) {
+    slider.addEventListener('input', function () {
+      projView.mix = Number(slider.value) / 100;
+      const pLabel = document.getElementById('projLabel');
+      if (pLabel) pLabel.textContent = projLabelText(projView.mix);
     });
   }
   syncSettings();

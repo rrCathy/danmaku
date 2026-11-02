@@ -95,13 +95,25 @@ export function updateCamera(dt: number): void {
 }
 
 /** 世界坐标 → 屏幕坐标。zv 小于近裁剪阈值返回 null，调用方必须判空。 */
+/**
+ * 透视程度：0 = 纯透视（近大远小、平行线收敛到灭点），1 = 纯正交（平行线在画面里保持平行）。
+ * 中间值是线性混合（伪正交），用相机距离作参考深度让目标点处的尺度不跳变。
+ */
+export const projView = { mix: 0 };
+
 export function project(x: number, y: number, z: number): Projected | null {
   const dx = x - cam.eye.x, dy = y - cam.eye.y, dz = z - cam.eye.z;
   const zv = dx * cam.fwd.x + dy * cam.fwd.y + dz * cam.fwd.z;
   if (zv < CAMERA.near) return null;
   const xv = dx * cam.right.x + dy * cam.right.y + dz * cam.right.z;
   const yv = dx * cam.up.x + dy * cam.up.y + dz * cam.up.z;
-  const s = cam.f / zv;
+  // 透视：除以深度；正交：常数缩放。混合时线性插值。
+  const persp = cam.f / zv;
+  let s = persp;
+  if (projView.mix > 0) {
+    const ortho = cam.f / (cam.cd || 1);
+    s = persp + (ortho - persp) * projView.mix;
+  }
   return {
     x: screenW * 0.5 + xv * s + cam.shakeX,
     y: screenH * 0.5 - yv * s + cam.shakeY,
