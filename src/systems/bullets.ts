@@ -213,9 +213,9 @@ export function updateBullets(dt: number): void {
     // 抛物线弹（喷泉）：只有显式带 grav 的弹受影响，旧图案 grav=undefined 零变化
     if (b.grav) b.vy -= b.grav * dt;
 
-    // 烟雾：爆开后迅速减速、缓慢下沉 —— 形成一团滞空的云
+    // 烟雾：爆开后减速、缓慢下沉 —— 衰减慢一点，让它扩散成一整片
     if (b.kind === 'smoke') {
-      const k = Math.pow(0.25, dt);
+      const k = Math.pow(0.45, dt);
       b.vx *= k;
       b.vz *= k;
       b.vy -= 2.2 * dt;
@@ -232,10 +232,20 @@ export function updateBullets(dt: number): void {
       b.z += b.vz * dt;
     }
 
-    // 扫描线：在 [oscLo, oscHi] 之间来回扫，越界即反向
+    // 扫描线：沿自己速度方向在 [oscLo, oscHi] 之间往返（支持任意角度，不再只限 x 轴）
     if (b.kind === 'sweepLine' && b.oscLo !== undefined && b.oscHi !== undefined) {
-      if (b.x > b.oscHi) { b.x = b.oscHi; b.vx = -Math.abs(b.vx); }
-      else if (b.x < b.oscLo) { b.x = b.oscLo; b.vx = Math.abs(b.vx); }
+      const sp = Math.hypot(b.vx, b.vz) || 1;
+      const nx = b.vx / sp, nz = b.vz / sp;
+      const s = b.x * nx + b.z * nz;
+      if (s > b.oscHi) {
+        const d = (s - b.oscHi) * 2;
+        b.x -= nx * d; b.z -= nz * d;
+        b.vx = -b.vx; b.vz = -b.vz;
+      } else if (s < b.oscLo) {
+        const d = (b.oscLo - s) * 2;
+        b.x += nx * d; b.z += nz * d;
+        b.vx = -b.vx; b.vz = -b.vz;
+      }
     }
     b.life -= dt;
     b.rgb = heightRGB(b.y);   // 颜色永远跟着当前高度走

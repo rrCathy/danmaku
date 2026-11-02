@@ -80,13 +80,12 @@ export const SEQUENCES_D3: Record<number, PatternName[]> = {
  * 再教"跳"（波浪/龙骨炮/扫描线/风车），最后叠成节奏（堆叠/东方对称）。
  */
 export const SEQUENCES_D4: Record<number, PatternName[]> = {
-  // P1：都不强制跳，先把新弹种认全
-  1: ['aimed', 'random', 'lightning', 'grenade', 'smoke'],
-  // P2：跳跃四连 —— 波浪（跟波）→ 龙骨炮（跳束）→ 扫描线（跳墙）→ 风车（跟臂缝）
-  2: ['wave', 'gaster', 'sweepLine', 'pinwheel', 'grenade', 'lightning'],
-  // P3：节奏压轴 —— 堆叠/东方对称要求"跳得准"，再混 L3 的对称形状
-  3: ['stack', 'toho', 'sweepLine', 'pinwheel', 'wave', 'gaster',
-      'petal', 'radial', 'cone']
+  // P1：先把"跳"摆在第二招（三排波浪），后面三招压节奏与反应
+  1: ['aimed', 'wave', 'lightning', 'grenade', 'smoke', 'random'],
+  // P2：跳跃三连 —— 波浪（跟波）→ 龙骨炮（跳束）→ 风车（跟臂缝）→ 扫描线（跳交叉墙）
+  2: ['wave', 'gaster', 'pinwheel', 'sweepLine', 'grenade', 'lightning'],
+  // P3：节奏压轴。**不放扫描线** —— 堆叠会把玩家逼到边上，扫描线跟着出场等于白送
+  3: ['stack', 'toho', 'pinwheel', 'wave', 'gaster', 'petal', 'radial', 'cone']
 };
 
 export function sequenceFor(phase: number, difficulty: DifficultyKey = 1): PatternName[] {

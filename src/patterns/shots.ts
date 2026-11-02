@@ -607,10 +607,10 @@ export function coneBurst(): void {
 
 /** 自机狙：每发都瞄玩家当前位置，不预判 —— 一直走就能甩开 */
 export function aimedShot(): void {
-  const n = boss.phase >= 3 ? 6 : 4;
+  const n = 6;
   boss.flash = 0.4;
   for (let i = 0; i < n; i++) {
-    later(0.32 + i * 0.17, function () {
+    later(0.3 + i * 0.15, function () {
       if (!boss.alive) return;
       const ty = player.y + 0.8;
       const v = aimVel(boss, player.x, ty, player.z, 13);
@@ -621,13 +621,13 @@ export function aimedShot(): void {
 
 /** 随机弹：朝玩家一侧半圆里散开，速度/仰角都随机 —— 读密度找缝 */
 export function randomShot(): void {
-  const waves = boss.phase >= 3 ? 3 : 2;
+  const waves = 3;
   boss.flash = 0.45;
   const base = Math.atan2(player.z - boss.z, player.x - boss.x);
   for (let w = 0; w < waves; w++) {
-    later(0.3 + w * 0.42, function () {
+    later(0.3 + w * 0.38, function () {
       if (!boss.alive) return;
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 14; i++) {
         const a = base + rand(-0.85, 0.85);
         const sp = rand(6.0, 9.0);
         const vy = rand(-0.38, -0.12) * sp;
@@ -638,35 +638,37 @@ export function randomShot(): void {
   }
 }
 
-/** 烟雾弹：一点爆开，弹幕迅速减速滞空、缓慢下沉 —— 绕开那团云 */
+/** 烟雾弹：一点爆开，弹幕减速滞空、缓慢下沉 —— 覆盖一大片，绕远点 */
 export function smokeShot(): void {
   const cx = player.x + rand(-1.6, 1.6);
   const cz = player.z + rand(-1.6, 1.6);
-  rings.push({ x: cx, z: cz, r: 2.6, t: 0.7, dur: 0.7, cls: 'mine' });
+  rings.push({ x: cx, z: cz, r: 4.2, t: 0.7, dur: 0.7, cls: 'mine' });
   boss.flash = 0.45;
   later(0.7, function () {
     if (!boss.alive) return;
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < 44; i++) {
       const a = random() * TAU;
-      const el = rand(-0.15, 1.0);              // 偏上，炸成一团
-      const sp = rand(1.4, 3.6);
+      const el = rand(-0.1, 0.7);               // 略偏上，炸成一团烟
+      const sp = rand(2.4, 4.8);                // 扩散直径 ≈ 7m，不会糊满半个场地
       const ce = Math.cos(el);
       addBullet(cx, 0.9, cz, Math.cos(a) * ce * sp, Math.sin(el) * sp, Math.sin(a) * ce * sp,
         0.22, 'mid', 'smoke');
+      const b = bullets[bullets.length - 1];
+      b.life = 3.2;
     }
-    for (let k = 0; k < 8; k++) spawnSpark(cx, 0.9, cz, '190,205,225', 1.1);
+    for (let k = 0; k < 12; k++) spawnSpark(cx, 0.9, cz, '190,205,225', 1.3);
   });
 }
 
 /** 闪电：落点圈只亮 0.35s，落速 −34 —— 比落点雨狠一档，靠反应 */
 export function lightning(): void {
-  const n = boss.phase >= 3 ? 6 : 4;
+  const n = 6;
   for (let i = 0; i < n; i++) {
-    const x = player.x + rand(-1.3, 1.3);
-    const z = player.z + rand(-1.3, 1.3);
+    const x = player.x + rand(-1.6, 1.6);
+    const z = player.z + rand(-1.6, 1.6);
     if (Math.hypot(x, z) > ARENA_R - 1.5) continue;
-    const delay = 0.35 + i * 0.09;
-    rings.push({ x: x, z: z, r: 0.95, t: delay, dur: delay });
+    const delay = 0.35 + i * 0.085;
+    rings.push({ x: x, z: z, r: 1.0, t: delay, dur: delay });
     later(delay, (function (xx, zz) {
       return function () {
         addBullet(xx, 9.5, zz, 0, -34, 0, 0.2, 'rain', 'lightning');
@@ -676,60 +678,89 @@ export function lightning(): void {
   }
 }
 
-/** 手雷：地面读秒 → 半球形炸开，速度快、数量多，必须提前拉开 */
+/** 手雷：两枚错峰落地，半球形炸开 —— 先离开第一个圈，再躲第二个 */
 export function grenadeShot(): void {
-  const cx = player.x + rand(-2.4, 2.4);
-  const cz = player.z + rand(-2.4, 2.4);
-  if (Math.hypot(cx, cz) > ARENA_R - 1.2) return;
-  rings.push({ x: cx, z: cz, r: 1.9, t: 0.85, dur: 0.85, cls: 'mine' });
-  later(0.85, function () {
-    if (!boss.alive) return;
-    for (let i = 0; i < 26; i++) {
-      const u = random();                        // 0..1 → 上半球
-      const phi = random() * TAU;
-      const s = Math.sqrt(1 - u * u);
-      const sp = rand(10, 14);
-      addBullet(cx, 0.5, cz, s * Math.cos(phi) * sp, u * sp + 1.4, s * Math.sin(phi) * sp,
-        0.2, 'low', 'grenade');
-      // 手雷弹走短抛物线：1.15s 后自然退场，不给它飞到 9m 高空的机会
-      const bb = bullets[bullets.length - 1];
-      bb.life = 1.15;
-      bb.grav = 5.5;
-    }
-    for (let k = 0; k < 10; k++) spawnSpark(cx, 0.5, cz, COLORS.low, 1.5);
-  });
+  for (let g = 0; g < 2; g++) {
+    later(g * 0.5, (function (idx) {
+      return function () {
+        if (!boss.alive) return;
+        const cx = player.x + rand(-2.8, 2.8);
+        const cz = player.z + rand(-2.8, 2.8);
+        if (Math.hypot(cx, cz) > ARENA_R - 1.2) return;
+        rings.push({ x: cx, z: cz, r: 2.0, t: 0.8, dur: 0.8, cls: 'mine' });
+        later(0.8, function () {
+          if (!boss.alive) return;
+          for (let i = 0; i < 26; i++) {
+            const u = random();                        // 0..1 → 上半球
+            const phi = random() * TAU;
+            const s = Math.sqrt(1 - u * u);
+            const sp = rand(10, 14);
+            addBullet(cx, 0.5, cz, s * Math.cos(phi) * sp, u * sp + 1.4, s * Math.sin(phi) * sp,
+              0.2, 'low', 'grenade');
+            // 手雷弹走短抛物线：1.15s 后自然退场，不给它飞到 9m 高空的机会
+            const bb = bullets[bullets.length - 1];
+            bb.life = 1.15;
+            bb.grav = 5.5;
+          }
+          for (let k = 0; k < 10; k++) spawnSpark(cx, 0.5, cz, COLORS.low, 1.5);
+        });
+      };
+    })(g));
+  }
 }
 
-/** 波浪：整排推进，高度 0.30~2.60 做正弦 —— 波谷跳、波峰落，跟着波形走 */
+/**
+ * 波浪：三排错相位的立体浪，不是一条线。
+ *
+ * 每排 y = 1.45 + 1.15·sin(0.58u + φ)，φ 相差 120°，排间距 3.2m ——
+ * 从侧面看是一波接一波的浪头推过来：浪谷（0.30）站着重、浪峰（2.60）跳起重。
+ */
 export function waveShot(): void {
   let nx = player.x - boss.x, nz = player.z - boss.z;
   const l = Math.hypot(nx, nz) || 1;
   nx /= l; nz /= l;
   const tx = -nz, tz = nx;
-  const phase = random() * TAU;
-  const sp = 7.6;
+  const phase0 = random() * TAU;
+  const sp = 7.2;
+  const rows = 3;
+  const gap = 3.2;
   boss.flash = 0.45;
-  for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.55) {
-    const y = 1.45 + 1.15 * Math.sin(u * 0.62 + phase);
-    addBullet(boss.x + tx * u, y, boss.z + tz * u, nx * sp, 0, nz * sp,
-      0.21, clsOf(y), 'wave');
+  for (let r = 0; r < rows; r++) {
+    const phase = phase0 + r * (TAU / rows);
+    const back = -r * gap;
+    for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.6) {
+      const y = 1.45 + 1.15 * Math.sin(u * 0.58 + phase);
+      addBullet(boss.x + nx * back + tx * u, y, boss.z + nz * back + tz * u,
+        nx * sp, 0, nz * sp, 0.2, clsOf(y), 'wave');
+    }
   }
 }
 
-/** 扫描线：2~3 道低墙在场地里来回扫，跳过去是唯一解 */
+/** 扫描线：三道不同角度的低墙（相差 60°）依次扫过 —— 交叉扫描，跳的时机各不同 */
 export function sweepLineShot(): void {
-  const n = boss.phase >= 3 ? 3 : 2;
+  const n = 3;
   boss.flash = 0.5;
+  const baseAng = random() * TAU;
   for (let k = 0; k < n; k++) {
-    const dir = k % 2 === 0 ? 1 : -1;
-    const sp = 5.4 * dir;
-    const x0 = dir > 0 ? -12 + k * 1.4 : 12 - k * 1.4;
-    for (let u = -13; u <= 13.01; u += 0.62) {
-      addBullet(x0, 0.55, u, sp, 0, 0, 0.23, 'low', 'sweepLine', 'box', 2.2);
-      const b = bullets[bullets.length - 1];
-      b.oscLo = -13;
-      b.oscHi = 13;
-    }
+    later(k * 0.55, (function (idx) {
+      return function () {
+        if (!boss.alive) return;
+        const ang = baseAng + idx * (Math.PI / 3);   // 0° / 60° / 120°
+        const nx = Math.cos(ang), nz = Math.sin(ang);
+        const tx = -nz, tz = nx;
+        const dir = idx % 2 === 0 ? 1 : -1;
+        const sp = 5.0 * dir;
+        const start = dir > 0 ? -10 : 10;
+        for (let u = -13; u <= 13.01; u += 0.62) {
+          addBullet(nx * start + tx * u, 0.55, nz * start + tz * u,
+            nx * sp, 0, nz * sp, 0.23, 'low', 'sweepLine', 'box', 2.2);
+          const b = bullets[bullets.length - 1];
+          b.oscLo = -10;
+          b.oscHi = 10;
+          b.life = 5.0;        // 扫一个来回就退场，别叠到下一招头上
+        }
+      };
+    })(k));
   }
 }
 
@@ -776,6 +807,7 @@ export function pinwheelShot(): void {
       b.orbW = w;
       b.orbX = 0;
       b.orbZ = 0;
+      b.life = 4.2;          // 转两圈左右退场
     }
   }
 }
@@ -818,6 +850,7 @@ export function stackWaves(): void {
           // 从边缘往中心收：站在场地中心也会被环扫到，没有死区
           addBullet(Math.cos(a) * 15.5, yy, Math.sin(a) * 15.5,
             -Math.cos(a) * sp, 0, -Math.sin(a) * sp, 0.19, clsOf(yy), 'stack');
+          bullets[bullets.length - 1].life = 4.6;
         }
       };
     })(y, phase));
