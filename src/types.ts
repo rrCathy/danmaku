@@ -104,6 +104,8 @@ export interface Bullet {
   ripV?: number;
   ripX?: number;
   ripZ?: number;
+  /** 波纹的环号（渲染层按环连成闭合曲线，而不是散点） */
+  ripRing?: number;
   trail: number[] | null;
   tk: number;
 }
@@ -143,6 +145,16 @@ export interface Wall {
   D: number; halfW: number;
   gapPos: number; gapW: number;
   t: number; dur: number;
+}
+
+/** 龙骨炮的炮口（纯视觉实体）：预警期眼窝转红蓄力，发射时张嘴。 */
+export interface Blaster {
+  x: number; y: number; z: number;
+  /** 剩余生命（秒）。> 0.3 是预警期，<= 0.3 已开火 */
+  t: number;
+  max: number;
+  /** 张嘴程度 0~1 */
+  open: number;
 }
 
 export interface Ghost {

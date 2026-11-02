@@ -5,10 +5,11 @@
  * 想改某个图案的节奏，改这里；想改池子和阶段解锁，改 index.ts。
  */
 import { ARENA_R } from '../config';
+import { cam } from '../core/camera';
 import { COLORS } from '../core/color';
 import { random } from '../core/random';
 import { clamp, rand } from '../core/math';
-import { boss, bullets, lasers, later, player, rings, walls } from '../state';
+import { blasters, boss, bullets, lasers, later, player, rings, walls } from '../state';
 import { addBullet } from '../systems/bullets';
 import { satPos } from '../systems/boss-geometry';
 import { spawnSpark } from '../systems/effects';
@@ -788,8 +789,8 @@ export function rippleShot(): void {
   // 跟着玩家走的水波只是"追人的圈"，玩家一直跑就永远在波前；钉在场地中心的才是环境级弹幕
   const cx = 0;
   const cz = 0;
-  const layers = 7;          // 七圈才看得出"一圈高、一圈低"的波纹
-  const n = 26;
+  const layers = 7;
+  const n = 64;              // 每圈 64 颗：环由渲染层连成闭合曲线，弹是曲线上的珠子
   boss.flash = 0.45;
   rings.push({ x: cx, z: cz, r: 1.2, t: 0.25, dur: 0.25, cls: 'mine' });
   for (let L = 0; L < layers; L++) {
@@ -804,7 +805,8 @@ export function rippleShot(): void {
       b.ripV = 6.0;
       b.ripX = cx;
       b.ripZ = cz;
-      b.life = 3.4;
+      b.ripRing = L;
+      b.life = 2.8;
     }
   }
   later(0.25, function () {
@@ -828,7 +830,7 @@ export function sweepLineShot(): void {
         const sp = 8.0 * dir;
         const start = dir > 0 ? -12 : 12;
         // 墙长必须铺满整个场地直径（36m），否则玩家往边上一站就绕过去了
-        for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.62) {
+        for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.5) {
           addBullet(nx * start + tx * u, 0.55, nz * start + tz * u,
             nx * sp, 0, nz * sp, 0.23, 'low', 'sweepLine', 'box', 2.2);
           const b = bullets[bullets.length - 1];
@@ -843,15 +845,26 @@ export function sweepLineShot(): void {
 
 /** 龙骨炮：场地边缘的炮口读秒，然后朝玩家方向推出一束粗弹（低空，可跳过） */
 export function gasterBlast(): void {
-  const a = random() * TAU;
-  const ex = Math.cos(a) * (ARENA_R - 2.5);
-  const ez = Math.sin(a) * (ARENA_R - 2.5);
+  // 炮口必须落在**相机前方的扇形里**（玩家前方 ±63°、3.8~5.6m）——
+  // 放在场地边缘或玩家背后，玩家根本看不到那颗骷髅头，只剩一束"凭空冒出来的弹"
+  const fa = Math.atan2(-Math.cos(cam.cy), -Math.sin(cam.cy));
+  const a = fa + rand(-1.1, 1.1);
+  const dist = rand(3.8, 5.6);
+  let ex = player.x + Math.cos(a) * dist;
+  let ez = player.z + Math.sin(a) * dist;
+  const er = Math.hypot(ex, ez);
+  if (er > ARENA_R - 1.5) {
+    ex = ex / er * (ARENA_R - 1.5);
+    ez = ez / er * (ARENA_R - 1.5);
+  }
   let ux = player.x - ex, uz = player.z - ez;
   const l = Math.hypot(ux, uz) || 1;
   ux /= l; uz /= l;
   const px = -uz, pz = ux;
 
   rings.push({ x: ex, z: ez, r: 1.3, t: 0.65, dur: 0.65, cls: 'mine' });
+  // 炮口本体：预警期眼窝转红，0.3s 时张嘴射出一束
+  blasters.push({ x: ex, y: 1.5, z: ez, t: 0.95, max: 0.95, open: 0 });
   boss.flash = 0.5;
   later(0.65, function () {
     if (!boss.alive) return;
@@ -870,14 +883,14 @@ export function gasterBlast(): void {
 /** 风车：3~4 条螺旋臂绕场地中心转，低臂/高臂交替 —— 跟缝走，别乱跳 */
 export function pinwheelShot(): void {
   const arms = boss.phase >= 3 ? 4 : 3;
-  const per = 7;
+  const per = 40;            // 每臂 40 颗、间距 0.26 —— 密到连成一条臂，而不是七颗散点
   const w = 1.05;
   boss.flash = 0.5;
   for (let a = 0; a < arms; a++) {
     const a0 = (a / arms) * TAU;
     const y = a % 2 === 0 ? 0.55 : 2.3;
     for (let j = 0; j < per; j++) {
-      const rr = 2.2 + j * 1.7;
+      const rr = 2.2 + j * 0.26;
       addBullet(Math.cos(a0) * rr, y, Math.sin(a0) * rr, 0, 0, 0, 0.21, clsOf(y), 'pinwheel');
       const b = bullets[bullets.length - 1];
       b.orbA = a0;
@@ -892,8 +905,8 @@ export function pinwheelShot(): void {
 
 /** 东方对称：16 向 × 3 圈 × 2 波，低/高交替 —— 跳低臂、落高臂 */
 export function tohoRing(): void {
-  const n = 16;
-  const layers = 3;
+  const n = 24;
+  const layers = 4;
   const waves = 2;
   boss.flash = 0.5;
   for (let wv = 0; wv < waves; wv++) {
@@ -901,7 +914,7 @@ export function tohoRing(): void {
       return function () {
         if (!boss.alive) return;
         for (let L = 0; L < layers; L++) {
-          const r0 = 1.8 + L * 1.5;
+          const r0 = 1.6 + L * 1.6;
           for (let i = 0; i < n; i++) {
             const a = phase + (i / n) * TAU;
             const y = i % 2 === 0 ? 0.5 : 2.3;

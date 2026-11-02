@@ -12,7 +12,7 @@ import { resetCameraTarget } from './core/camera';
 import { updateHud } from './ui/hud';
 import { renderDiag } from './ui/diag';
 import type {
-  Boss, Bullet, DifficultyKey, GameState, Ghost, HitLog, Laser, Particle,
+  Blaster, Boss, Bullet, DifficultyKey, GameState, Ghost, HitLog, Laser, Particle,
   PatternName, Player, Ring, Shot, Stats, Timer, Wall
 } from './types';
 
@@ -84,6 +84,7 @@ export let rings: Ring[] = [];
 export let lasers: Laser[] = [];
 export let walls: Wall[] = [];
 export let particles: Particle[] = [];
+export let blasters: Blaster[] = [];
 export let timers: Timer[] = [];
 export let logs: HitLog[] = [];
 export let stats: Stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0, graze: 0, grazeHead: 0, grazeFoot: 0, grazeBody: 0 };
@@ -118,6 +119,7 @@ export function reset(): void {
   lasers = [];
   walls = [];
   particles = [];
+  blasters = [];
   timers = [];
   logs = [];
   ghosts.length = 0;

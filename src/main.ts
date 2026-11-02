@@ -19,7 +19,7 @@ import { cam, updateCamera } from './core/camera';
 import { canvas, H, W, onAfterResize, resize } from './core/screen';
 import { isTouch } from './core/device';
 import { heightRGB } from './core/color';
-import { boss, bullets, clock, freeze, later, lasers, player, reset, rings, session, state, stats, training, walls } from './state';
+import { blasters, boss, bullets, clock, freeze, later, lasers, player, reset, rings, session, state, stats, training, walls } from './state';
 import { getSeed, setSeed } from './core/random';
 import { SEQUENCES, getSequenceMode, setSequenceMode, sequenceFor } from './patterns/sequence';
 import { setSpeed } from './systems/training';
@@ -216,6 +216,7 @@ if (/[?&]dbg=1/.test(location.search)) {
     get player() { return player; },
     get boss() { return boss; },
     get bullets() { return bullets; },
+    get blasters() { return blasters; },
     get clock() { return clock; },
     get training() { return training; },
     get session() { return session; },

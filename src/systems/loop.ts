@@ -8,6 +8,7 @@ import { updateBoss } from './boss';
 import { updateBullets, updateShots } from './bullets';
 import { updateLasers, updateWalls } from './hazards';
 import { updateGhosts, updateParticles, updateRings } from './effects';
+import { updateBlasters } from './blasters';
 import { updateTraining } from './training';
 import { updateHud } from '../ui/hud';
 import { toast } from '../ui/toast';
@@ -21,6 +22,7 @@ export function updateGame(dt: number): void {
   updatePlayer(dt);
   updateBoss(dt);
   updateTimers(dt);
+  updateBlasters(dt);
   updateBullets(dt);
   updateLasers(dt);
   updateWalls(dt);

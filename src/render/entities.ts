@@ -1,7 +1,7 @@
 /** 实体绘制：子弹、玩家弹、粒子、玩家、boss。全部走 project() 的屏幕坐标。 */
 import { boss, bullets, opts, pshots, player } from '../state';
 import { GRAZE_R, PLAYER } from '../config';
-import type { Bullet, Particle, Projected, Shot } from '../types';
+import type { Blaster, Bullet, Particle, Projected, Shot } from '../types';
 import { TAU, clamp } from '../core/math';
 import { cam, project } from '../core/camera';
 import { COLORS } from '../core/color';
@@ -34,6 +34,17 @@ function localToScreen(b: Bullet, B: Array<[number, number, number]>, a: number,
 
 export function drawBullet(b: Bullet, p: Projected): void {
   const rp = Math.max(1.4, b.r * p.s);
+
+  // 波纹：视觉由 drawRippleRings 的闭合曲线负责，弹只留一个很小的亮点。
+  // 不这么分开的话，一圈 64 颗 × 7 圈 = 448 个 glow sprite + 448 条尾影线，直接掉到 30fps。
+  if (b.kind === 'ripple') {
+    ctx.fillStyle = 'rgba(' + b.rgb + ',0.92)';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(1.1, rp * 0.34), 0, TAU);
+    ctx.fill();
+    return;
+  }
+
   const tp = project(b.px, b.py, b.pz);
   if (tp) {
     ctx.beginPath();
@@ -583,4 +594,125 @@ export function drawBoss(p: Projected): void {
     ctx.lineWidth = 1.4;
     ctx.stroke();
   }
+}
+
+
+/* ============ Level 4：有结构的视觉 ============ */
+
+/**
+ * 龙骨炮的炮口：一颗骷髅头。
+ * 预警期眼窝由暗转红、逐渐亮起；开火瞬间下颚张开、嘴里露出炮口光。
+ * 没有它，那束弹就是"凭空冒出来的一排弹"—— 玩家读不出威胁从哪来。
+ */
+export function drawBlaster(bl: Blaster, p: Projected): void {
+  const s = Math.max(12, p.s * 2.0);
+  const open = bl.open;
+  const charging = bl.t > 0.3 ? 1 - Math.min(1, (bl.t - 0.3) / 0.55) : 1;
+  const jaw = s * (0.14 + open * 0.36);
+
+  // 犄角
+  ctx.beginPath();
+  ctx.moveTo(p.x - s * 0.44, p.y - s * 0.6);
+  ctx.lineTo(p.x - s * 0.9, p.y - s * 1.04);
+  ctx.lineTo(p.x - s * 0.26, p.y - s * 0.82);
+  ctx.closePath();
+  ctx.moveTo(p.x + s * 0.44, p.y - s * 0.6);
+  ctx.lineTo(p.x + s * 0.9, p.y - s * 1.04);
+  ctx.lineTo(p.x + s * 0.26, p.y - s * 0.82);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(206,216,234,0.92)';
+  ctx.fill();
+
+  // 头骨
+  ctx.beginPath();
+  ctx.moveTo(p.x - s * 0.56, p.y - s * 0.16);
+  ctx.quadraticCurveTo(p.x - s * 0.66, p.y - s * 0.9, p.x, p.y - s * 0.92);
+  ctx.quadraticCurveTo(p.x + s * 0.66, p.y - s * 0.9, p.x + s * 0.56, p.y - s * 0.16);
+  ctx.quadraticCurveTo(p.x + s * 0.5, p.y + s * 0.12, p.x, p.y + s * 0.14);
+  ctx.quadraticCurveTo(p.x - s * 0.5, p.y + s * 0.12, p.x - s * 0.56, p.y - s * 0.16);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(234,240,252,0.96)';
+  ctx.fill();
+
+  // 眼窝（蓄力变红）
+  ctx.fillStyle = 'rgba(16,22,36,0.95)';
+  ctx.beginPath();
+  ctx.ellipse(p.x - s * 0.25, p.y - s * 0.46, s * 0.16, s * 0.19, -0.18, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(p.x + s * 0.25, p.y - s * 0.46, s * 0.16, s * 0.19, 0.18, 0, TAU);
+  ctx.fill();
+
+  if (charging > 0.15) {
+    ctx.fillStyle = 'rgba(255,72,72,' + (0.35 + charging * 0.6) + ')';
+    ctx.beginPath();
+    ctx.arc(p.x - s * 0.25, p.y - s * 0.46, s * (0.04 + 0.08 * charging), 0, TAU);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x + s * 0.25, p.y - s * 0.46, s * (0.04 + 0.08 * charging), 0, TAU);
+    ctx.fill();
+  }
+
+  // 下颚
+  ctx.beginPath();
+  ctx.moveTo(p.x - s * 0.46, p.y + s * 0.12);
+  ctx.lineTo(p.x + s * 0.46, p.y + s * 0.12);
+  ctx.lineTo(p.x + s * 0.3, p.y + s * 0.12 + jaw);
+  ctx.lineTo(p.x - s * 0.3, p.y + s * 0.12 + jaw);
+  ctx.closePath();
+  ctx.fillStyle = '#c9d2e6';
+  ctx.fill();
+
+  // 牙齿
+  ctx.fillStyle = 'rgba(248,250,255,0.95)';
+  for (let t = -2; t <= 2; t++) {
+    const tx = p.x + t * s * 0.15;
+    ctx.beginPath();
+    ctx.moveTo(tx - s * 0.05, p.y + s * 0.14);
+    ctx.lineTo(tx + s * 0.05, p.y + s * 0.14);
+    ctx.lineTo(tx, p.y + s * 0.14 + jaw * 0.35);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 嘴里的炮口光
+  if (open > 0.04) {
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + s * 0.14 + jaw * 0.32, s * 0.3 * open, s * 0.14 * open, 0, 0, TAU);
+    ctx.fillStyle = 'rgba(255,150,90,' + (0.85 * open) + ')';
+    ctx.fill();
+  }
+}
+
+/**
+ * 波纹的环：按 ripRing 把同圈弹按角度连成闭合曲线。
+ * 不连的话，一圈 80 颗也只是 80 个点；连起来才是"水面上的一圈浪"。
+ */
+export function drawRippleRings(): void {
+  if (!bullets.length) return;
+  const groups = new Map<number, Bullet[]>();
+  for (let i = 0; i < bullets.length; i++) {
+    const b = bullets[i];
+    if (b.kind !== 'ripple' || b.ripRing === undefined) continue;
+    let g = groups.get(b.ripRing);
+    if (!g) { g = []; groups.set(b.ripRing, g); }
+    g.push(b);
+  }
+  groups.forEach(function (g) {
+    if (g.length < 8) return;
+    g.sort(function (a, b) { return (a.ripA || 0) - (b.ripA || 0); });
+    const pts: Projected[] = [];
+    for (let i = 0; i < g.length; i++) {
+      const q = project(g[i].x, g[i].y, g[i].z);
+      if (q) pts.push(q);
+    }
+    if (pts.length < 8) return;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(' + g[0].rgb + ',0.45)';
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+  });
 }

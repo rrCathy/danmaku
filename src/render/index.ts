@@ -7,10 +7,10 @@
  */
 import { bgGrad, ctx, DPR, H, W, fxCanvas } from '../core/screen';
 import { project } from '../core/camera';
-import { boss, bullets, clock, opts, particles, player, pshots } from '../state';
+import { blasters, boss, bullets, clock, opts, particles, player, pshots } from '../state';
 import { drawFloor, drawTelegraphs } from './floor';
 import { drawGhostsLayer, drawGuides, drawPlaneTrails, drawShadows } from './aids';
-import { drawBoss, drawBullet, drawParticle, drawPlayer, drawPShot } from './entities';
+import { drawBlaster, drawBoss, drawBullet, drawParticle, drawPlayer, drawPShot, drawRippleRings } from './entities';
 import { drawLasers, drawWalls } from './hazards';
 import { drawMinimap } from './minimap';
 import { lasers, walls } from '../state';
@@ -25,6 +25,7 @@ export function render(): void {
 
   drawFloor();
   drawTelegraphs();
+  drawRippleRings();   // 波纹的环线铺在所有实体下面，弹再压上去
   if (walls.length) drawWalls();
   if (opts.shadows) drawShadows();
   drawPlaneTrails();
@@ -53,6 +54,13 @@ export function render(): void {
     const p = project(pa.x, pa.y, pa.z);
     if (!p) continue;
     items.push({ z: p.z, fn: (function (qq: Particle, pp: Projected) { return function () { drawParticle(qq, pp); }; })(pa, p) });
+  }
+
+  for (let i = 0; i < blasters.length; i++) {
+    const bl = blasters[i];
+    const p = project(bl.x, bl.y, bl.z);
+    if (!p) continue;
+    items.push({ z: p.z, fn: (function (bb, pp) { return function () { drawBlaster(bb, pp); }; })(bl, p) });
   }
 
   if (boss.alive) {
