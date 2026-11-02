@@ -115,8 +115,12 @@ export function shapeDist(b: Bullet): number {
       const ld = Math.abs(dx * B[0][0] + dy * B[0][1] + dz * B[0][2]) - hl;
       const ud = Math.abs(dx * B[1][0] + dy * B[1][1] + dz * B[1][2]) - hw;
       const wd = Math.abs(dx * B[2][0] + dy * B[2][1] + dz * B[2][2]) - hw;
+      // 标准 OBB 距离：盒外取三个外分量长度的模；盒内取「最不深」的那个负分量。
+      // 末项必须是 min(max(ld,ud,wd), 0) —— 写成 min(ld,ud,wd,0) 会让
+      // 「盒外但沿某轴仍在盒投影内」的点被负分量拉近距离，三个轴各膨胀半个长边，
+      // 视觉上的缝会被判定填平（v1.14 修）。
       const dPoint = Math.sqrt(Math.max(ld, 0) ** 2 + Math.max(ud, 0) ** 2 + Math.max(wd, 0) ** 2) +
-        Math.min(ld, ud, wd, 0);
+        Math.min(Math.max(ld, ud, wd), 0);
       if (dPoint < dmin) dmin = dPoint;
     }
     return dmin;
@@ -142,12 +146,15 @@ export function shapeDist(b: Bullet): number {
     // 绕前向轴自旋
     const ru = lu * cs - lw * sn, rw = lu * sn + lw * cs;
     lu = ru; lw = rw;
-    // 4 面半平面：外法线 ni = -(对面顶点方向)，面方程 dot(ni,p) = S/3（内切半径）。
-    // dd = dot(ni,p) - S/3：内部为负、面上为 0。hit(膨胀体) = max dd ≤ hitR。
-    // 棱角附近 max-face 是膨胀体的过近似 → 宁严勿松。
+    // 4 面半平面：外法线单位向量 = N/√3（N 是 ±1 的顶点方向，长度 √3），
+    // 面方程 dot(n,p) = S/3（内切半径）。dd = dot(n,p) - S/3：内部为负、面上为 0。
+    // hit(膨胀体) = max dd ≤ hitR。
+    // 注意这里**不能再乘 S**：v1.14 前写成 dot(N,p)*S/√3 - S/3，等于把距离乘了 S，
+    // r=0.2 的弹判定半径被放大到 1.35m（球弹同参只有 0.35m）。
+    // 棱角附近 max-face 仍是膨胀体的过近似 → 宁严勿松（r=0.2 时约 +0.025m）。
     let d = -Infinity;
     for (let k = 0; k < 4; k++) {
-      const dd = (N[k][0] * lf + N[k][1] * lu + N[k][2] * lw) * S / Math.sqrt(3) - S / 3;
+      const dd = (N[k][0] * lf + N[k][1] * lu + N[k][2] * lw) / Math.sqrt(3) - S / 3;
       if (dd > d) d = dd;
     }
     if (d < dmin) dmin = d;

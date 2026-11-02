@@ -131,10 +131,17 @@ export function updatePlayer(dt: number): void {
     const rr = Math.hypot(player.x, player.z);
     const lim = ARENA_R - 1.0;
     if (rr > lim) {
-      player.x = player.x / rr * lim;
-      player.z = player.z / rr * lim;
-      player.vx *= 0.2;
-      player.vz *= 0.2;
+      const nx = player.x / rr, nz = player.z / rr;
+      player.x = nx * lim;
+      player.z = nz * lim;
+      // 只掐掉「朝外」的径向分量，切向速度原样保留 —— 贴边时能沿边界滑行。
+      // 旧写法 vx *= 0.2 会把切向一起砍掉：贴边横移每帧掉 80% 速度，
+      // 实测按 0.8s 只挪 0.73m（正常 ~6.6m），手感像被墙粘住。
+      const out = player.vx * nx + player.vz * nz;
+      if (out > 0) {
+        player.vx -= nx * out;
+        player.vz -= nz * out;
+      }
     }
   }
 

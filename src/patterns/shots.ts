@@ -92,7 +92,9 @@ function pushWall(
 
   later(delay, function () {
     if (!boss.alive) return;
-    const step = 0.66;
+    // 步长 0.60：r=0.21 时判定半宽 0.1932 + 玩家 0.13 = 0.3232，半间距 0.30
+    // → 相邻砖判定重叠，修好 OBB 距离后仍然是无缝的整面墙（v1.14）
+    const step = 0.60;
     for (let u = -halfW; u <= halfW; u += step) {
       if (Math.abs(u - gapPos) < gapW) continue;    // 缺口
       for (let k = 0; k < rows; k++) {
@@ -280,8 +282,11 @@ export function jumpWall(): void {
         nx /= l; nz /= l;
         const tx = -nz, tz = nx;
         const sp = 9.4;
-        // 覆盖整场：场地半径 18，所以横向铺 ±18 —— 侧面没有尽头可跑
-        for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.8) {
+        // 覆盖整场：场地半径 18，所以横向铺 ±18 —— 侧面没有尽头可跑。
+        // 步长 0.62 是判定上限：box 半宽 0.2116 + 玩家判定 0.13 → 相邻砖的
+        // 判定要重叠，步长必须 < 0.683。取 0.62 留 0.06 余量，视觉缝 0.197m
+        // （小于玩家判定直径 0.26），看着也过不去。
+        for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.62) {
           addBullet(boss.x + tx * u, h, boss.z + tz * u,
             nx * sp, 0, nz * sp, 0.23, clsOf(h), 'wall', 'box', 2.2);
         }
