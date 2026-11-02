@@ -25,7 +25,10 @@ export const el = {
   helpOverlay: must('helpOverlay'),
   endKicker: must('endKicker'),
   endTitle: must('endTitle'),
-  endMeta: must('endMeta'),
+  endDiff: must('endDiff'),
+  endDiffName: must('endDiffName'),
+  endHits: must('endHits'),
+  endTime: must('endTime'),
   endLead: must('endLead'),
   endStats: must('endStats'),
   endBadge: must('endBadge')

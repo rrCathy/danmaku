@@ -27,16 +27,62 @@ export function drawBullet(b: Bullet, p: Projected): void {
   ctx.drawImage(g, p.x - gs / 2, p.y - gs / 2, gs, gs);
   ctx.globalAlpha = 1;
 
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, rp * 0.8, 0, TAU);
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.fill();
+  // 运动方向的屏幕角度：箭头 / 砖块 / 椭球沿它定向
+  const ang = tp ? Math.atan2(p.y - tp.y, p.x - tp.x) : -Math.PI / 2;
+  const shape = b.shape || 'ball';
+  const len = b.len || (shape === 'arrow' ? 3.4 : shape === 'ellip' ? 1.8 : 2.2);
 
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, rp, 0, TAU);
-  ctx.strokeStyle = 'rgba(' + b.rgb + ',0.92)';
-  ctx.lineWidth = Math.max(1, rp * 0.28);
-  ctx.stroke();
+  if (shape === 'ball') {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rp * 0.8, 0, TAU);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rp, 0, TAU);
+    ctx.strokeStyle = 'rgba(' + b.rgb + ',0.92)';
+    ctx.lineWidth = Math.max(1, rp * 0.28);
+    ctx.stroke();
+    return;
+  }
+
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(ang);
+  if (shape === 'arrow') {
+    const L = rp * len;
+    // 尾杆 → 三角头：一眼看出飞行方向
+    ctx.beginPath();
+    ctx.moveTo(-L, 0);
+    ctx.lineTo(rp * 0.4, -rp * 0.62);
+    ctx.lineTo(L, 0);
+    ctx.lineTo(rp * 0.4, rp * 0.62);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(' + b.rgb + ',0.88)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, rp * 0.22);
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.stroke();
+  } else if (shape === 'box') {
+    const L = rp * len, W = rp * 0.92;
+    ctx.beginPath();
+    ctx.rect(-L, -W, L * 2, W * 2);
+    ctx.fillStyle = 'rgba(' + b.rgb + ',0.82)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, rp * 0.24);
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.stroke();
+  } else { // ellip：水滴 / 椭球
+    const rx = rp * len, ry = rp * 1.02;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, TAU);
+    ctx.fillStyle = 'rgba(' + b.rgb + ',0.85)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, rp * 0.22);
+    ctx.strokeStyle = 'rgba(255,255,255,0.78)';
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 export function drawPShot(s: Shot, p: Projected): void {

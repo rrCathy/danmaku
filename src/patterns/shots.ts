@@ -99,7 +99,7 @@ function pushWall(
         const h = 0.42 + k * 0.82;
         const px = nx * D + tx * u;
         const pz = nz * D + tz * u;
-        addBullet(px, h, pz, -nx * speed, 0, -nz * speed, 0.21, clsOf(h), 'wall');
+        addBullet(px, h, pz, -nx * speed, 0, -nz * speed, 0.21, clsOf(h), 'wall', 'box', 2.2);
       }
     }
     // 缺口地面标记，帮玩家确认“洞在这里”
@@ -283,7 +283,7 @@ export function jumpWall(): void {
         // 覆盖整场：场地半径 18，所以横向铺 ±18 —— 侧面没有尽头可跑
         for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.8) {
           addBullet(boss.x + tx * u, h, boss.z + tz * u,
-            nx * sp, 0, nz * sp, 0.23, clsOf(h), 'wall');
+            nx * sp, 0, nz * sp, 0.23, clsOf(h), 'wall', 'box', 2.2);
         }
       };
     })(hh));
@@ -430,7 +430,7 @@ export function radialRays(): void {
         return function () {
           if (!boss.alive) return;
           addBullet(boss.x, hh, boss.z, Math.cos(aa) * sp, 0, Math.sin(aa) * sp,
-            0.18, clsOf(hh), 'radial');
+            0.18, clsOf(hh), 'radial', 'arrow', 3.6);
         };
       })(ang, h));
     }
@@ -463,7 +463,7 @@ export function downpour(): void {
           rings.push({ x, z, r: 1.05, t: delay, dur: delay });
           later(delay, (function (xx, zz) {
             return function () {
-              addBullet(xx, 10.5, zz, 0, -11.5, 0, 0.30, 'rain', 'downpour');
+              addBullet(xx, 10.5, zz, 0, -11.5, 0, 0.30, 'rain', 'downpour', 'ellip', 1.9);
             };
           })(x, z));
         }
@@ -495,7 +495,7 @@ export function fountain(): void {
         for (let i = 0; i < n; i++) {
           const a = rot + (i / n) * TAU;
           addBullet(gx, 0.35, gz, Math.cos(a) * vh, vy, Math.sin(a) * vh,
-            0.21, 'low', 'fountain');
+            0.21, 'low', 'fountain', 'ellip', 1.5);
           bullets[bullets.length - 1].grav = 15.5;
         }
         for (let k = 0; k < 5; k++) spawnSpark(gx, 0.4, gz, COLORS.low, 0.9);
@@ -531,8 +531,8 @@ export function uprain(): void {
           return function () {
             for (let s = 0; s < 3; s++) {
               later(s * 0.22, function () {
-                // 负 y 出生 = 地面背面；匀速穿地，到 1.5 m 结束
-                addBullet(xx, -2.2, zz, 0, 5.8, 0, 0.24, 'low', 'uprain');
+                // 负 y 出生 = 地面背面；匀速穿地，到 1.5 m 结束。箭头形强调"从下往上"
+                addBullet(xx, -2.2, zz, 0, 5.8, 0, 0.24, 'low', 'uprain', 'arrow', 3.2);
               });
             }
           };
@@ -583,7 +583,7 @@ export function coneBurst(): void {
           const dz = az + (p1z * Math.cos(phi) + p2z * Math.sin(phi)) * tanA;
           const dl = Math.hypot(dx, dy, dz) || 1;
           addBullet(boss.x, boss.y, boss.z, dx / dl * sp, dy / dl * sp, dz / dl * sp,
-            0.18, clsOf(boss.y), 'cone');
+            0.18, clsOf(boss.y), 'cone', 'arrow', 3.0);
         }
       }
     });

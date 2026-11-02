@@ -105,6 +105,7 @@ export function cycleTrail(): void {
   for (let i = 0; i < bullets.length; i++) bullets[i].trail = null;
   if (trailBtnEl) trailBtnEl.classList.toggle('on', opts.trailMode > 0);
   toast('轨迹线：' + TRAIL_NAMES[opts.trailMode], 1000, COLORS.player);
+  syncSettings();
 }
 
 export function toggleMini(): void {
@@ -112,7 +113,76 @@ export function toggleMini(): void {
   const w = document.getElementById('miniWrap');
   if (w) w.classList.toggle('off', !opts.mini);
   if (miniBtnEl) miniBtnEl.classList.toggle('on', opts.mini);
-  toast(opts.mini ? '立面图：开' : '立面图：关', 900, COLORS.player);
+  toast(opts.mini ? '俯视雷达：开' : '俯视雷达：关', 900, COLORS.player);
+  syncSettings();
+}
+
+export function toggleShadows(): void {
+  opts.shadows = !opts.shadows;
+  toast(opts.shadows ? '地面投影：开' : '地面投影：关', 900, COLORS.player);
+  syncSettings();
+}
+
+export function toggleGuides(): void {
+  opts.guides = !opts.guides;
+  toast(opts.guides ? '高度引导线：开' : '高度引导线：关', 900, COLORS.player);
+  syncSettings();
+}
+
+export function toggleHitbox(): void {
+  opts.hitbox = !opts.hitbox;
+  toast(opts.hitbox ? '判定框：显示' : '判定框：隐藏', 900, COLORS.player);
+  syncSettings();
+}
+
+/* ============ 暂停卡 · 设置面板 ============ */
+const TRAIL_LABELS = ['关', '拖尾', '预测', '拖尾+预测'];
+
+function settingsState(key: string): { on: boolean; label: string } {
+  switch (key) {
+    case 'shadows': return { on: opts.shadows, label: opts.shadows ? '开' : '关' };
+    case 'guides': return { on: opts.guides, label: opts.guides ? '开' : '关' };
+    case 'hitbox': return { on: opts.hitbox, label: opts.hitbox ? '显示' : '隐藏' };
+    case 'mini': return { on: opts.mini, label: opts.mini ? '开' : '关' };
+    case 'trail': return { on: opts.trailMode > 0, label: TRAIL_LABELS[opts.trailMode] };
+    default: return { on: false, label: '' };
+  }
+}
+
+const SET_KEYS: Record<string, string> = {
+  shadows: 'G', guides: 'H', hitbox: 'K', mini: 'M', trail: 'T'
+};
+
+/** 把设置面板每个按钮刷成当前开关状态（任何入口改了 opts 都要调它） */
+export function syncSettings(): void {
+  const grid = document.getElementById('setGrid');
+  if (!grid) return;
+  const btns = grid.querySelectorAll<HTMLElement>('.set-btn');
+  for (let i = 0; i < btns.length; i++) {
+    const key = btns[i].dataset.set || '';
+    const st = settingsState(key);
+    btns[i].classList.toggle('on', st.on);
+    const em = btns[i].querySelector('em');
+    if (em) em.textContent = SET_KEYS[key] + ' · ' + st.label;
+  }
+}
+
+function initSettings(): void {
+  const grid = document.getElementById('setGrid');
+  if (!grid) return;
+  const btns = grid.querySelectorAll<HTMLElement>('.set-btn');
+  for (let i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function () {
+      switch (btns[i].dataset.set) {
+        case 'shadows': toggleShadows(); break;
+        case 'guides': toggleGuides(); break;
+        case 'hitbox': toggleHitbox(); break;
+        case 'mini': toggleMini(); break;
+        case 'trail': cycleTrail(); break;
+      }
+    });
+  }
+  syncSettings();
 }
 
 /* ============ 流程 ============ */
@@ -190,6 +260,7 @@ export function pauseGame(): void {
   setState('paused');
   if (document.pointerLockElement) document.exitPointerLock();
   openTrainPick();          // 训练场：顺便把选招区刷成最新
+  syncSettings();           // 设置面板：按钮状态永远反映当前 opts
   lookHintOn();
   syncOverlays();
 }
@@ -247,11 +318,12 @@ export function endGame(win: boolean, reason?: EndReason): void {
   const diffName = DIFFICULTIES[session.difficulty].name;
   const noHit = stats.hits === 0;
 
-  // 结算卡第二行：难度 + 用时/坚持 + 受击次数（受击是核心指标，永远可见）
-  el.endMeta.innerHTML =
-    '<span class="em-chip">' + diffName + '</span>' +
-    '<span class="em-item">受击 <b class="' + (noHit ? 'em-zero' : '') + '">' + stats.hits + '</b> 次</span>' +
-    '<span class="em-item">用时 <b>' + used.toFixed(1) + '</b> 秒</span>';
+  // 结算三块大数字：关卡难度 · 受击次数 · 用时（受击是核心指标）
+  el.endDiff.textContent = 'LV.' + session.difficulty;
+  el.endDiffName.textContent = diffName;
+  el.endHits.textContent = String(stats.hits);
+  el.endHits.className = noHit ? 'zero' : '';
+  el.endTime.textContent = used.toFixed(1);
 
   if (win) {
     el.endKicker.textContent = 'BOSS DEFEATED';
@@ -336,6 +408,7 @@ export function initUi(): void {
   setDifficulty(session.difficulty);
   renderAchievements();
 
+  initSettings();
   initOverlays();
 }
 

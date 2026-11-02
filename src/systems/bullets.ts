@@ -17,12 +17,13 @@ import { updateHud } from '../ui/hud';
 import { renderDiag } from '../ui/diag';
 import { toast } from '../ui/toast';
 import { endGame } from '../ui/flow';
-import type { Bullet, HClass } from '../types';
+import type { Bullet, BulletShape, HClass } from '../types';
 
 export function addBullet(
   x: number, y: number, z: number,
   vx: number, vy: number, vz: number,
-  r: number, cls: HClass, kind: Bullet['kind']
+  r: number, cls: HClass, kind: Bullet['kind'],
+  shape?: BulletShape, len?: number
 ): void {
   // 难度倍率 × 训练场倍率，在这里统一生效：所有图案都走这个工厂，不用各自改
   const k = session.bulletSpeed * training.speed;
@@ -36,6 +37,7 @@ export function addBullet(
     rgb: heightRGB(y),
     homing: kind === 'orbit' ? 1 : 0,
     life: kind === 'orbit' ? 7 : 8,
+    shape, len,
     trail: null, tk: 0
   });
 }
@@ -55,6 +57,16 @@ export function explodeMine(b: Bullet): void {
 export function hitPlayer(b: Bullet): boolean {
   const d = segPointDist(
     b.x, b.y, b.z,
+    player.x, player.y + PLAYER.bodyLow, player.z,
+    player.x, player.y + PLAYER.bodyHigh, player.z
+  );
+  return d < PLAYER.hitR + b.r;
+}
+
+/** 非球形弹的尾部球（上一帧位置）：头 + 尾 = 扫掠胶囊的离散近似，防快速弹隧穿 */
+function hitPlayerTail(b: Bullet): boolean {
+  const d = segPointDist(
+    b.px, b.py, b.pz,
     player.x, player.y + PLAYER.bodyLow, player.z,
     player.x, player.y + PLAYER.bodyHigh, player.z
   );
@@ -177,7 +189,9 @@ export function updateBullets(dt: number): void {
       continue;
     }
 
-    if (!b.noHit && player.inv <= 0 && hitPlayer(b)) {
+    // 球形弹：瞬时球判定（1:1 保持）；非球形弹加尾球 = 头+尾扫掠近似
+    const tailHit = b.shape !== undefined && b.shape !== 'ball' && hitPlayerTail(b);
+    if (!b.noHit && player.inv <= 0 && (hitPlayer(b) || tailHit)) {
       onPlayerHit(b);
       bullets.splice(i, 1);
       continue;

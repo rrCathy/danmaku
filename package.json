@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.1.0",
   "type": "module",
-  "description": "2.5E 弹幕 · 三维可读性验证装置",
+  "description": "5D 弹幕 · 三维可读性验证装置",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

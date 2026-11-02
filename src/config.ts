@@ -129,6 +129,26 @@ export const DIFFICULTIES: Record<DifficultyKey, Difficulty> = {
   }
 };
 
+/* ============ 碰撞规格 ============ */
+/**
+ * 规格：标准子弹的碰撞箱是**直径 STD_BULLET_D 的球**；
+ * 玩家碰撞箱是一个胶囊，**胶囊内能装下两个直径 0.8×STD_BULLET_D 的球**。
+ *
+ * 推导（两球沿胶囊轴相切叠放 = 最小胶囊）：
+ *   胶囊半径 ≥ 0.4×STD_BULLET_D，胶囊总高 ≥ 1.6×STD_BULLET_D。
+ * 现有 PLAYER（半径 0.26、轴 0.18~1.42、总高 1.76）满足：
+ *   0.26 ≥ 0.168 ✓   1.76 ≥ 0.672 ✓
+ * 这是下限约束（「能装下」），不是精确尺寸 —— 收紧到最小胶囊会破坏
+ * 「贴地扫要跳 / 高空扫别跳」的教学平衡，不要为了"精确"去压缩玩家判定。
+ */
+export const STD_BULLET_D = 0.42;
+export const HITBOX_MIN = {
+  /** 玩家胶囊半径下限 = 0.4×STD_BULLET_D */
+  playerR: 0.4 * STD_BULLET_D,
+  /** 玩家胶囊总高下限 = 1.6×STD_BULLET_D（两球叠放相切） */
+  playerTotalH: 1.6 * STD_BULLET_D
+} as const;
+
 /* ============ 相机 ============ */
 export const CAM_PRESETS = [
   { name: '低角斜后视', yaw: 0.30, pitch: 0.40, dist: 15.5 },

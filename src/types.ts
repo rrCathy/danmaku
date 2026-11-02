@@ -9,6 +9,12 @@
 /** 语义高度段。只用于文案与统计，不影响颜色（颜色由 heightRGB 按连续高度决定）。 */
 export type HClass = 'low' | 'mid' | 'high' | 'rain';
 
+/**
+ * 子弹形状。缺省 = ball（全部旧图案，行为不变）。
+ * 形状只影响绘制与扫掠判定；碰撞球半径仍由 r 决定 —— 大形状就配大 r。
+ */
+export type BulletShape = 'ball' | 'arrow' | 'box' | 'ellip';
+
 /** 子弹来源图案。保留这个字段是为了按图案做统计，逻辑上不参与判定。 */
 export type BulletKind =
   | 'sweep' | 'spread' | 'rain' | 'orbit' | 'ring' | 'spiral'
@@ -48,6 +54,10 @@ export interface Bullet {
   noHit?: number;
   /** 重力加速度 m/s²（喷泉的抛物线用）。不设 = 匀速直线，所有旧图案不受影响 */
   grav?: number;
+  /** 形状（缺省 ball）。arrow/box/ellip 走扫掠双球判定：头球 + 上一帧位置的尾球 */
+  shape?: BulletShape;
+  /** 形状尺寸倍数（相对 r）：arrow 的箭长、ellip 的长轴、box 的长边。缺省 arrow 3.4 / ellip 1.8 / box 2.2 */
+  len?: number;
   trail: number[] | null;
   tk: number;
 }

@@ -232,6 +232,18 @@ body.touch #endStats .s .l{font-size:8.5px}
 .tp-pat.on{background:rgba(110,232,255,.22);border-color:rgba(110,232,255,.75);color:#f2fdff;
   box-shadow:0 0 14px rgba(110,232,255,.22)}
 .tp-row{display:flex;align-items:center;gap:9px;margin-top:8px;font-size:10.5px;color:var(--dim)}
+
+/* 暂停卡：设置面板（读 Aid 开关） */
+.set-panel{margin:14px 0 4px;padding-top:12px;border-top:1px solid rgba(140,200,255,.12)}
+.set-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.set-btn{font:inherit;font-size:10.5px;line-height:1.25;padding:8px 4px 7px;border-radius:3px;cursor:pointer;
+  color:rgba(190,215,245,.62);background:rgba(255,255,255,.03);
+  border:1px solid rgba(140,200,255,.14);transition:.12s;
+  display:flex;flex-direction:column;align-items:center;gap:3px}
+.set-btn em{font-style:normal;font-size:8.5px;letter-spacing:.12em;opacity:.55}
+.set-btn:hover{background:rgba(110,232,255,.10);border-color:rgba(110,232,255,.40);color:#eafcff}
+.set-btn.on{background:rgba(110,232,255,.20);border-color:rgba(110,232,255,.70);color:#f2fdff}
+.set-btn.on em{opacity:.8}
 .tp-lab{letter-spacing:.14em;flex:none}
 .tp-speeds{display:flex;gap:5px}
 .tp-sp{font:inherit;font-size:10.5px;padding:4px 12px;border-radius:3px;cursor:pointer;
@@ -282,18 +294,27 @@ body.touch .pause-card.wide .pause-actions .btn{padding:9px 12px;font-size:12px}
   color:rgba(190,215,245,.78)}
 .ss-sub b{color:#bfe9ff}
 
-.ss-levels{position:relative;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.lv-card{font:inherit;text-align:left;cursor:pointer;padding:14px 16px 12px;border-radius:6px;
+/* 关卡横滚竖卡：横向滑动选关，卡片竖版（为 Level 4+ 预留扩展位） */
+.ss-levels{position:relative;display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x proximity;
+  padding:2px 2px 10px;margin:0 -2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.ss-levels::-webkit-scrollbar{height:0}
+.lv-card{flex:0 0 152px;height:176px;display:flex;flex-direction:column;align-items:flex-start;
+  font:inherit;text-align:left;cursor:pointer;padding:14px 15px 12px;border-radius:8px;
   color:rgba(200,220,245,.82);background:rgba(255,255,255,.035);
-  border:1px solid rgba(140,200,255,.16);transition:.14s}
-.lv-card b{display:block;font-size:17px;letter-spacing:.12em;color:#e8f4ff;font-weight:700}
-.lv-card span{display:block;margin-top:5px;font-size:11px;letter-spacing:.06em;color:rgba(180,210,245,.72)}
-.lv-card i{display:block;margin-top:3px;font-style:normal;font-size:10px;
+  border:1px solid rgba(140,200,255,.16);transition:.14s;scroll-snap-align:start}
+.lv-no{display:block;font-style:normal;font-size:30px;font-weight:800;letter-spacing:.06em;
+  line-height:1;color:rgba(120,190,255,.5);font-variant-numeric:tabular-nums}
+.lv-card b{display:block;margin-top:auto;font-size:15px;letter-spacing:.12em;color:#e8f4ff;font-weight:700}
+.lv-card span{display:block;margin-top:4px;font-size:11px;letter-spacing:.06em;color:rgba(180,210,245,.72)}
+.lv-card em{display:block;margin-top:3px;font-style:normal;font-size:10px;
   letter-spacing:.05em;color:rgba(150,185,225,.55)}
 .lv-card:hover{border-color:rgba(255,140,175,.5);background:rgba(255,120,170,.09)}
 .lv-card.on{border-color:rgba(255,120,160,.72);background:rgba(255,120,160,.16);
   box-shadow:0 0 0 1px rgba(255,120,160,.28), 0 12px 34px rgba(255,90,150,.18)}
 .lv-card.on b{color:#ffe3ee}
+.lv-card.on .lv-no{color:rgba(255,150,190,.85)}
+.lv-card.locked{opacity:.5;cursor:not-allowed}
+.lv-card.locked:hover{border-color:rgba(140,200,255,.16);background:rgba(255,255,255,.035)}
 .ss-note{position:relative;margin:12px 0 22px;font-size:11px;letter-spacing:.05em;
   color:rgba(160,190,230,.55);min-height:1.2em}
 
@@ -336,13 +357,21 @@ body.touch .pause-card.wide .pause-actions .btn{padding:9px 12px;font-size:12px}
 
 .start-goal{margin-top:18px;font-size:11.5px;color:rgba(190,215,245,.5);letter-spacing:.02em;line-height:1.7}
 
-/* ---------- 结算：难度行 + 无伤徽章 ---------- */
-.end-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
-.em-chip{font-size:11px;letter-spacing:.14em;padding:4px 12px;border-radius:999px;
-  color:#bfe9ff;background:rgba(110,232,255,.14);border:1px solid rgba(110,232,255,.36)}
-.em-item{font-size:11.5px;letter-spacing:.05em;color:rgba(190,215,245,.62)}
-.em-item b{color:#e8f4ff;font-weight:700;font-variant-numeric:tabular-nums}
-.em-item b.em-zero{color:#8ff0ff}
+/* ---------- 结算：三块大数字（难度 · 受击 · 用时）+ 无伤徽章 ---------- */
+.end-hero{display:flex;gap:10px;margin:2px 0 14px}
+.eh-block{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:13px 6px 11px;border-radius:8px;
+  background:rgba(255,255,255,.035);border:1px solid rgba(140,200,255,.14)}
+.eh-block em{font-style:normal;font-size:9.5px;letter-spacing:.18em;color:rgba(160,195,235,.55)}
+.eh-block b{font-size:34px;font-weight:800;line-height:1.12;letter-spacing:.02em;
+  color:#eaf6ff;font-variant-numeric:tabular-nums}
+.eh-block span{font-size:9.5px;letter-spacing:.1em;color:rgba(160,195,235,.5)}
+.eh-diff{background:rgba(110,232,255,.10);border-color:rgba(110,232,255,.30)}
+.eh-diff b{color:#9df0ff;text-shadow:0 0 22px rgba(110,232,255,.35)}
+.eh-hits{background:rgba(255,120,170,.08);border-color:rgba(255,120,170,.24)}
+.eh-hits b{color:#ffb0cd;text-shadow:0 0 22px rgba(255,120,170,.3)}
+.eh-hits b.zero{color:#ffe08a;text-shadow:0 0 26px rgba(255,214,90,.5)}
+.eh-time b{color:#cfe6ff}
 .end-badge{display:flex;align-items:center;gap:10px;margin:16px 0 4px;padding:11px 16px;
   border-radius:6px;border:1px solid rgba(110,232,255,.3);background:rgba(110,232,255,.08)}
 .end-badge b{font-size:13px;letter-spacing:.12em;color:#bfe9ff}
@@ -377,10 +406,11 @@ body.touch .ss-title{font-size:26px;margin:8px 0 6px}
 body.touch .ss-title span{letter-spacing:.26em}
 body.touch .ss-sub{font-size:10.5px;line-height:1.65;margin-bottom:11px}
 body.touch .ss-levels{gap:9px}
-body.touch .lv-card{padding:9px 11px 8px}
-body.touch .lv-card b{font-size:13px}
-body.touch .lv-card span{font-size:10px;margin-top:3px}
-body.touch .lv-card i{font-size:9px;margin-top:2px}
+body.touch .lv-card{flex-basis:116px;height:128px;padding:9px 10px 8px}
+body.touch .lv-no{font-size:22px}
+body.touch .lv-card b{font-size:12px}
+body.touch .lv-card span{font-size:9.5px;margin-top:3px}
+body.touch .lv-card em{font-size:8.5px;margin-top:2px}
 body.touch .ss-note{margin:8px 0 12px;font-size:10px;min-height:1em}
 body.touch .ss-start span{padding:11px 14px;font-size:13px;letter-spacing:.24em}
 body.touch .ss-actions{margin:9px 0 12px;gap:4px}
@@ -390,7 +420,10 @@ body.touch .ss-ticks{font-size:9px}
 body.touch .ss-ach{margin-top:9px;gap:6px;min-height:22px}
 body.touch .ach{font-size:9.5px;padding:3px 9px 3px 7px}
 body.touch .ss-ticks{font-size:9px}
-body.touch .end-meta{gap:6px;margin-bottom:9px}
+body.touch .end-hero{gap:7px;margin-bottom:10px}
+body.touch .eh-block{padding:9px 4px 8px}
+body.touch .eh-block b{font-size:25px}
+body.touch .eh-block em{font-size:8.5px}
 body.touch .end-badge{padding:9px 12px;margin:12px 0 2px}
 body.touch .help-grid{grid-template-columns:1fr;gap:12px}
 body.touch .help-grid .hr{font-size:11px;line-height:1.8}

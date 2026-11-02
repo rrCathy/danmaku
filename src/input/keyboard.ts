@@ -9,8 +9,8 @@ import { toast } from '../ui/toast';
 import { opts, state } from '../state';
 import { flags } from './flags';
 import {
-  cycleCam, cycleTrail, enterOrbit, restartLast, startGame, toggleMini,
-  togglePause, togglePolar
+  cycleCam, cycleTrail, enterOrbit, restartLast, startGame,
+  toggleGuides, toggleHitbox, toggleMini, togglePause, togglePolar, toggleShadows
 } from '../ui/flow';
 import { closeHelp, isHelpOpen, toggleHelp } from '../ui/overlays';
 
@@ -49,9 +49,9 @@ export function initKeyboard(): void {
     if (k === 't') cycleTrail();
     if (k === 'm') toggleMini();
     if (k === 'v') togglePolar();
-    if (k === 'g') { opts.shadows = !opts.shadows; toast(opts.shadows ? '地面影子：开' : '地面影子：关', 900, COLORS.player); }
-    if (k === 'h') { opts.guides = !opts.guides; toast(opts.guides ? '高度引导线：开' : '高度引导线：关', 900, COLORS.player); }
-    if (k === 'k') { opts.hitbox = !opts.hitbox; toast(opts.hitbox ? '判定框：显示' : '判定框：隐藏', 900, COLORS.player); }
+    if (k === 'g') toggleShadows();
+    if (k === 'h') toggleGuides();
+    if (k === 'k') toggleHitbox();
     if (k === 'p' && (state === 'playing' || state === 'paused' || state === 'training')) togglePause();
     if (k === '?' || k === '/') toggleHelp();
     if (k === 'escape' && isHelpOpen()) closeHelp();

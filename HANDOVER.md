@@ -1,7 +1,7 @@
-# 2.5E 弹幕 · 项目交接文档
+# 5D 弹幕 · 项目交接文档
 
 > 交接对象：接手这个验证装置的下一个人 / 下一个自己
-> 版本：v1.2　｜　整理时间：2026-11-01
+> 版本：v1.3　｜　整理时间：2026-11-02
 > 仓库：`github.com/rrCathy/danmaku`　｜　线上：<https://rrcathy.github.io/danmaku/>
 
 ---
@@ -27,18 +27,18 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | v1.2 |
+| 版本 | v1.3 |
 | 形态 | **Vite + TypeScript 多模块**，41 个 `.ts` + 2 个 `.css`，零运行时依赖（无 CDN / 字体 / 图片 / WebGL） |
-| 源码规模 | 4,898 行 TS + 430 行 CSS |
-| 构建产物 | `dist/assets/index-*.js` **66.4 KB**（gzip 25.1 KB）+ `index-*.css` 21.8 KB |
-| 难度 | Level 1（16 图案）/ Level 2（21 图案）/ Level 3（27 图案 · 形状弹幕 · 微操） |
-| 渲染 | canvas 2D + 手写透视投影（`project()`），不用 3D 库 |
-| 实测帧率 | **60.4 fps**（1440×900，headless Chromium 软件渲染，8 秒连续作战）；v1.2 复测同实例 D3≈D1（差距 6%），绝对值随整机负载波动 |
+| 源码规模 | 5,068 行 TS + 463 行 CSS |
+| 构建产物 | `dist/assets/index-*.js` **70.9 KB**（gzip 25.7 KB）+ `index-*.css` 23.6 KB |
+| 难度 | Level 1（16 图案）/ Level 2（21 图案）/ Level 3（27 图案 · 形状弹幕 · 微操）；起始页横滚竖卡，LV.4 占位 |
+| 渲染 | canvas 2D + 手写透视投影（`project()`），不用 3D 库；子弹形状 ball/arrow/box/ellip |
+| 实测帧率 | **60.4 fps**（1440×900，headless Chromium 软件渲染，8 秒连续作战）；同实例 D3≈D1（差距 6%），绝对值随整机负载波动 |
 | 运行时错误 | **0**（v0.6 每次开局会留 1 条未捕获的 pointer lock 拒绝，已修） |
-| 退出与暂停 | 对局/训练场都能 `P` 暂停 → 继续 / 重开 / 操作方式 / 返回主界面 |
-| 行为一致性 | **14/14 场景与 v0.6 逐位一致**（`?seq=random`，方法见 §9）—— v1.2 复测仍 14/14 |
+| 退出与暂停 | 对局/训练场都能 `P` 暂停 → 继续 / 重开 / 操作方式 / 返回主界面 + **设置面板**（读 Aid 开关） |
+| 行为一致性 | **14/14 场景与 v0.6 逐位一致**（`?seq=random`，方法见 §9）—— v1.3 复测仍 14/14 |
 | 出招可控 | 固定序列（默认）+ `?seq=random` 回退 + `?seed=` 逐位复现 |
-| 移动端 | 沿用 v0.6 的触屏布局与横竖屏处理，v1.2 已复测 844×390 三卡布局无溢出 |
+| 移动端 | 触屏布局沿用 v0.6；v1.3 已复测 844×390 关卡竖卡 116×128 无溢出 |
 
 ---
 
@@ -398,6 +398,33 @@ auto=1&dbg=1&t=14&pat=sat&drive=wa
 | 手机摇杆不被遮挡 | 训练场取摇杆中心 `elementFromPoint` | 命中 canvas（无覆盖）；按住 0.7 s 位移 5.7 m |
 | 帧率 | 全新 headless 实例 | 60.4 fps（连续两次） |
 
+### v1.3 增量（UI 批量优化 + 碰撞规格 + 子弹形状）
+
+- **游戏名改「5D 弹幕」**（index/README/HANDOVER/package.json；archive 历史基线不动）
+- **起始页关卡横滚竖卡**：`#lvRail` flex + scroll-snap，LV.1/2/3 竖卡（152×176）+ **LV.4 锁定占位卡**（`disabled`，加关卡只复制一张卡 + 加 DIFFICULTIES 条目）
+- **暂停卡设置面板**（`#setGrid`）：地面投影 G / 高度引导线 H / 判定框 K / 俯视雷达 M / 轨迹线 T 五个开关，
+  状态文案实时同步。G/H/K 的 toggle 从 keyboard.ts 内联提为 `flow.ts` 的 `toggleShadows/Guides/Hitbox`，键盘与面板共用
+- **结算改三块大数字**（`.end-hero`）：LV.N 难度章 · 受击次数（无伤金色 `.zero`）· 用时；旧 `endMeta` chips 移除
+- **碰撞规格**（`config.ts: STD_BULLET_D / HITBOX_MIN`）：标准子弹 = 直径 0.42 的球；
+  玩家胶囊 ⊇ 两个直径 0.8×0.42 的球（最小胶囊：半径 0.168、总高 0.672；现有 0.26/1.76 满足）。
+  **是下限约束不是精确尺寸** —— 收紧到最小胶囊会破坏「贴地扫跳 / 高空扫不跳」的平衡
+- **子弹形状**（`Bullet.shape?: 'ball'|'arrow'|'box'|'ellip'` + `len?` 尺寸倍数）：
+  渲染按形状画（箭头=三角+尾杆沿屏幕运动方向、box=砖块、ellip=水滴）；
+  **非球形弹走扫掠双球判定**（头球 + 上一帧位置尾球，防快速弹隧穿），球形弹判定不变。
+  已应用：uprain=arrow / radial=arrow / cone=arrow / downpour=ellip / fountain=ellip / wall+pushWall+jumpWall=box
+
+| 断言 | 做法 | 结果 |
+|---|---|---|
+| 14/14 逐位一致 | `tools/equiv.mjs`（形状字段不进快照比对） | **仍 14/14** |
+| 形状分发正确 | 逐图案 `__dbg.run()` 按 kind 统计 shape | uprain/radial/cone 全 arrow、downpour 16 全 ellip、wall 88 全 box |
+| 设置面板 | 暂停 → 5 按钮状态文案 → 点击翻转 → 快捷键 G 往返 | 全通（em 文案「G · 开/关」实时同步） |
+| 结算大数字 | `__dbg.end(true)` 有伤/无伤两态 | LV.N / 受击 / 用时正确；无伤 `hits=0 .zero` 标题「无伤击破」 |
+| 菜单竖卡 | 桌面 1440×900 + 844×390 | 4 卡 152×176 / 116×128，LV.4 `disabled`，无溢出 |
+
+> 验证工具坑：**合成 KeyboardEvent 必须 `bubbles:true` + 配对 dispatch keyup**，
+> 否则 window 的 keydown handler 收不到 / `keys` 表卡住（表现为"按第二次没反应"）。
+> `.tmp-verify/check-v13c.mjs` 的 `tap()` 是正确写法。
+
 ### v1.2 增量（Level 3 · 形状弹幕 · 微操）
 
 | 断言 | 做法 | 结果 |
@@ -502,6 +529,10 @@ auto=1&dbg=1&t=14&pat=sat&drive=wa
 - **不要动 `project()` 的裁剪阈值**（`CAMERA.near = 0.2`），改了会出现子弹在镜头后方被绘制的诡异现象。
 - **`bullets` 每帧重算 `cls`**，任何新图案如果要按类别做逻辑判断，别依赖出生时的 `cls`。
 - **`Bullet.grav` 是可选重力**：不设 = 匀速直线（全部旧图案）。带 `grav` 的弹要管好落地（`y <= 0.12` 消失）和 `life`，别让它们穿地永生。
+- **碰撞规格在 `config.ts: STD_BULLET_D / HITBOX_MIN`**：标准弹直径 0.42 的球，玩家胶囊 ⊇ 两个 0.8×0.42 球。
+  这是**下限**，别把玩家收紧到最小胶囊 —— 「贴地扫跳 / 高空扫不跳」的教学平衡依赖现有判定尺寸。
+- **`Bullet.shape` 形状系统**：非球形（arrow/box/ellip）走头+尾双球扫掠判定，球形判定不变。
+  新图案要形状就在 `addBullet` 传 `shape` + `len`；判定想变大就调 `r`（形状本身不改判定）。
 - **改数值先看 §5 表**，玩家速度 / 判定半径 / boss 血量三者是调过的平衡。
 - **`src/styles/app.css` 是顺序敏感的**（`body.touch` 与 `@media` 覆盖在前面的桌面规则之后），不要随意调段落顺序。
 - **`state` 只能在 `ui/flow.ts` 里改**（通过 `setState`）；其它模块只读。同理 `clock` 只在 `systems/` 里改。
