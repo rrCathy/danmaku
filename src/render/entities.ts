@@ -346,31 +346,35 @@ export function drawPlayer(p: Projected): void {
 
   ctx.globalAlpha = blink ? 0.45 : 1;
 
-  // 辉光：脚下光晕，定位用
-  const gp = project(PX, PY + 0.78, PZ);
+  // 辉光：躯干中段一圈柔光，远处也能一眼定位自己
+  const gp = project(PX, PY + 1.10, PZ);
   if (gp) {
-    const gr = Math.max(12, 1.0 * s);
+    const gr = Math.max(12, 1.05 * s);
     const g = glowSprite(COLORS.player);
-    ctx.globalAlpha *= 0.38;
+    ctx.globalAlpha *= 0.30;
     ctx.drawImage(g, gp.x - gr, gp.y - gr, gr * 2, gr * 2);
     ctx.globalAlpha = blink ? 0.45 : 1;
   }
 
-  /* 模型比例（世界单位，脚底 y=0）：
-   *   胯 0.50-0.56 r0.155→0.175（封口，接腿）
-   *   短裙 0.50 r0.175 → 0.72 r0.145（腰线）
-   *   躯干：腰 0.72 r0.145 → 胸 0.90 r0.152 → 肩 1.03 r0.155（收腰沙漏）
-   *   颈 1.02-1.13，头球心 1.24 r0.15（头顶 1.39）
-   *   判定胶囊 0.57-1.03（直径 0.26）藏在裙+躯干内部（最窄腰处直径 0.29，余量 0.03） */
+  /* 模型比例（世界单位，脚底 y=0；总高 1.83，约 7.1 头身）：
+   *   腿      0    ~ 0.96
+   *   短裙    0.78 r0.198（下摆）→ 1.14 r0.118（裙腰）
+   *   收腰    1.18 r0.100（最细，直径 0.20 = 肩宽的 0.57）
+   *   上腹    1.28 r0.126
+   *   胸      1.38 r0.152
+   *   肩      1.48 r0.174（肩宽 0.348）
+   *   颈      1.52 ~ 1.62
+   *   头      球心 1.73 r0.128（头宽 0.256 = 肩宽的 0.73，7.3 头身；总高 1.86）
+   * 判定胶囊仍是 0.57~1.03（玩法不动），只在视觉上按"自机判定点"画成小圆环 */
 
-  // 腿（3D 线段，腿根接在裙内、胯部封口处）
+  // 腿（3D 线段，腿根藏在裙内）
   ctx.lineCap = 'round';
   ctx.strokeStyle = 'rgba(96,200,180,0.95)';
-  ctx.lineWidth = Math.max(1.6, 0.055 * s);
+  ctx.lineWidth = Math.max(1.8, 0.072 * s);
   for (let li = 0; li < 2; li++) {
-    const sx = li === 0 ? -0.075 : 0.075;
-    const a = project(PX + sx * 0.7, PY + 0.52, PZ);
-    const b = project(PX + sx, PY + (air ? 0.16 : 0.03), PZ);
+    const sx = li === 0 ? -1 : 1;
+    const a = project(PX + sx * 0.080, PY + 0.98, PZ);
+    const b = project(PX + sx * 0.098, PY + (air ? 0.22 : 0.03), PZ);
     if (a && b) {
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -379,11 +383,11 @@ export function drawPlayer(p: Projected): void {
     }
   }
 
-  // 胯：裙底封口（填充一个水平圆盘，让腿和身体连起来，不露空腔）
-  const hipBot = ringPts(PX, PZ, PY + 0.50, 0.155, 10);
-  const hipTop = ringPts(PX, PZ, PY + 0.56, 0.175, 10);
+  // 胯：裙底封口（实心盘，遮住裙内空腔，让腿和身体连成一体）
+  const hipBot = ringPts(PX, PZ, PY + 0.76, 0.150, 10);
+  const hipTop = ringPts(PX, PZ, PY + 0.80, 0.186, 10);
   if (hipBot && hipTop) {
-    ctx.fillStyle = 'rgba(34,104,96,0.96)';
+    ctx.fillStyle = 'rgba(30,96,90,0.97)';
     for (let i = 0; i < 10; i++) {
       const j = (i + 1) % 10;
       ctx.beginPath();
@@ -396,39 +400,43 @@ export function drawPlayer(p: Projected): void {
     }
   }
 
-  // 短裙（0.50 胯底 → 0.72 收腰 r0.145）：只到大腿根，不要拖到胸口
-  band(PX, PZ, PY + 0.50, 0.175, PY + 0.72, 0.145, 10, 'rgba(52,150,138,0.94)', 'rgba(150,255,230,0.45)');
+  // 短裙：下摆 0.94 r0.196 → 裙腰 1.14 r0.118（只到大腿根）
+  band(PX, PZ, PY + 0.78, 0.198, PY + 1.14, 0.118, 12, 'rgba(46,140,130,0.95)', 'rgba(150,255,230,0.40)');
 
-  // 腰（收腰）：0.72 r0.145 → 0.90 r0.152
-  band(PX, PZ, PY + 0.72, 0.145, PY + 0.90, 0.152, 10, 'rgba(96,214,190,0.95)', 'rgba(190,255,240,0.5)');
+  // 躯干：7 段拟合沙漏（腰 1.18 r0.100 → 胸 1.38 r0.152 → 肩 1.48 r0.174）
+  band(PX, PZ, PY + 1.14, 0.118, PY + 1.18, 0.100, 12, 'rgba(88,206,182,0.96)');
+  band(PX, PZ, PY + 1.18, 0.100, PY + 1.28, 0.126, 12, 'rgba(92,210,186,0.96)');
+  band(PX, PZ, PY + 1.28, 0.126, PY + 1.38, 0.152, 12, 'rgba(96,214,190,0.96)');
+  band(PX, PZ, PY + 1.38, 0.152, PY + 1.48, 0.174, 12, 'rgba(100,218,194,0.96)');
+  // 肩顶：两级收弧，做出圆肩（避免一条平盖子）
+  band(PX, PZ, PY + 1.48, 0.174, PY + 1.52, 0.136, 12, 'rgba(120,226,202,0.96)', 'rgba(226,255,246,0.35)');
+  band(PX, PZ, PY + 1.52, 0.136, PY + 1.55, 0.078, 12, 'rgba(150,236,214,0.95)');
 
-  // 胸 → 肩：0.90 r0.152 → 1.03 r0.155
-  band(PX, PZ, PY + 0.90, 0.152, PY + 1.03, 0.155, 10, 'rgba(96,214,190,0.95)', 'rgba(190,255,240,0.6)');
-
-  // 领口/肩线：一条亮环
-  band(PX, PZ, PY + 1.00, 0.156, PY + 1.04, 0.138, 10, 'rgba(232,255,248,0.95)');
-
-  // 手臂（肩略窄、手收进来一点）
+  // 手臂（肩 → 手，末端一个小手圆点；跳跃时抬成 V 字）
   ctx.strokeStyle = 'rgba(140,240,215,0.95)';
-  ctx.lineWidth = Math.max(1.4, 0.042 * s);
+  ctx.lineWidth = Math.max(1.4, 0.050 * s);
   for (let ai = 0; ai < 2; ai++) {
     const sx = ai === 0 ? -1 : 1;
-    const a = project(PX + sx * 0.142, PY + 1.00, PZ);
-    const b = project(PX + sx * 0.235, PY + (air ? 1.10 : 0.70), PZ);
+    const a = project(PX + sx * 0.162, PY + 1.44, PZ);
+    const b = project(PX + sx * (air ? 0.30 : 0.238), PY + (air ? 1.56 : 1.00), PZ);
     if (a && b) {
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, Math.max(1.2, 0.026 * s), 0, TAU);
+      ctx.fillStyle = 'rgba(170,250,228,0.95)';
+      ctx.fill();
     }
   }
 
   // 颈
-  const na = project(PX, PY + 1.02, PZ);
-  const nb = project(PX, PY + 1.13, PZ);
+  const na = project(PX, PY + 1.52, PZ);
+  const nb = project(PX, PY + 1.62, PZ);
   if (na && nb) {
-    ctx.strokeStyle = 'rgba(210,255,240,0.9)';
-    ctx.lineWidth = Math.max(1.2, 0.035 * s);
+    ctx.strokeStyle = 'rgba(210,255,240,0.92)';
+    ctx.lineWidth = Math.max(1.4, 0.048 * s);
     ctx.beginPath();
     ctx.moveTo(na.x, na.y);
     ctx.lineTo(nb.x, nb.y);
@@ -436,9 +444,9 @@ export function drawPlayer(p: Projected): void {
   }
 
   // 头（球：投影中心 + 半径，俯视永远是个圆）
-  const head = project(PX, PY + 1.24, PZ);
+  const head = project(PX, PY + 1.73, PZ);
   if (head) {
-    const hr = Math.max(2.4, 0.155 * (head.s || s));
+    const hr = Math.max(2.2, 0.128 * (head.s || s));
     ctx.beginPath();
     ctx.arc(head.x, head.y, hr, 0, TAU);
     ctx.fillStyle = 'rgba(245,255,252,0.98)';
@@ -448,9 +456,9 @@ export function drawPlayer(p: Projected): void {
     ctx.stroke();
     // 刘海：头顶前半圈的一道弧，给一点朝向感
     ctx.beginPath();
-    ctx.arc(head.x, head.y, hr * 0.72, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.arc(head.x, head.y, hr * 0.68, Math.PI * 1.16, Math.PI * 1.84);
     ctx.strokeStyle = 'rgba(90,200,180,0.85)';
-    ctx.lineWidth = Math.max(1, hr * 0.22);
+    ctx.lineWidth = Math.max(1, hr * 0.18);
     ctx.stroke();
   }
 
@@ -470,15 +478,14 @@ export function drawPlayer(p: Projected): void {
     }
   }
 
-  // 判定胶囊（B 开关）：光棒 + 核心点 —— 完全在模型身体内部
+  // 判定（B 开关）：东方自机式「判定点」——小圆环，不是糊在身上的白斑
   if (opts.playerBox) {
     const b0 = project(PX, PY + PLAYER.bodyLow, PZ);
     const b1 = project(PX, PY + PLAYER.bodyHigh, PZ);
     if (b0 && b1) {
-      const r0 = Math.max(2, PLAYER.hitR * b0.s);
       // 擦弹圈（K）：判定胶囊外扩 GRAZE_R 的柔光壳
       if (opts.hitbox) {
-        ctx.strokeStyle = 'rgba(255,214,120,0.16)';
+        ctx.strokeStyle = 'rgba(255,214,120,0.14)';
         ctx.lineWidth = Math.max(4, (PLAYER.hitR + GRAZE_R) * 2 * b0.s);
         ctx.lineCap = 'round';
         ctx.beginPath();
@@ -486,25 +493,25 @@ export function drawPlayer(p: Projected): void {
         ctx.lineTo(b1.x, b1.y);
         ctx.stroke();
       }
-      // 判定光棒
-      ctx.strokeStyle = 'rgba(255,255,255,0.26)';
-      ctx.lineWidth = r0 * 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(b0.x, b0.y);
-      ctx.lineTo(b1.x, b1.y);
-      ctx.stroke();
-      // 核心点
+      // 判定点：东方式小判定点（白圈 + 品红核心）。
+      // 只标"命门在哪"，不按胶囊半径画大圆 —— 判定胶囊的横向范围由 K 的擦弹壳表达
       const cx = (b0.x + b1.x) / 2, cy = (b0.y + b1.y) / 2;
+      const cr = Math.max(2.2, 0.048 * b0.s);
       ctx.beginPath();
-      ctx.arc(cx, cy, Math.max(2, r0 * 0.5), 0, TAU);
-      ctx.fillStyle = 'rgba(240,255,252,0.98)';
+      ctx.arc(cx, cy, cr, 0, TAU);
+      ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+      ctx.lineWidth = Math.max(1, cr * 0.34);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.max(0.9, cr * 0.42), 0, TAU);
+      ctx.fillStyle = 'rgba(255,110,160,0.95)';
       ctx.fill();
     }
   }
 
   ctx.globalAlpha = 1;
 }
+
 export function drawBoss(p: Projected): void {
   const rad = 1.25 * p.s;
   const flash = boss.flash > 0;
