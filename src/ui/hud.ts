@@ -3,7 +3,7 @@ import { DIFFICULTIES, ROUND } from '../config';
 import { polar } from '../core/camera';
 import { clamp } from '../core/math';
 import { PATTERN_LABELS } from '../patterns/sequence';
-import { boss, clock, player, session, state, stats, training } from '../state';
+import { boss, clock, freeze, player, session, state, stats, training } from '../state';
 import { dashButtonEl } from '../input/touch';
 import { camSubEl, el } from './dom';
 
@@ -37,7 +37,8 @@ export function updateHud(): void {
 
   if (inTraining) {
     el.phaseTag.textContent = '训练 · ' + PATTERN_LABELS[training.pattern].name +
-      ' · 弹速 ' + (training.speed * session.bulletSpeed).toFixed(2).replace(/\.?0+$/, '') + '×';
+      ' · 弹速 ' + (training.speed * session.bulletSpeed).toFixed(2).replace(/\.?0+$/, '') + '×' +
+      (freeze.on ? ' · 定格中（F 解除 · 转视角看子弹）' : ' · F 定格');
   } else {
     el.phaseTag.textContent = 'PHASE ' + boss.phase + ' · ' +
       DIFFICULTIES[session.difficulty].name + ' · GRAZE ' + stats.graze + (boss.enraged ? ' · 狂暴' : '');

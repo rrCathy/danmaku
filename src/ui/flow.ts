@@ -8,12 +8,13 @@ import { COLORS } from '../core/color';
 import { isTouch } from '../core/device';
 import { flags } from '../input/flags';
 import { look, lookHintOn, reqLock } from '../input/pointer';
-import { boss, bullets, clock, opts, player, reset, session, setState, state, stats, training } from '../state';
+import { boss, bullets, clock, freeze, opts, player, reset, session, setState, state, stats, training } from '../state';
 import { clearField, selectPattern } from '../systems/training';
 import { initTrainPanel, openTrainPick, refreshTrainPanel } from './training';
 import { initOverlays, syncOverlays } from './overlays';
 import type { DifficultyKey, EndReason, PatternName } from '../types';
 import { el } from './dom';
+import { updateHud } from './hud';
 import { toast } from './toast';
 import { allAchievements, unlockNoHit } from './achievements';
 
@@ -133,6 +134,14 @@ export function toggleHitbox(): void {
   opts.hitbox = !opts.hitbox;
   toast(opts.hitbox ? '擦弹圈：显示' : '擦弹圈：隐藏', 900, COLORS.player);
   syncSettings();
+}
+
+/** 训练场定格：冻结时间但保留相机控制，用来从各角度观察子弹的 3D 建模 */
+export function toggleFreeze(): void {
+  if (state !== 'training') return;
+  freeze.on = !freeze.on;
+  toast(freeze.on ? '定格：开 · 转视角看子弹' : '定格：关', 1000, COLORS.player);
+  updateHud();
 }
 
 /* ============ 暂停卡 · 设置面板 ============ */

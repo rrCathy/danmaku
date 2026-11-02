@@ -19,7 +19,7 @@ import { cam, updateCamera } from './core/camera';
 import { canvas, H, W, onAfterResize, resize } from './core/screen';
 import { isTouch } from './core/device';
 import { heightRGB } from './core/color';
-import { boss, bullets, clock, later, lasers, player, reset, rings, session, state, stats, training, walls } from './state';
+import { boss, bullets, clock, freeze, later, lasers, player, reset, rings, session, state, stats, training, walls } from './state';
 import { getSeed, setSeed } from './core/random';
 import { SEQUENCES, getSequenceMode, setSequenceMode, sequenceFor } from './patterns/sequence';
 import { setSpeed } from './systems/training';
@@ -45,7 +45,8 @@ function frame(t: number): void {
   lastT = t;
   const rdt = Math.min(0.05, Math.max(0, raw));
 
-  if (state === 'playing' || state === 'training') {
+  // 训练场定格（F）：时间冻结、相机仍可转 —— 用来看子弹的 3D 建模
+  if ((state === 'playing' || state === 'training') && !(freeze.on && state === 'training')) {
     clock.slowT = Math.max(0, clock.slowT - rdt);
     const dt = rdt * (clock.slowT > 0 ? 0.3 : 1);
     updateGame(dt);

@@ -42,6 +42,9 @@ export const training = {
   nextIn: 0
 };
 
+/** 训练场定格（F）：冻结时间但保留相机控制，用来看子弹的 3D 建模 */
+export const freeze = { on: false };
+
 /* ============ 会话模式 ============ */
 /** 本局是正常对局还是训练场：暂停卡的重开、选招区的显隐都看它 */
 export const session = {
@@ -53,7 +56,7 @@ export const session = {
 };
 
 /* ============ 开关 ============ */
-export const opts = { shadows: true, guides: true, hitbox: false, trailMode: 1, mini: true };
+export const opts = { shadows: true, guides: true, hitbox: true, trailMode: 1, mini: true };
 
 /* ============ 流程状态 ============ */
 export let state: GameState = 'menu';
@@ -119,6 +122,7 @@ export function reset(): void {
   logs = [];
   ghosts.length = 0;
   stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0, graze: 0, grazeHead: 0, grazeFoot: 0, grazeBody: 0 };
+  freeze.on = false;
   clock.elapsed = 0;
   clock.timeLeft = ROUND.time;
   clock.slowT = 0;
