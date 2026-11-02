@@ -605,16 +605,25 @@ export function coneBurst(): void {
  * 两种都有，要求「跟着节奏跳、跟着节奏落」。
  * ============================================================ */
 
-/** 自机狙：每发都瞄玩家当前位置，不预判 —— 一直走就能甩开 */
+/**
+ * 自机狙：4 轮 × 3 发（低 0.55 / 中 1.55 / 高 2.30），带 0.25s 提前量、速度 15。
+ * 低发要跳、高发不能跳、中发两边都安全 —— 每轮都逼你选一次，不是"一直走就能躲"。
+ */
 export function aimedShot(): void {
-  const n = 6;
+  const rounds = 4;
   boss.flash = 0.4;
-  for (let i = 0; i < n; i++) {
-    later(0.3 + i * 0.15, function () {
+  for (let r = 0; r < rounds; r++) {
+    later(0.28 + r * 0.22, function () {
       if (!boss.alive) return;
-      const ty = player.y + 0.8;
-      const v = aimVel(boss, player.x, ty, player.z, 13);
-      addBullet(boss.x, boss.y, boss.z, v.x, v.y, v.z, 0.19, clsOf(ty), 'aim');
+      const lead = 0.25;
+      const tx = player.x + player.vx * lead;
+      const tz = player.z + player.vz * lead;
+      const hs = [0.55, 1.55, 2.3];
+      for (let i = 0; i < 3; i++) {
+        const ty = hs[i];
+        const v = aimVel(boss, tx, ty, tz, 15);
+        addBullet(boss.x, boss.y, boss.z, v.x, v.y, v.z, 0.19, clsOf(ty), 'aim');
+      }
     });
   }
 }
@@ -638,43 +647,65 @@ export function randomShot(): void {
   }
 }
 
-/** 烟雾弹：一点爆开，弹幕减速滞空、缓慢下沉 —— 覆盖一大片，绕远点 */
+/** 烟雾弹：三个爆点围着玩家各点开花 —— 不是一朵烟飘过场 */
 export function smokeShot(): void {
-  const cx = player.x + rand(-1.6, 1.6);
-  const cz = player.z + rand(-1.6, 1.6);
-  rings.push({ x: cx, z: cz, r: 4.2, t: 0.7, dur: 0.7, cls: 'mine' });
+  const points = 3;
   boss.flash = 0.45;
-  later(0.7, function () {
-    if (!boss.alive) return;
-    for (let i = 0; i < 44; i++) {
-      const a = random() * TAU;
-      const el = rand(-0.1, 0.7);               // 略偏上，炸成一团烟
-      const sp = rand(2.4, 4.8);                // 扩散直径 ≈ 7m，不会糊满半个场地
-      const ce = Math.cos(el);
-      addBullet(cx, 0.9, cz, Math.cos(a) * ce * sp, Math.sin(el) * sp, Math.sin(a) * ce * sp,
-        0.22, 'mid', 'smoke');
-      const b = bullets[bullets.length - 1];
-      b.life = 3.2;
-    }
-    for (let k = 0; k < 12; k++) spawnSpark(cx, 0.9, cz, '190,205,225', 1.3);
-  });
+  for (let p = 0; p < points; p++) {
+    later(p * 0.26, (function (idx) {
+      return function () {
+        if (!boss.alive) return;
+        const a = random() * TAU;
+        const rr = rand(2.2, 4.6);
+        const cx = player.x + Math.cos(a) * rr;
+        const cz = player.z + Math.sin(a) * rr;
+        if (Math.hypot(cx, cz) > ARENA_R - 1.5) return;
+        rings.push({ x: cx, z: cz, r: 3.4, t: 0.55, dur: 0.55, cls: 'mine' });
+        later(0.55, function () {
+          if (!boss.alive) return;
+          for (let i = 0; i < 20; i++) {
+            const b2 = random() * TAU;
+            const el = rand(-0.1, 0.7);
+            const sp = rand(2.4, 4.8);
+            const ce = Math.cos(el);
+            addBullet(cx, 0.9, cz, Math.cos(b2) * ce * sp, Math.sin(el) * sp, Math.sin(b2) * ce * sp,
+              0.22, 'mid', 'smoke');
+            const b = bullets[bullets.length - 1];
+            b.life = 3.2;
+          }
+          for (let k = 0; k < 8; k++) spawnSpark(cx, 0.9, cz, '190,205,225', 1.2);
+        });
+      };
+    })(p));
+  }
 }
 
-/** 闪电：落点圈只亮 0.35s，落速 −34 —— 比落点雨狠一档，靠反应 */
+/**
+ * 闪电：以玩家为中心铺三圈落点 —— 中心 1 个 + 内环 6 + 外环 10。
+ * 中心那颗逼你起步，外圈把大的走位空间封掉；每圈同时落，像一圈雷围过来。
+ */
 export function lightning(): void {
-  const n = 6;
-  for (let i = 0; i < n; i++) {
-    const x = player.x + rand(-1.6, 1.6);
-    const z = player.z + rand(-1.6, 1.6);
-    if (Math.hypot(x, z) > ARENA_R - 1.5) continue;
-    const delay = 0.35 + i * 0.085;
-    rings.push({ x: x, z: z, r: 1.0, t: delay, dur: delay });
-    later(delay, (function (xx, zz) {
-      return function () {
-        addBullet(xx, 9.5, zz, 0, -34, 0, 0.2, 'rain', 'lightning');
-        for (let k = 0; k < 6; k++) spawnSpark(xx, 9.5, zz, '255,240,180', 1.2);
-      };
-    })(x, z));
+  const base = random() * TAU;
+  const tiers = [
+    { r: 0.0, n: 1, delay: 0.35 },
+    { r: 3.6, n: 6, delay: 0.45 },
+    { r: 7.2, n: 10, delay: 0.55 }
+  ];
+  for (let ti = 0; ti < tiers.length; ti++) {
+    const t = tiers[ti];
+    for (let i = 0; i < t.n; i++) {
+      const a = base + (i / t.n) * TAU;
+      const x = player.x + Math.cos(a) * t.r;
+      const z = player.z + Math.sin(a) * t.r;
+      if (Math.hypot(x, z) > ARENA_R - 1.5) continue;
+      rings.push({ x: x, z: z, r: 1.0, t: t.delay, dur: t.delay });
+      later(t.delay, (function (xx, zz) {
+        return function () {
+          addBullet(xx, 9.5, zz, 0, -34, 0, 0.2, 'rain', 'lightning');
+          for (let k = 0; k < 4; k++) spawnSpark(xx, 9.5, zz, '255,240,180', 1.0);
+        };
+      })(x, z));
+    }
   }
 }
 
@@ -743,6 +774,40 @@ export function waveShot(): void {
       b.life = 3.2;
     }
   }
+}
+
+/**
+ * 波纹：往水里丢石头的那种同心波。
+ *
+ * 三圈弹从落点向外扩散，高度按 y = 1.45 + 1.15·sin(1.7r − 10.2t) 走。
+ * 弹的径向速度 6 = 波速 ω/k（10.2/1.7 = 6），所以每圈弹在传播中保持自己的高度，
+ * 看起来是一圈高、一圈低的浪头往外推，而不是一条线扫过场地。
+ */
+export function rippleShot(): void {
+  const cx = player.x + rand(-1.5, 1.5);
+  const cz = player.z + rand(-1.5, 1.5);
+  const layers = 7;          // 七圈才看得出"一圈高、一圈低"的波纹
+  const n = 26;
+  boss.flash = 0.45;
+  rings.push({ x: cx, z: cz, r: 1.2, t: 0.25, dur: 0.25, cls: 'mine' });
+  for (let L = 0; L < layers; L++) {
+    const r0 = 1.2 + L * 1.3;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * TAU;
+      addBullet(cx + Math.cos(a) * r0, 1.45, cz + Math.sin(a) * r0, 0, 0, 0,
+        0.2, 'mid', 'ripple');
+      const b = bullets[bullets.length - 1];
+      b.ripA = a;
+      b.ripR = r0;
+      b.ripV = 6.0;
+      b.ripX = cx;
+      b.ripZ = cz;
+      b.life = 3.4;
+    }
+  }
+  later(0.25, function () {
+    for (let k = 0; k < 10; k++) spawnSpark(cx, 0.4, cz, '120,200,255', 1.2);
+  });
 }
 
 /** 扫描线：三道不同角度的低墙（相差 60°）依次扫过 —— 交叉扫描，跳的时机各不同 */
@@ -822,22 +887,25 @@ export function pinwheelShot(): void {
   }
 }
 
-/** 东方对称：16 向环，低/高交替，第二波把角度错半格 —— 跳低臂、落高臂 */
+/** 东方对称：16 向 × 3 圈 × 2 波，低/高交替 —— 跳低臂、落高臂 */
 export function tohoRing(): void {
   const n = 16;
-  const waves = boss.phase >= 3 ? 2 : 1;
+  const layers = 3;
+  const waves = 2;
   boss.flash = 0.5;
   for (let wv = 0; wv < waves; wv++) {
     later(0.35 + wv * 0.8, (function (phase) {
       return function () {
         if (!boss.alive) return;
-        for (let i = 0; i < n; i++) {
-          const a = phase + (i / n) * TAU;
-          const y = i % 2 === 0 ? 0.5 : 2.3;
-          const sp = 7.2;
-          // 起点给 1.6m 半径：玩家正好站中心时也不会"出生即命中"
-          addBullet(Math.cos(a) * 1.6, y, Math.sin(a) * 1.6,
-            Math.cos(a) * sp, 0, Math.sin(a) * sp, 0.2, clsOf(y), 'toho');
+        for (let L = 0; L < layers; L++) {
+          const r0 = 1.8 + L * 1.5;
+          for (let i = 0; i < n; i++) {
+            const a = phase + (i / n) * TAU;
+            const y = i % 2 === 0 ? 0.5 : 2.3;
+            const sp = 7.2;
+            addBullet(Math.cos(a) * r0, y, Math.sin(a) * r0,
+              Math.cos(a) * sp, 0, Math.sin(a) * sp, 0.2, clsOf(y), 'toho');
+          }
         }
       };
     })((wv * Math.PI) / n));

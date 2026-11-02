@@ -80,13 +80,13 @@ export const SEQUENCES_D3: Record<number, PatternName[]> = {
  * 再教"跳"（波浪/龙骨炮/扫描线/风车），最后叠成节奏（堆叠/东方对称）。
  */
 export const SEQUENCES_D4: Record<number, PatternName[]> = {
-  // P1：环 + 一次波浪。环类同场也好看（同心的），所以敢让它们隔一招
-  1: ['toho', 'lightning', 'wave', 'aimed', 'ring', 'smoke'],
-  // P2：**只放推进类**（波浪 / 龙骨炮 / 扫描线），中间必定隔一个点状招；
+  // P1：**波纹开场**（一圈圈推开），老招 sweepLow / spread 做锚，中间用点状招透气
+  1: ['ripple', 'sweepLow', 'lightning', 'aimed', 'toho', 'smoke', 'ring', 'spread'],
+  // P2：**只放推进类**（扫描线 / 龙骨炮），sweepHigh 做「别跳」的反面教材；
   //     不含风车 —— 风车在 P3，扫描线在 P2，两者永不同场
-  2: ['wave', 'smoke', 'gaster', 'aimed', 'sweepLine', 'lightning'],
-  // P3：**只放环 / 旋转类**（堆叠 / 风车 / 东方对称），不放扫描线和波浪
-  3: ['stack', 'grenade', 'pinwheel', 'smoke', 'toho', 'lightning', 'aimed', 'random']
+  2: ['sweepLine', 'smoke', 'gaster', 'aimed', 'sweepHigh', 'lightning'],
+  // P3：**只放环 / 旋转类**（堆叠 / 风车 / 花瓣 / 放射），不放扫描线和波浪
+  3: ['stack', 'grenade', 'pinwheel', 'smoke', 'petal', 'lightning', 'radial', 'aimed']
 };
 
 export function sequenceFor(phase: number, difficulty: DifficultyKey = 1): PatternName[] {
@@ -141,5 +141,6 @@ export const PATTERN_LABELS: Record<PatternName, { name: string; hint: string }>
   gaster: { name: '龙骨炮', hint: '一束粗弹贴地推过来 —— 跳过它，或离开这条线' },
   pinwheel: { name: '风车', hint: '高低臂交替旋转 —— 跟着臂缝走，别乱跳' },
   toho: { name: '东方对称', hint: '16 向高低交替 —— 跳低臂、落高臂' },
-  stack: { name: '堆叠', hint: '三层交错 + 高空钉 —— 必须跳，但别一直跳' }
+  stack: { name: '堆叠', hint: '三层交错 + 高空钉 —— 必须跳，但别一直跳' },
+  ripple: { name: '波纹', hint: '像水里丢石头，一圈高、一圈低往外推 —— 低的那圈跳过去' }
 };

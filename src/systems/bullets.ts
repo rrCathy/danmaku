@@ -232,6 +232,17 @@ export function updateBullets(dt: number): void {
       b.z += b.vz * dt;
     }
 
+    // 同心波纹：半径按 ripV 扩散，位置由极坐标重算（不走速度积分）
+    if (b.kind === 'ripple' && b.ripR !== undefined) {
+      b.ripR += (b.ripV || 0) * dt;
+      b.x = (b.ripX || 0) + Math.cos(b.ripA || 0) * b.ripR;
+      b.z = (b.ripZ || 0) + Math.sin(b.ripA || 0) * b.ripR;
+      if (b.ripR > ARENA_R + 3) {
+        bullets.splice(i, 1);
+        continue;
+      }
+    }
+
     // 扫描线：沿自己速度方向在 [oscLo, oscHi] 之间往返（支持任意角度，不再只限 x 轴）
     if (b.kind === 'sweepLine' && b.oscLo !== undefined && b.oscHi !== undefined) {
       const sp = Math.hypot(b.vx, b.vz) || 1;
@@ -252,6 +263,11 @@ export function updateBullets(dt: number): void {
     if (b.kind === 'wave') {
       b.y = 1.45 + 1.15 * Math.sin((b.waveP || 0) + 2.4 * clock.elapsed)
         + 0.18 * Math.sin(b.waveU || 0);
+    }
+
+    // 波纹：高度跟着"半径 − 波速×时间"走，一圈高、一圈低地往外推
+    if (b.kind === 'ripple' && b.ripR !== undefined) {
+      b.y = 1.45 + 1.15 * Math.sin(1.7 * b.ripR - 10.2 * clock.elapsed);
     }
 
     b.life -= dt;

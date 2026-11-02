@@ -13,7 +13,7 @@ import { fanShot, ringShot, spreadShot } from './emitters';
 import {
   aimedShot, coneBurst, counterSpiral, diveShot, downpour, feint, fountain, gasterBlast,
   gate, grenadeShot, jumpWall, laserSweep, lightning, lowHigh, mineShot, orbitShot,
-  petalRing, pinwheelShot, radialRays, rainShot, randomShot, risenare, riseShot,
+  petalRing, pinwheelShot, radialRays, rainShot, randomShot, rippleShot, risenare, riseShot,
   satBurst, smokeShot, sniper, spiralShot, stackWaves, stairShot, sweepLineShot,
   tohoRing, uprain, wallShot, waveShot
 } from './shots';
@@ -66,7 +66,7 @@ export const ALL_PATTERNS: PatternName[] = [
   'petal', 'radial', 'downpour', 'fountain', 'uprain', 'cone',
   // 难度 4（跳跃必要性）
   'aimed', 'random', 'smoke', 'lightning', 'grenade',
-  'wave', 'sweepLine', 'gaster', 'pinwheel', 'toho', 'stack'
+  'wave', 'ripple', 'sweepLine', 'gaster', 'pinwheel', 'toho', 'stack'
 ];
 
 /**
@@ -118,12 +118,16 @@ export function runPattern(name: PatternName | string): void {
       boss.flash = 0.45;
       later(0.45, orbitShot);
       break;
-    case 'ring':
+    case 'ring': {
+      // L4 用 32 颗 × 3 层：20 颗在 18m 场地上间距 5.6m，看着像稀疏的点
+      const dense = session.difficulty === 4;
+      const cnt = dense ? 32 : 20;
       boss.flash = 0.4;
-      later(0.4, function () { ringShot(boss, 0.55, 20, 9.5, 0.22); });
-      later(0.75, function () { ringShot(boss, 1.05, 20, 8.8, 0.22); });
-      if (boss.phase >= 3) later(1.1, function () { ringShot(boss, 2.3, 20, 8.2, 0.24); });
+      later(0.4, function () { ringShot(boss, 0.55, cnt, 9.5, 0.22); });
+      later(0.75, function () { ringShot(boss, 1.05, cnt, 8.8, 0.22); });
+      if (dense || boss.phase >= 3) later(1.1, function () { ringShot(boss, 2.3, cnt, 8.2, 0.24); });
       break;
+    }
     case 'spiral':
       boss.flash = 0.4;
       later(0.4, spiralShot);
@@ -222,6 +226,9 @@ export function runPattern(name: PatternName | string): void {
       break;
     case 'wave':
       waveShot();
+      break;
+    case 'ripple':
+      rippleShot();
       break;
     case 'sweepLine':
       sweepLineShot();

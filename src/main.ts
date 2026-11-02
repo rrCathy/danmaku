@@ -104,7 +104,7 @@ const PAT_ALIAS: Record<string, PatternName> = {
   aim: 'aimed', aimed: 'aimed', random: 'random', rand: 'random',
   smoke: 'smoke', lightning: 'lightning', bolt: 'lightning', grenade: 'grenade',
   wave: 'wave', sweepline: 'sweepLine', gaster: 'gaster',
-  pinwheel: 'pinwheel', toho: 'toho', stack: 'stack'
+  pinwheel: 'pinwheel', toho: 'toho', stack: 'stack', ripple: 'ripple'
 };
 
 function resolvePattern(raw: string): PatternName | undefined {

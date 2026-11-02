@@ -58,7 +58,9 @@ export type BulletKind =
   /** 东方对称：高低交替的对称弹幕 */
   | 'toho'
   /** 堆叠：多层交错弹幕 + 高钉惩罚乱跳 */
-  | 'stack';
+  | 'stack'
+  /** 同心波纹：像往水里丢石头，一圈圈向外推开 */
+  | 'ripple';
 
 export interface Bullet {
   x: number; y: number; z: number;
@@ -96,6 +98,12 @@ export interface Bullet {
   /** 波浪：空间纹理相位 + 排相位。y 每帧按 sin(waveP + ω·t) 同步脉动 —— 整排同高，站哪都不行 */
   waveU?: number;
   waveP?: number;
+  /** 同心波纹：绕 (ripX, ripZ) 的极坐标。半径按 ripV 扩散，高度随 半径/时间 做正弦 */
+  ripA?: number;
+  ripR?: number;
+  ripV?: number;
+  ripX?: number;
+  ripZ?: number;
   trail: number[] | null;
   tk: number;
 }
@@ -231,7 +239,7 @@ export type PatternName =
   | 'petal' | 'radial' | 'downpour' | 'fountain' | 'uprain' | 'cone'
   // 第四难度（跳跃必要性）新增
   | 'aimed' | 'random' | 'smoke' | 'lightning' | 'grenade'
-  | 'wave' | 'sweepLine' | 'gaster' | 'pinwheel' | 'toho' | 'stack';
+  | 'wave' | 'sweepLine' | 'gaster' | 'pinwheel' | 'toho' | 'stack' | 'ripple';
 
 /** 难度编号。1 = 标准，2 = 高压，3 = 形状微操，4 = 跳跃必要性 */
 export type DifficultyKey = 1 | 2 | 3 | 4;
