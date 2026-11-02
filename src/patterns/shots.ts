@@ -595,6 +595,244 @@ export function coneBurst(): void {
   }
 }
 
+/* ============================================================
+ * 难度 4：跳跃必要性（v1.15）
+ *
+ * 设计口径：站立判定 0.57~1.03，跳起判定 2.21~2.67。所以
+ *   低空弹（y≈0.5）站着重、跳起躲  → 逼你跳
+ *   高弹（y≈2.35）站着躲、跳起重   → 惩罚乱跳
+ * 每一招都至少包含其中一种；成对出现的（波浪 / 堆叠 / 东方对称 / 风车）
+ * 两种都有，要求「跟着节奏跳、跟着节奏落」。
+ * ============================================================ */
+
+/** 自机狙：每发都瞄玩家当前位置，不预判 —— 一直走就能甩开 */
+export function aimedShot(): void {
+  const n = boss.phase >= 3 ? 6 : 4;
+  boss.flash = 0.4;
+  for (let i = 0; i < n; i++) {
+    later(0.32 + i * 0.17, function () {
+      if (!boss.alive) return;
+      const ty = player.y + 0.8;
+      const v = aimVel(boss, player.x, ty, player.z, 13);
+      addBullet(boss.x, boss.y, boss.z, v.x, v.y, v.z, 0.19, clsOf(ty), 'aim');
+    });
+  }
+}
+
+/** 随机弹：朝玩家一侧半圆里散开，速度/仰角都随机 —— 读密度找缝 */
+export function randomShot(): void {
+  const waves = boss.phase >= 3 ? 3 : 2;
+  boss.flash = 0.45;
+  const base = Math.atan2(player.z - boss.z, player.x - boss.x);
+  for (let w = 0; w < waves; w++) {
+    later(0.3 + w * 0.42, function () {
+      if (!boss.alive) return;
+      for (let i = 0; i < 12; i++) {
+        const a = base + rand(-0.85, 0.85);
+        const sp = rand(6.0, 9.0);
+        const vy = rand(-0.38, -0.12) * sp;
+        addBullet(boss.x, boss.y, boss.z, Math.cos(a) * sp, vy, Math.sin(a) * sp,
+          0.19, clsOf(boss.y), 'rand');
+      }
+    });
+  }
+}
+
+/** 烟雾弹：一点爆开，弹幕迅速减速滞空、缓慢下沉 —— 绕开那团云 */
+export function smokeShot(): void {
+  const cx = player.x + rand(-1.6, 1.6);
+  const cz = player.z + rand(-1.6, 1.6);
+  rings.push({ x: cx, z: cz, r: 2.6, t: 0.7, dur: 0.7, cls: 'mine' });
+  boss.flash = 0.45;
+  later(0.7, function () {
+    if (!boss.alive) return;
+    for (let i = 0; i < 26; i++) {
+      const a = random() * TAU;
+      const el = rand(-0.15, 1.0);              // 偏上，炸成一团
+      const sp = rand(1.4, 3.6);
+      const ce = Math.cos(el);
+      addBullet(cx, 0.9, cz, Math.cos(a) * ce * sp, Math.sin(el) * sp, Math.sin(a) * ce * sp,
+        0.22, 'mid', 'smoke');
+    }
+    for (let k = 0; k < 8; k++) spawnSpark(cx, 0.9, cz, '190,205,225', 1.1);
+  });
+}
+
+/** 闪电：落点圈只亮 0.35s，落速 −34 —— 比落点雨狠一档，靠反应 */
+export function lightning(): void {
+  const n = boss.phase >= 3 ? 6 : 4;
+  for (let i = 0; i < n; i++) {
+    const x = player.x + rand(-1.3, 1.3);
+    const z = player.z + rand(-1.3, 1.3);
+    if (Math.hypot(x, z) > ARENA_R - 1.5) continue;
+    const delay = 0.35 + i * 0.09;
+    rings.push({ x: x, z: z, r: 0.95, t: delay, dur: delay });
+    later(delay, (function (xx, zz) {
+      return function () {
+        addBullet(xx, 9.5, zz, 0, -34, 0, 0.2, 'rain', 'lightning');
+        for (let k = 0; k < 6; k++) spawnSpark(xx, 9.5, zz, '255,240,180', 1.2);
+      };
+    })(x, z));
+  }
+}
+
+/** 手雷：地面读秒 → 半球形炸开，速度快、数量多，必须提前拉开 */
+export function grenadeShot(): void {
+  const cx = player.x + rand(-2.4, 2.4);
+  const cz = player.z + rand(-2.4, 2.4);
+  if (Math.hypot(cx, cz) > ARENA_R - 1.2) return;
+  rings.push({ x: cx, z: cz, r: 1.9, t: 0.85, dur: 0.85, cls: 'mine' });
+  later(0.85, function () {
+    if (!boss.alive) return;
+    for (let i = 0; i < 26; i++) {
+      const u = random();                        // 0..1 → 上半球
+      const phi = random() * TAU;
+      const s = Math.sqrt(1 - u * u);
+      const sp = rand(10, 14);
+      addBullet(cx, 0.5, cz, s * Math.cos(phi) * sp, u * sp + 1.4, s * Math.sin(phi) * sp,
+        0.2, 'low', 'grenade');
+      // 手雷弹走短抛物线：1.15s 后自然退场，不给它飞到 9m 高空的机会
+      const bb = bullets[bullets.length - 1];
+      bb.life = 1.15;
+      bb.grav = 5.5;
+    }
+    for (let k = 0; k < 10; k++) spawnSpark(cx, 0.5, cz, COLORS.low, 1.5);
+  });
+}
+
+/** 波浪：整排推进，高度 0.30~2.60 做正弦 —— 波谷跳、波峰落，跟着波形走 */
+export function waveShot(): void {
+  let nx = player.x - boss.x, nz = player.z - boss.z;
+  const l = Math.hypot(nx, nz) || 1;
+  nx /= l; nz /= l;
+  const tx = -nz, tz = nx;
+  const phase = random() * TAU;
+  const sp = 7.6;
+  boss.flash = 0.45;
+  for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.55) {
+    const y = 1.45 + 1.15 * Math.sin(u * 0.62 + phase);
+    addBullet(boss.x + tx * u, y, boss.z + tz * u, nx * sp, 0, nz * sp,
+      0.21, clsOf(y), 'wave');
+  }
+}
+
+/** 扫描线：2~3 道低墙在场地里来回扫，跳过去是唯一解 */
+export function sweepLineShot(): void {
+  const n = boss.phase >= 3 ? 3 : 2;
+  boss.flash = 0.5;
+  for (let k = 0; k < n; k++) {
+    const dir = k % 2 === 0 ? 1 : -1;
+    const sp = 5.4 * dir;
+    const x0 = dir > 0 ? -12 + k * 1.4 : 12 - k * 1.4;
+    for (let u = -13; u <= 13.01; u += 0.62) {
+      addBullet(x0, 0.55, u, sp, 0, 0, 0.23, 'low', 'sweepLine', 'box', 2.2);
+      const b = bullets[bullets.length - 1];
+      b.oscLo = -13;
+      b.oscHi = 13;
+    }
+  }
+}
+
+/** 龙骨炮：场地边缘的炮口读秒，然后朝玩家方向推出一束粗弹（低空，可跳过） */
+export function gasterBlast(): void {
+  const a = random() * TAU;
+  const ex = Math.cos(a) * (ARENA_R - 2.5);
+  const ez = Math.sin(a) * (ARENA_R - 2.5);
+  let ux = player.x - ex, uz = player.z - ez;
+  const l = Math.hypot(ux, uz) || 1;
+  ux /= l; uz /= l;
+  const px = -uz, pz = ux;
+
+  rings.push({ x: ex, z: ez, r: 1.3, t: 0.65, dur: 0.65, cls: 'mine' });
+  boss.flash = 0.5;
+  later(0.65, function () {
+    if (!boss.alive) return;
+    for (let s = 0; s < l + 5; s += 0.7) {
+      for (let oi = -1; oi <= 1; oi++) {
+        const o = oi * 0.5;
+        addBullet(ex + ux * s + px * o, 0.55, ez + uz * s + pz * o,
+          ux * 15, 0, uz * 15, 0.2, 'low', 'gaster');
+      }
+    }
+    for (let k = 0; k < 8; k++) spawnSpark(ex, 0.55, ez, COLORS.low, 1.2);
+  });
+}
+
+/** 风车：3~4 条螺旋臂绕场地中心转，低臂/高臂交替 —— 跟缝走，别乱跳 */
+export function pinwheelShot(): void {
+  const arms = boss.phase >= 3 ? 4 : 3;
+  const per = 7;
+  const w = 1.05;
+  boss.flash = 0.5;
+  for (let a = 0; a < arms; a++) {
+    const a0 = (a / arms) * TAU;
+    const y = a % 2 === 0 ? 0.55 : 2.3;
+    for (let j = 0; j < per; j++) {
+      const rr = 2.2 + j * 1.7;
+      addBullet(Math.cos(a0) * rr, y, Math.sin(a0) * rr, 0, 0, 0, 0.21, clsOf(y), 'pinwheel');
+      const b = bullets[bullets.length - 1];
+      b.orbA = a0;
+      b.orbR = rr;
+      b.orbW = w;
+      b.orbX = 0;
+      b.orbZ = 0;
+    }
+  }
+}
+
+/** 东方对称：16 向环，低/高交替，第二波把角度错半格 —— 跳低臂、落高臂 */
+export function tohoRing(): void {
+  const n = 16;
+  const waves = boss.phase >= 3 ? 2 : 1;
+  boss.flash = 0.5;
+  for (let wv = 0; wv < waves; wv++) {
+    later(0.35 + wv * 0.8, (function (phase) {
+      return function () {
+        if (!boss.alive) return;
+        for (let i = 0; i < n; i++) {
+          const a = phase + (i / n) * TAU;
+          const y = i % 2 === 0 ? 0.5 : 2.3;
+          const sp = 7.2;
+          // 起点给 1.6m 半径：玩家正好站中心时也不会"出生即命中"
+          addBullet(Math.cos(a) * 1.6, y, Math.sin(a) * 1.6,
+            Math.cos(a) * sp, 0, Math.sin(a) * sp, 0.2, clsOf(y), 'toho');
+        }
+      };
+    })((wv * Math.PI) / n));
+  }
+}
+
+/** 堆叠：三层环从场地边缘向中心收（0.45/1.00/1.55）+ 高钉，逼你跳、又不许一直跳 */
+export function stackWaves(): void {
+  const n = 36;
+  boss.flash = 0.5;
+  for (let L = 0; L < 3; L++) {
+    const y = 0.45 + L * 0.55;
+    const phase = L * (TAU / (n * 2));       // 每层错半格
+    later(L * 0.26, (function (yy, ph) {
+      return function () {
+        if (!boss.alive) return;
+        for (let i = 0; i < n; i++) {
+          const a = ph + (i / n) * TAU;
+          const sp = 6.6;
+          // 从边缘往中心收：站在场地中心也会被环扫到，没有死区
+          addBullet(Math.cos(a) * 15.5, yy, Math.sin(a) * 15.5,
+            -Math.cos(a) * sp, 0, -Math.sin(a) * sp, 0.19, clsOf(yy), 'stack');
+        }
+      };
+    })(y, phase));
+  }
+  later(0.55, function () {
+    if (!boss.alive) return;
+    for (let i = 0; i < 8; i++) {
+      const a = random() * TAU;
+      const sp = 5.2;
+      addBullet(Math.cos(a) * 0.9, 2.35, Math.sin(a) * 0.9,
+        Math.cos(a) * sp, 0, Math.sin(a) * sp, 0.2, 'high', 'stack');
+    }
+  });
+}
+
 /** 生成时用的粗分段（与 clsName 的段界不同，1:1 保留历史行为） */
 function clsOf(h: number): HClass {
   return h < 1.05 ? 'low' : h < 2.05 ? 'mid' : 'high';

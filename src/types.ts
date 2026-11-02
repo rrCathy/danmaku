@@ -35,7 +35,30 @@ export type BulletKind =
   /** 反雨：从地下往上升的弹幕柱 */
   | 'uprain'
   /** 放射锥：朝一个方向的锥状喷射 */
-  | 'cone';
+  | 'cone'
+  // ---- 难度 4 新增（跳跃必要性）----
+  /** 自机狙：每发瞄准玩家当前位置 */
+  | 'aim'
+  /** 随机弹：随机方向、随机速度 */
+  | 'rand'
+  /** 烟雾弹：一点爆开、慢速扩散、长滞空 */
+  | 'smoke'
+  /** 闪电：读秒更短、落速更快的雨 */
+  | 'lightning'
+  /** 手雷：一点爆开、四面八方高速 */
+  | 'grenade'
+  /** 波浪：整排推进，高度按正弦起伏 */
+  | 'wave'
+  /** 扫描线：低墙在场地内来回扫 */
+  | 'sweepLine'
+  /** 龙骨炮：一束粗弹从任意点朝玩家方向射出 */
+  | 'gaster'
+  /** 风车：螺旋臂绕中心旋转 */
+  | 'pinwheel'
+  /** 东方对称：高低交替的对称弹幕 */
+  | 'toho'
+  /** 堆叠：多层交错弹幕 + 高钉惩罚乱跳 */
+  | 'stack';
 
 export interface Bullet {
   x: number; y: number; z: number;
@@ -61,6 +84,15 @@ export interface Bullet {
   len?: number;
   /** 已计过擦弹（每颗弹只擦一次，防刷） */
   grazed?: number;
+  /** 扫描线：沿速度方向的往返边界（x/z 里主轴的那个轴），越界即反向 */
+  oscLo?: number;
+  oscHi?: number;
+  /** 风车：绕 (orbX, orbZ) 的极坐标（角度 / 半径 / 角速度），每帧重算 x/z */
+  orbA?: number;
+  orbR?: number;
+  orbW?: number;
+  orbX?: number;
+  orbZ?: number;
   trail: number[] | null;
   tk: number;
 }
@@ -193,10 +225,13 @@ export type PatternName =
   // 第二难度（高压）新增
   | 'jumpWall' | 'sniper' | 'gate' | 'risenare' | 'feint'
   // 第三难度（形状弹幕 · 微操）新增
-  | 'petal' | 'radial' | 'downpour' | 'fountain' | 'uprain' | 'cone';
+  | 'petal' | 'radial' | 'downpour' | 'fountain' | 'uprain' | 'cone'
+  // 第四难度（跳跃必要性）新增
+  | 'aimed' | 'random' | 'smoke' | 'lightning' | 'grenade'
+  | 'wave' | 'sweepLine' | 'gaster' | 'pinwheel' | 'toho' | 'stack';
 
-/** 难度编号。1 = 标准，2 = 高压，3 = 形状微操 */
-export type DifficultyKey = 1 | 2 | 3;
+/** 难度编号。1 = 标准，2 = 高压，3 = 形状微操，4 = 跳跃必要性 */
+export type DifficultyKey = 1 | 2 | 3 | 4;
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'over' | 'training';
 export type EndReason = 'hp' | 'time';

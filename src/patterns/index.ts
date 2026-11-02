@@ -7,13 +7,15 @@
  * 想复现某一局：见 main.ts 的 ?pat= / ?seed= 与 __dbg.run()。
  */
 import { boss, later, lasers, session, walls } from '../state';
-import { SEQUENCES_D2, SEQUENCES_D3, getSequenceMode, sequenceFor } from './sequence';
+import { SEQUENCES_D2, SEQUENCES_D3, SEQUENCES_D4, getSequenceMode, sequenceFor } from './sequence';
 import { random } from '../core/random';
 import { fanShot, ringShot, spreadShot } from './emitters';
 import {
-  coneBurst, counterSpiral, diveShot, downpour, feint, fountain, gate, jumpWall,
-  laserSweep, lowHigh, mineShot, orbitShot, petalRing, radialRays, rainShot, risenare,
-  riseShot, satBurst, sniper, spiralShot, stairShot, uprain, wallShot
+  aimedShot, coneBurst, counterSpiral, diveShot, downpour, feint, fountain, gasterBlast,
+  gate, grenadeShot, jumpWall, laserSweep, lightning, lowHigh, mineShot, orbitShot,
+  petalRing, pinwheelShot, radialRays, rainShot, randomShot, risenare, riseShot,
+  satBurst, smokeShot, sniper, spiralShot, stackWaves, stairShot, sweepLineShot,
+  tohoRing, uprain, wallShot, waveShot
 } from './shots';
 
 import type { PatternName } from '../types';
@@ -40,7 +42,14 @@ for (let ph = 1; ph <= 3; ph++) {
   D3_POOL[ph] = Array.from(new Set(SEQUENCES_D3[ph]));
 }
 
+/** 难度 4 的随机池：同上。新语言专场，混少量 L3 的对称形状 */
+const D4_POOL: Record<number, PatternName[]> = {};
+for (let ph = 1; ph <= 3; ph++) {
+  D4_POOL[ph] = Array.from(new Set(SEQUENCES_D4[ph]));
+}
+
 export function poolFor(phase: number): PatternName[] {
+  if (session.difficulty === 4) return D4_POOL[phase] || D4_POOL[1];
   if (session.difficulty === 3) return D3_POOL[phase] || D3_POOL[1];
   if (session.difficulty === 2) return D2_POOL[phase] || D2_POOL[1];
   return PATTERNS[phase] || PATTERNS[1];
@@ -54,7 +63,10 @@ export const ALL_PATTERNS: PatternName[] = [
   // 难度 2
   'jumpWall', 'sniper', 'gate', 'feint', 'risenare',
   // 难度 3（形状弹幕 · 微操）
-  'petal', 'radial', 'downpour', 'fountain', 'uprain', 'cone'
+  'petal', 'radial', 'downpour', 'fountain', 'uprain', 'cone',
+  // 难度 4（跳跃必要性）
+  'aimed', 'random', 'smoke', 'lightning', 'grenade',
+  'wave', 'sweepLine', 'gaster', 'pinwheel', 'toho', 'stack'
 ];
 
 /**
@@ -190,6 +202,41 @@ export function runPattern(name: PatternName | string): void {
       break;
     case 'cone':
       coneBurst();
+      break;
+
+    /* ---- 难度 4（跳跃必要性）---- */
+    case 'aimed':
+      aimedShot();
+      break;
+    case 'random':
+      randomShot();
+      break;
+    case 'smoke':
+      smokeShot();
+      break;
+    case 'lightning':
+      lightning();
+      break;
+    case 'grenade':
+      grenadeShot();
+      break;
+    case 'wave':
+      waveShot();
+      break;
+    case 'sweepLine':
+      sweepLineShot();
+      break;
+    case 'gaster':
+      gasterBlast();
+      break;
+    case 'pinwheel':
+      pinwheelShot();
+      break;
+    case 'toho':
+      tohoRing();
+      break;
+    case 'stack':
+      stackWaves();
       break;
   }
 }

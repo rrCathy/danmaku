@@ -69,8 +69,30 @@ export const SEQUENCES_D3: Record<number, PatternName[]> = {
       'radial', 'ring', 'feint', 'satBurst']
 };
 
+/**
+ * 难度 4：跳跃必要性（v1.15）。
+ *
+ * 主题一句话：**站着不动的解不存在，但一直跳也不是解**。
+ * 低空弹（0.45~0.55）站着重、跳起躲；高弹（2.3~2.35）站着躲、跳起重。
+ * 成对出现时（波浪 / 堆叠 / 东方对称 / 风车）要求「跟着节奏跳、跟着节奏落」。
+ *
+ * 顺序：先教"读"（自机狙/随机弹/闪电/手雷/烟雾），
+ * 再教"跳"（波浪/龙骨炮/扫描线/风车），最后叠成节奏（堆叠/东方对称）。
+ */
+export const SEQUENCES_D4: Record<number, PatternName[]> = {
+  // P1：都不强制跳，先把新弹种认全
+  1: ['aimed', 'random', 'lightning', 'grenade', 'smoke'],
+  // P2：跳跃四连 —— 波浪（跟波）→ 龙骨炮（跳束）→ 扫描线（跳墙）→ 风车（跟臂缝）
+  2: ['wave', 'gaster', 'sweepLine', 'pinwheel', 'grenade', 'lightning'],
+  // P3：节奏压轴 —— 堆叠/东方对称要求"跳得准"，再混 L3 的对称形状
+  3: ['stack', 'toho', 'sweepLine', 'pinwheel', 'wave', 'gaster',
+      'petal', 'radial', 'cone']
+};
+
 export function sequenceFor(phase: number, difficulty: DifficultyKey = 1): PatternName[] {
-  const table = difficulty === 3 ? SEQUENCES_D3 : difficulty === 2 ? SEQUENCES_D2 : SEQUENCES;
+  const table = difficulty === 4 ? SEQUENCES_D4
+    : difficulty === 3 ? SEQUENCES_D3
+    : difficulty === 2 ? SEQUENCES_D2 : SEQUENCES;
   return table[phase] || table[1];
 }
 
@@ -106,5 +128,18 @@ export const PATTERN_LABELS: Record<PatternName, { name: string; hint: string }>
   downpour: { name: '全图雨', hint: '满场读秒落雨 —— 看亮圈挪半步，别跑，跑会撞下一批' },
   fountain: { name: '喷泉', hint: '抛物线落点在环带 —— 贴 boss 或退到 12m 外都安全' },
   uprain: { name: '反雨', hint: '从地面背面穿地升到 1.5m —— 横移出柱，或跳过它的顶' },
-  cone: { name: '放射锥', hint: '锥状喷射、逐波重瞄 —— 贴着锥边持续微移' }
+  cone: { name: '放射锥', hint: '锥状喷射、逐波重瞄 —— 贴着锥边持续微移' },
+
+  // ---- 难度 4 新增（跳跃必要性）----
+  aimed: { name: '自机狙', hint: '每发都瞄你现在的位置 —— 一直走，别停' },
+  random: { name: '随机弹', hint: '方向和速度都随机 —— 读密度，找缝' },
+  smoke: { name: '烟雾弹', hint: '爆开一团滞空的云 —— 绕开它，别往里穿' },
+  lightning: { name: '闪电', hint: '落点圈只亮 0.35 秒 —— 看到就挪，别等' },
+  grenade: { name: '手雷', hint: '读秒后半球炸开 —— 读秒期间先拉开距离' },
+  wave: { name: '波浪', hint: '高度做正弦 —— 波谷跳、波峰落地，跟着波形走' },
+  sweepLine: { name: '扫描线', hint: '低墙在场地里来回扫 —— 跳过去，等它折返会挨打' },
+  gaster: { name: '龙骨炮', hint: '一束粗弹贴地推过来 —— 跳过它，或离开这条线' },
+  pinwheel: { name: '风车', hint: '高低臂交替旋转 —— 跟着臂缝走，别乱跳' },
+  toho: { name: '东方对称', hint: '16 向高低交替 —— 跳低臂、落高臂' },
+  stack: { name: '堆叠', hint: '三层交错 + 高空钉 —— 必须跳，但别一直跳' }
 };

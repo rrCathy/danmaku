@@ -467,7 +467,7 @@ export function initUi(): void {
   for (let i = 0; i < diffBtns.length; i++) {
     diffBtns[i].addEventListener('click', function () {
       const d = Number(diffBtns[i].dataset.diff);
-      setDifficulty(d === 3 ? 3 : d === 2 ? 2 : 1);
+      if (d === 1 || d === 2 || d === 3 || d === 4) setDifficulty(d);
     });
   }
   setDifficulty(session.difficulty);

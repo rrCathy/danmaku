@@ -213,13 +213,35 @@ export function updateBullets(dt: number): void {
     // 抛物线弹（喷泉）：只有显式带 grav 的弹受影响，旧图案 grav=undefined 零变化
     if (b.grav) b.vy -= b.grav * dt;
 
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
-    b.z += b.vz * dt;
+    // 烟雾：爆开后迅速减速、缓慢下沉 —— 形成一团滞空的云
+    if (b.kind === 'smoke') {
+      const k = Math.pow(0.25, dt);
+      b.vx *= k;
+      b.vz *= k;
+      b.vy -= 2.2 * dt;
+    }
+
+    // 风车：位置由绕中心的极坐标重算（不走速度积分）
+    if (b.kind === 'pinwheel' && b.orbA !== undefined) {
+      b.orbA += (b.orbW || 0) * dt;
+      b.x = (b.orbX || 0) + Math.cos(b.orbA) * (b.orbR || 0);
+      b.z = (b.orbZ || 0) + Math.sin(b.orbA) * (b.orbR || 0);
+    } else {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.z += b.vz * dt;
+    }
+
+    // 扫描线：在 [oscLo, oscHi] 之间来回扫，越界即反向
+    if (b.kind === 'sweepLine' && b.oscLo !== undefined && b.oscHi !== undefined) {
+      if (b.x > b.oscHi) { b.x = b.oscHi; b.vx = -Math.abs(b.vx); }
+      else if (b.x < b.oscLo) { b.x = b.oscLo; b.vx = Math.abs(b.vx); }
+    }
     b.life -= dt;
     b.rgb = heightRGB(b.y);   // 颜色永远跟着当前高度走
     // 落雨类的语义分段固定为 rain（诊断文案「落点雨」），其余按当前高度重算
-    b.cls = (b.kind === 'rain' || b.kind === 'downpour') ? 'rain' : clsName(b.y);
+    b.cls = (b.kind === 'rain' || b.kind === 'downpour' || b.kind === 'lightning')
+      ? 'rain' : clsName(b.y);
 
     if (opts.trailMode === 1 || opts.trailMode === 3) {
       b.tk -= dt;
@@ -231,8 +253,15 @@ export function updateBullets(dt: number): void {
       }
     }
 
-    if ((b.kind === 'rain' || b.kind === 'downpour' || b.kind === 'fountain') && b.y <= 0.12) {
+    if ((b.kind === 'rain' || b.kind === 'downpour' || b.kind === 'fountain' || b.kind === 'lightning') && b.y <= 0.12) {
       for (let k = 0; k < 5; k++) spawnSpark(b.x, 0.15, b.z, COLORS.rain, 0.8);
+      bullets.splice(i, 1);
+      continue;
+    }
+
+    // 手雷的爆散弹：撞地即灭（半球形发射，低角度的那几颗）；烟雾同样落地散掉
+    if ((b.kind === 'grenade' || b.kind === 'smoke') && b.y <= 0.12) {
+      for (let k = 0; k < 2; k++) spawnSpark(b.x, 0.12, b.z, COLORS.low, 0.5);
       bullets.splice(i, 1);
       continue;
     }

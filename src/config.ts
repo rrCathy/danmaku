@@ -141,6 +141,16 @@ export const DIFFICULTIES: Record<DifficultyKey, Difficulty> = {
     cdBase: 1.12,
     cdJitter: [0.85, 1.0],
     bulletSpeed: 1.18
+  },
+  4: {
+    key: 4,
+    name: 'Level 4',
+    note: '38 种图案 · 跳跃必要性 · 低空弹与高钉交替',
+    // 出手比 L3 再密一档，但弹速略降：新招本身弹数多（波浪 66 / 龙骨炮 74），
+    // 再叠 1.18 的倍率会变成"看不清"而不是"躲不过"
+    cdBase: 1.02,
+    cdJitter: [0.85, 1.0],
+    bulletSpeed: 1.15
   }
 };
 

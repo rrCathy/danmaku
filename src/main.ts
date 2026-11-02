@@ -35,6 +35,7 @@ import { updateHud } from './ui/hud';
 import { ALL_PATTERNS, runPattern } from './patterns';
 import { addBullet, shapeDist } from './systems/bullets';
 import type { PatternName } from './patterns';
+import type { DifficultyKey } from './types';
 
 /* ============ 主循环 ============ */
 let lastT = 0;
@@ -98,7 +99,12 @@ const PAT_ALIAS: Record<string, PatternName> = {
   feint: 'feint', snare: 'risenare', risenare: 'risenare',
   // 难度 3
   petal: 'petal', radial: 'radial', downpour: 'downpour', fountain: 'fountain',
-  uprain: 'uprain', cone: 'cone'
+  uprain: 'uprain', cone: 'cone',
+  // 难度 4（跳跃必要性）
+  aim: 'aimed', aimed: 'aimed', random: 'random', rand: 'random',
+  smoke: 'smoke', lightning: 'lightning', bolt: 'lightning', grenade: 'grenade',
+  wave: 'wave', sweepline: 'sweepLine', gaster: 'gaster',
+  pinwheel: 'pinwheel', toho: 'toho', stack: 'stack'
 };
 
 function resolvePattern(raw: string): PatternName | undefined {
@@ -108,11 +114,10 @@ function resolvePattern(raw: string): PatternName | undefined {
 
 const SEARCH = location.search;
 
-// ?diff=3 直接进形状微操；必须在开局前设好，出招池与弹速都看它
-const diffMatch = SEARCH.match(/[?&]diff=([123])/);
+// ?diff=4 直接进跳跃必要性；必须在开局前设好，出招池与弹速都看它
+const diffMatch = SEARCH.match(/[?&]diff=([1-4])/);
 if (diffMatch) {
-  const d = parseInt(diffMatch[1], 10);
-  setDifficulty(d === 3 ? 3 : d === 2 ? 2 : 1);
+  setDifficulty(parseInt(diffMatch[1], 10) as DifficultyKey);
 }
 
 // 种子必须在任何出招之前设好：?seed=20261101
@@ -216,7 +221,7 @@ if (/[?&]dbg=1/.test(location.search)) {
     get session() { return session; },
     get difficulty() { return DIFFICULTIES[session.difficulty]; },
     get sequence() {
-      const seq = sequenceFor(boss.phase);
+      const seq = sequenceFor(boss.phase, session.difficulty);
       return { mode: getSequenceMode(), index: boss.seq, next: seq[boss.seq % seq.length] };
     },
     get history() { return boss.cast; },
