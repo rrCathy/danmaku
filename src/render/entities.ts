@@ -338,43 +338,48 @@ function band(cx: number, cz: number, y0: number, r0: number, y1: number, r1: nu
   }
 }
 
+/** ── 人物模型整体缩放 ──
+ * 下面的坐标是按 1.86m 的设计稿写的（脚底 y=0），实际绘制时整体乘 MODEL_SCALE。
+ * 调大小只改这一个数：1.00 = 1.86m ／ 0.85 ≈ 1.58m ／ 0.75 ≈ 1.39m。
+ * 注意：判定胶囊（PLAYER.hitR / bodyLow / bodyHigh）**不受这里影响**，它是玩法参数。 */
+const MODEL_SCALE = 0.85;
+
 export function drawPlayer(p: Projected): void {
   const blink = player.inv > 0 && Math.floor(player.inv * 22) % 2 === 0;
   const air = player.y > 0.08;
   const s = p.s;
   const PX = player.x, PY = player.y, PZ = player.z;
+  const MS = MODEL_SCALE;
+  /** 设计稿高度 → 世界高度（含整体缩放） */
+  const Y = function (h: number): number { return PY + h * MS; };
 
   ctx.globalAlpha = blink ? 0.45 : 1;
 
   // 辉光：躯干中段一圈柔光，远处也能一眼定位自己
-  const gp = project(PX, PY + 1.10, PZ);
+  const gp = project(PX, Y(1.10), PZ);
   if (gp) {
-    const gr = Math.max(12, 1.05 * s);
+    const gr = Math.max(12, 1.05 * MS * s);
     const g = glowSprite(COLORS.player);
     ctx.globalAlpha *= 0.30;
     ctx.drawImage(g, gp.x - gr, gp.y - gr, gr * 2, gr * 2);
     ctx.globalAlpha = blink ? 0.45 : 1;
   }
 
-  /* 模型比例（世界单位，脚底 y=0；总高 1.83，约 7.1 头身）：
-   *   腿      0    ~ 0.96
+  /* 设计稿比例（乘 MODEL_SCALE 之前；总高 1.86，7.3 头身）：
+   *   腿      0    ~ 0.98
    *   短裙    0.78 r0.198（下摆）→ 1.14 r0.118（裙腰）
-   *   收腰    1.18 r0.100（最细，直径 0.20 = 肩宽的 0.57）
-   *   上腹    1.28 r0.126
-   *   胸      1.38 r0.152
-   *   肩      1.48 r0.174（肩宽 0.348）
-   *   颈      1.52 ~ 1.62
-   *   头      球心 1.73 r0.128（头宽 0.256 = 肩宽的 0.73，7.3 头身；总高 1.86）
-   * 判定胶囊仍是 0.57~1.03（玩法不动），只在视觉上按"自机判定点"画成小圆环 */
+   *   收腰    1.18 r0.100（最细，直径 0.20 = 肩宽 0.57）
+   *   上腹    1.28 r0.126 → 胸 1.38 r0.152 → 肩 1.48 r0.174（肩宽 0.348）
+   *   颈      1.52 ~ 1.62；头 球心 1.73 r0.128（头宽 = 肩宽 0.73） */
 
   // 腿（3D 线段，腿根藏在裙内）
   ctx.lineCap = 'round';
   ctx.strokeStyle = 'rgba(96,200,180,0.95)';
-  ctx.lineWidth = Math.max(1.8, 0.072 * s);
+  ctx.lineWidth = Math.max(1.6, 0.072 * MS * s);
   for (let li = 0; li < 2; li++) {
     const sx = li === 0 ? -1 : 1;
-    const a = project(PX + sx * 0.080, PY + 0.98, PZ);
-    const b = project(PX + sx * 0.098, PY + (air ? 0.22 : 0.03), PZ);
+    const a = project(PX + sx * 0.080 * MS, Y(0.98), PZ);
+    const b = project(PX + sx * 0.098 * MS, Y(air ? 0.22 : 0.03), PZ);
     if (a && b) {
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -384,8 +389,8 @@ export function drawPlayer(p: Projected): void {
   }
 
   // 胯：裙底封口（实心盘，遮住裙内空腔，让腿和身体连成一体）
-  const hipBot = ringPts(PX, PZ, PY + 0.76, 0.150, 10);
-  const hipTop = ringPts(PX, PZ, PY + 0.80, 0.186, 10);
+  const hipBot = ringPts(PX, PZ, Y(0.76), 0.150 * MS, 10);
+  const hipTop = ringPts(PX, PZ, Y(0.80), 0.186 * MS, 10);
   if (hipBot && hipTop) {
     ctx.fillStyle = 'rgba(30,96,90,0.97)';
     for (let i = 0; i < 10; i++) {
@@ -400,43 +405,43 @@ export function drawPlayer(p: Projected): void {
     }
   }
 
-  // 短裙：下摆 0.94 r0.196 → 裙腰 1.14 r0.118（只到大腿根）
-  band(PX, PZ, PY + 0.78, 0.198, PY + 1.14, 0.118, 12, 'rgba(46,140,130,0.95)', 'rgba(150,255,230,0.40)');
+  // 短裙：下摆 0.78 r0.198 → 裙腰 1.14 r0.118（到大腿中段）
+  band(PX, PZ, Y(0.78), 0.198 * MS, Y(1.14), 0.118 * MS, 12, 'rgba(46,140,130,0.95)', 'rgba(150,255,230,0.40)');
 
-  // 躯干：7 段拟合沙漏（腰 1.18 r0.100 → 胸 1.38 r0.152 → 肩 1.48 r0.174）
-  band(PX, PZ, PY + 1.14, 0.118, PY + 1.18, 0.100, 12, 'rgba(88,206,182,0.96)');
-  band(PX, PZ, PY + 1.18, 0.100, PY + 1.28, 0.126, 12, 'rgba(92,210,186,0.96)');
-  band(PX, PZ, PY + 1.28, 0.126, PY + 1.38, 0.152, 12, 'rgba(96,214,190,0.96)');
-  band(PX, PZ, PY + 1.38, 0.152, PY + 1.48, 0.174, 12, 'rgba(100,218,194,0.96)');
+  // 躯干：多段拟合沙漏（腰 1.18 r0.100 → 胸 1.38 r0.152 → 肩 1.48 r0.174）
+  band(PX, PZ, Y(1.14), 0.118 * MS, Y(1.18), 0.100 * MS, 12, 'rgba(88,206,182,0.96)');
+  band(PX, PZ, Y(1.18), 0.100 * MS, Y(1.28), 0.126 * MS, 12, 'rgba(92,210,186,0.96)');
+  band(PX, PZ, Y(1.28), 0.126 * MS, Y(1.38), 0.152 * MS, 12, 'rgba(96,214,190,0.96)');
+  band(PX, PZ, Y(1.38), 0.152 * MS, Y(1.48), 0.174 * MS, 12, 'rgba(100,218,194,0.96)');
   // 肩顶：两级收弧，做出圆肩（避免一条平盖子）
-  band(PX, PZ, PY + 1.48, 0.174, PY + 1.52, 0.136, 12, 'rgba(120,226,202,0.96)', 'rgba(226,255,246,0.35)');
-  band(PX, PZ, PY + 1.52, 0.136, PY + 1.55, 0.078, 12, 'rgba(150,236,214,0.95)');
+  band(PX, PZ, Y(1.48), 0.174 * MS, Y(1.52), 0.136 * MS, 12, 'rgba(120,226,202,0.96)', 'rgba(226,255,246,0.35)');
+  band(PX, PZ, Y(1.52), 0.136 * MS, Y(1.55), 0.078 * MS, 12, 'rgba(150,236,214,0.95)');
 
   // 手臂（肩 → 手，末端一个小手圆点；跳跃时抬成 V 字）
   ctx.strokeStyle = 'rgba(140,240,215,0.95)';
-  ctx.lineWidth = Math.max(1.4, 0.050 * s);
+  ctx.lineWidth = Math.max(1.4, 0.050 * MS * s);
   for (let ai = 0; ai < 2; ai++) {
     const sx = ai === 0 ? -1 : 1;
-    const a = project(PX + sx * 0.162, PY + 1.44, PZ);
-    const b = project(PX + sx * (air ? 0.30 : 0.238), PY + (air ? 1.56 : 1.00), PZ);
+    const a = project(PX + sx * 0.162 * MS, Y(1.44), PZ);
+    const b = project(PX + sx * (air ? 0.30 : 0.238) * MS, Y(air ? 1.56 : 1.00), PZ);
     if (a && b) {
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(b.x, b.y, Math.max(1.2, 0.026 * s), 0, TAU);
+      ctx.arc(b.x, b.y, Math.max(1.2, 0.026 * MS * s), 0, TAU);
       ctx.fillStyle = 'rgba(170,250,228,0.95)';
       ctx.fill();
     }
   }
 
   // 颈
-  const na = project(PX, PY + 1.52, PZ);
-  const nb = project(PX, PY + 1.62, PZ);
+  const na = project(PX, Y(1.52), PZ);
+  const nb = project(PX, Y(1.62), PZ);
   if (na && nb) {
     ctx.strokeStyle = 'rgba(210,255,240,0.92)';
-    ctx.lineWidth = Math.max(1.4, 0.048 * s);
+    ctx.lineWidth = Math.max(1.2, 0.048 * MS * s);
     ctx.beginPath();
     ctx.moveTo(na.x, na.y);
     ctx.lineTo(nb.x, nb.y);
@@ -444,9 +449,9 @@ export function drawPlayer(p: Projected): void {
   }
 
   // 头（球：投影中心 + 半径，俯视永远是个圆）
-  const head = project(PX, PY + 1.73, PZ);
+  const head = project(PX, Y(1.73), PZ);
   if (head) {
-    const hr = Math.max(2.2, 0.128 * (head.s || s));
+    const hr = Math.max(2.0, 0.128 * MS * (head.s || s));
     ctx.beginPath();
     ctx.arc(head.x, head.y, hr, 0, TAU);
     ctx.fillStyle = 'rgba(245,255,252,0.98)';
@@ -478,7 +483,7 @@ export function drawPlayer(p: Projected): void {
     }
   }
 
-  // 判定（B 开关）：**判定胶囊本体**（半径 hitR、高 bodyLow~bodyHigh）
+  // 判定（B 开关）：**判定胶囊本体**（半径 hitR、高 bodyLow~bodyHigh）—— 这是玩法参数，不随模型缩放
   if (opts.playerBox) {
     const b0 = project(PX, PY + PLAYER.bodyLow, PZ);   // 下沿
     const b1 = project(PX, PY + PLAYER.bodyHigh, PZ);  // 上沿
@@ -509,22 +514,22 @@ export function drawPlayer(p: Projected): void {
         ctx.closePath();
       };
 
-      // 半透明体积：看得见"哪里会被打中"
+      // 半透明体积：只给一点点，别糊成一块粉色
       path();
-      ctx.fillStyle = 'rgba(255,120,170,0.16)';
+      ctx.fillStyle = 'rgba(200,255,236,0.07)';
       ctx.fill();
 
-      // 轮廓：细实线（不是虚线圈，也不是椭圆套人）
+      // 轮廓：细白青线（像调试叠层，不像身上长了个东西）
       path();
-      ctx.strokeStyle = 'rgba(255,180,205,0.9)';
-      ctx.lineWidth = Math.max(1, Math.min(1.8, r0 * 0.16));
+      ctx.strokeStyle = 'rgba(205,255,238,0.55)';
+      ctx.lineWidth = 1.1;
       ctx.stroke();
 
-      // 中心命门点：小实心点，标"判定点在哪"
+      // 中心命门点
       const cx = (b0.x + b1.x) / 2, cy = (b0.y + b1.y) / 2;
       ctx.beginPath();
-      ctx.arc(cx, cy, Math.max(1.3, r0 * 0.34), 0, TAU);
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.arc(cx, cy, Math.max(1.2, r0 * 0.26), 0, TAU);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.fill();
     }
   }
