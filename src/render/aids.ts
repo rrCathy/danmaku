@@ -45,9 +45,6 @@ export function drawShadows(): void {
 
   if (boss.alive) drawShadowAt(boss.x, boss.z, 1.9, 0.42);
   drawShadowAt(player.x, player.z, 0.66 * clamp(1 - player.y * 0.16, 0.4, 1), 0.62);
-
-  // 玩家脚下的平面基准环，强化“我站在一个平面上”
-  drawGroundCircle(player.x, player.z, 0.92, 'rgba(110,232,255,0.20)', null, 1.2);
 }
 
 export function drawGuides(): void {

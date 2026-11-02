@@ -4,7 +4,7 @@
  * 所有「弹幕长什么样、会不会打中人」的判断都集中在这一个循环里：
  * 位置积分 → 每帧重算高度色 → 生命周期（落雨 / 地雷 / 地涌）→ 出界 → 碰玩家。
  */
-import { ARENA_R, DIAG_KEEP, PLAYER } from '../config';
+import { ARENA_R, DIAG_KEEP, GRAZE_R, PLAYER } from '../config';
 import { CLASS_INFO, COLORS, clsByHeight, clsName, heightRGB } from '../core/color';
 import { random } from '../core/random';
 import { segPointDist } from '../core/math';
@@ -54,9 +54,6 @@ export function explodeMine(b: Bullet): void {
 }
 
 /* ============ 判定：形状分派 + 擦弹 ============ */
-
-/** 擦弹膨胀半径 = 1×标准弹径。擦弹层厚 0.29m ≈ 0.7 弹径，擦弹圈截面直径 1.1m */
-export const GRAZE_R = 0.42;
 
 /** 玩家判定胶囊轴（竖直线段）到一点的距离 */
 function distToPlayerAxis(x: number, y: number, z: number): number {
@@ -197,7 +194,7 @@ export function updateBullets(dt: number): void {
     if (b.homing) {
       const spd = 4.2;
       const dx = player.x - b.x;
-      const dy = (player.y + 0.3) - b.y;
+      const dy = (player.y + 0.8) - b.y;
       const dz = player.z - b.z;
       const l = Math.hypot(dx, dy, dz) || 1;
       const k = Math.min(1, dt * 1.4);

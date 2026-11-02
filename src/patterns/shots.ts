@@ -96,7 +96,7 @@ function pushWall(
     for (let u = -halfW; u <= halfW; u += step) {
       if (Math.abs(u - gapPos) < gapW) continue;    // 缺口
       for (let k = 0; k < rows; k++) {
-        const h = 0.42 + k * 0.46;
+        const h = 0.42 + k * 0.56;
         const px = nx * D + tx * u;
         const pz = nz * D + tz * u;
         addBullet(px, h, pz, -nx * speed, 0, -nz * speed, 0.21, clsOf(h), 'wall', 'box', 2.2);
@@ -300,7 +300,7 @@ export function sniper(): void {
       const lead = 0.3;
       const tx = player.x + player.vx * lead;
       const tz = player.z + player.vz * lead;
-      const hs = [0.3, 0.55, 0.8];
+      const hs = [0.5, 0.75, 1.0];
       for (let i = 0; i < hs.length; i++) {
         const v = aimVel(boss, tx, hs[i], tz, 16);
         addBullet(boss.x, boss.y, boss.z, v.x, v.y, v.z, 0.20, clsOf(hs[i]), 'sat', 'tetra', 1.35);
@@ -424,7 +424,7 @@ export function radialRays(): void {
   const base = random() * TAU;
   for (let b = 0; b < beams; b++) {
     const ang = base + (b / beams) * TAU;
-    const h = (b % 2 === 0) ? 0.55 : 1.75;
+    const h = (b % 2 === 0) ? 0.55 : 2.2;
     for (let i = 0; i < per; i++) {
       later(0.42 + i * step, (function (aa, hh) {
         return function () {
@@ -556,7 +556,7 @@ export function coneBurst(): void {
       if (!boss.alive) return;
       // 锥轴 = boss → 玩家（每波重瞄）
       let ax = player.x - boss.x;
-      let ay = (player.y + 0.3) - boss.y;
+      let ay = (player.y + 0.8) - boss.y;
       let az = player.z - boss.z;
       const al = Math.hypot(ax, ay, az) || 1;
       ax /= al; ay /= al; az /= al;

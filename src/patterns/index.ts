@@ -110,7 +110,7 @@ export function runPattern(name: PatternName | string): void {
       boss.flash = 0.4;
       later(0.4, function () { ringShot(boss, 0.55, 20, 9.5, 0.22); });
       later(0.75, function () { ringShot(boss, 1.05, 20, 8.8, 0.22); });
-      if (boss.phase >= 3) later(1.1, function () { ringShot(boss, 1.55, 20, 8.2, 0.24); });
+      if (boss.phase >= 3) later(1.1, function () { ringShot(boss, 2.3, 20, 8.2, 0.24); });
       break;
     case 'spiral':
       boss.flash = 0.4;

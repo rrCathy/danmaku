@@ -131,7 +131,7 @@ export function toggleGuides(): void {
 
 export function toggleHitbox(): void {
   opts.hitbox = !opts.hitbox;
-  toast(opts.hitbox ? '判定框：显示' : '判定框：隐藏', 900, COLORS.player);
+  toast(opts.hitbox ? '擦弹圈：显示' : '擦弹圈：隐藏', 900, COLORS.player);
   syncSettings();
 }
 

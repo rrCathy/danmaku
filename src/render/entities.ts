@@ -1,6 +1,6 @@
 /** 实体绘制：子弹、玩家弹、粒子、玩家、boss。全部走 project() 的屏幕坐标。 */
 import { boss, bullets, opts, pshots, player } from '../state';
-import { PLAYER } from '../config';
+import { GRAZE_R, PLAYER } from '../config';
 import type { Bullet, Particle, Projected, Shot } from '../types';
 import { TAU, clamp } from '../core/math';
 import { project } from '../core/camera';
@@ -157,75 +157,62 @@ export function drawParticle(pa: Particle, p: Projected): void {
 }
 
 export function drawPlayer(p: Projected): void {
-  const s = p.s;
-  const bh = 1.34 * s;
-  const bw = 0.62 * s;
-
   const blink = player.inv > 0 && Math.floor(player.inv * 22) % 2 === 0;
-  ctx.globalAlpha = blink ? 0.42 : 1;
-
-  const g = glowSprite(COLORS.player);
-  ctx.globalAlpha *= 0.40;
-  ctx.drawImage(g, p.x - bw * 2.4, p.y - bh * 1.05, bw * 4.8, bh * 2.3);
-  ctx.globalAlpha = blink ? 0.42 : 1;
-
-  const grd = ctx.createLinearGradient(p.x, p.y - bh * 0.5, p.x, p.y + bh * 0.5);
-  grd.addColorStop(0, 'rgba(240,255,252,1)');
-  grd.addColorStop(0.55, 'rgba(150,255,210,0.97)');
-  grd.addColorStop(1, 'rgba(24,120,96,0.97)');
-
-  ctx.lineCap = 'round';
-  // 腿
-  ctx.strokeStyle = 'rgba(120,235,195,0.95)';
-  ctx.lineWidth = Math.max(2, bw * 0.20);
-  ctx.beginPath();
-  ctx.moveTo(p.x - bw * 0.13, p.y + bh * 0.20);
-  ctx.lineTo(p.x - bw * 0.19, p.y + bh * 0.50);
-  ctx.moveTo(p.x + bw * 0.13, p.y + bh * 0.20);
-  ctx.lineTo(p.x + bw * 0.19, p.y + bh * 0.50);
-  ctx.stroke();
-
-  // 躯干
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y - bh * 0.20);
-  ctx.lineTo(p.x, p.y + bh * 0.22);
-  ctx.strokeStyle = grd;
-  ctx.lineWidth = Math.max(3, bw * 0.42);
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(235,255,250,0.5)';
-  ctx.lineWidth = Math.max(1, bw * 0.10);
-  ctx.stroke();
-
-  // 手臂（跳跃时张开，方便读出“在空中”）
   const air = player.y > 0.08;
-  const armY = air ? -0.12 : 0.02;
-  ctx.strokeStyle = 'rgba(180,255,225,0.9)';
-  ctx.lineWidth = Math.max(1.6, bw * 0.16);
+
+  /* 玩家 = 判定胶囊本身（不画人物模型）。
+   * 东方式：自机就是那个判定点 —— 看得见的就是会被打中的范围，没有"模型比判定大"的错觉。 */
+  const b0 = project(player.x, player.y + PLAYER.bodyLow, player.z);
+  const b1 = project(player.x, player.y + PLAYER.bodyHigh, player.z);
+  if (!b0 || !b1) return;
+  const r0 = Math.max(2, PLAYER.hitR * b0.s);
+  const r1 = Math.max(2, PLAYER.hitR * b1.s);
+  const cx = (b0.x + b1.x) / 2, cy = (b0.y + b1.y) / 2;
+
+  ctx.globalAlpha = blink ? 0.42 : 1;
+
+  // 辉光：胶囊整体发光，远处也看得见自己
+  const gr = Math.max(10, 0.85 * p.s);
+  const g = glowSprite(COLORS.player);
+  ctx.globalAlpha *= 0.5;
+  ctx.drawImage(g, cx - gr, cy - gr, gr * 2, gr * 2);
+  ctx.globalAlpha = blink ? 0.42 : 1;
+
+  // 胶囊体积：上下两个圆 + 中间柱段（半透明）
+  ctx.fillStyle = 'rgba(' + COLORS.player + ',0.14)';
   ctx.beginPath();
-  ctx.moveTo(p.x - bw * 0.05, p.y + bh * armY);
-  ctx.lineTo(p.x - bw * 0.42, p.y + bh * (air ? -0.34 : 0.12));
-  ctx.moveTo(p.x + bw * 0.05, p.y + bh * armY);
-  ctx.lineTo(p.x + bw * 0.42, p.y + bh * (air ? -0.34 : 0.12));
+  ctx.arc(b0.x, b0.y, r0, 0, TAU);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(b1.x, b1.y, r1, 0, TAU);
+  ctx.fill();
+  ctx.fillRect(b0.x - r0, b0.y, r0 * 2, b1.y - b0.y);
+
+  // 胶囊轮廓
+  ctx.strokeStyle = 'rgba(' + COLORS.player + ',0.85)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(b0.x, b0.y, r0, 0, TAU); ctx.stroke();
+  ctx.beginPath(); ctx.arc(b1.x, b1.y, r1, 0, TAU); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(b0.x - r0, b0.y); ctx.lineTo(b1.x - r1, b1.y);
+  ctx.moveTo(b0.x + r0, b0.y); ctx.lineTo(b1.x + r1, b1.y);
   ctx.stroke();
 
-  // 头
+  // 判定核心点
   ctx.beginPath();
-  ctx.arc(p.x, p.y - bh * 0.36, Math.max(2.4, bw * 0.24), 0, TAU);
+  ctx.arc(cx, cy, Math.max(2, r0 * 0.42), 0, TAU);
   ctx.fillStyle = 'rgba(240,255,252,0.98)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(120,235,195,0.9)';
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
 
-  // 跳跃高度竖线：让“离地多高”有直接读数
+  // 跳跃高度竖线：让「离地多高」有直接读数
   if (air) {
     const gp2 = project(player.x, 0.03, player.z);
-    const fp = project(player.x, player.y + 0.1, player.z);
+    const fp = project(player.x, player.y + PLAYER.bodyLow, player.z);
     if (gp2 && fp) {
       ctx.beginPath();
       ctx.moveTo(fp.x, fp.y);
       ctx.lineTo(gp2.x, gp2.y);
-      ctx.strokeStyle = 'rgba(150,255,210,0.22)';
+      ctx.strokeStyle = 'rgba(' + COLORS.player + ',0.25)';
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 4]);
       ctx.stroke();
@@ -233,31 +220,24 @@ export function drawPlayer(p: Projected): void {
     }
   }
 
-  ctx.globalAlpha = 1;
-
+  // K：擦弹圈（判定胶囊向外膨胀 GRAZE_R 的虚线范围）
   if (opts.hitbox) {
-    const a = project(player.x, player.y + PLAYER.bodyLow, player.z);
-    const b = project(player.x, player.y + PLAYER.bodyHigh, player.z);
-    if (a && b) {
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(120,255,180,0.30)';
-      ctx.lineWidth = PLAYER.hitR * 2 * a.s;          // 胶囊粗 = 截面直径
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(a.x, a.y, PLAYER.hitR * a.s, 0, TAU);   // 底帽
-      ctx.strokeStyle = 'rgba(120,255,180,0.75)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, PLAYER.hitR * a.s, 0, TAU);   // 顶帽
-      ctx.stroke();
-    }
+    const g0 = Math.max(1.5, (PLAYER.hitR + GRAZE_R) * b0.s);
+    const g1 = Math.max(1.5, (PLAYER.hitR + GRAZE_R) * b1.s);
+    ctx.strokeStyle = 'rgba(255,224,138,0.45)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath(); ctx.arc(b0.x, b0.y, g0, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(b1.x, b1.y, g1, 0, TAU); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(b0.x - g0, b0.y); ctx.lineTo(b1.x - g1, b1.y);
+    ctx.moveTo(b0.x + g0, b0.y); ctx.lineTo(b1.x + g1, b1.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
-}
 
+  ctx.globalAlpha = 1;
+}
 export function drawBoss(p: Projected): void {
   const rad = 1.25 * p.s;
   const flash = boss.flash > 0;
