@@ -710,10 +710,12 @@ export function grenadeShot(): void {
 }
 
 /**
- * 波浪：三排错相位的立体浪，不是一条线。
+ * 波浪：三排会"翻滚"的立体浪。
  *
- * 每排 y = 1.45 + 1.15·sin(0.58u + φ)，φ 相差 120°，排间距 3.2m ——
- * 从侧面看是一波接一波的浪头推过来：浪谷（0.30）站着重、浪峰（2.60）跳起重。
+ * 关键不是排数，是 **y 随时间流动**：y = 1.45 + 1.15·sin(0.58u + φ + 2.2t)。
+ * 之前写成静态波形（y 只依赖 u），波峰在切向上是钉死的 —— 玩家找到波峰站进去就永远安全。
+ * 现在波峰以 ω/k ≈ 3.8 m/s 沿切向走，站在任何位置都会周期性地遇到浪谷，
+ * 必须真的跳；三排相位差 1.6 rad（≈0.73s），正好卡一次跳跃的滞空。
  */
 export function waveShot(): void {
   let nx = player.x - boss.x, nz = player.z - boss.z;
@@ -726,12 +728,15 @@ export function waveShot(): void {
   const gap = 3.2;
   boss.flash = 0.45;
   for (let r = 0; r < rows; r++) {
-    const phase = phase0 + r * (TAU / rows);
+    const phase = phase0 + r * 1.6;
     const back = -r * gap;
     for (let u = -ARENA_R; u <= ARENA_R + 0.01; u += 0.6) {
-      const y = 1.45 + 1.15 * Math.sin(u * 0.58 + phase);
-      addBullet(boss.x + nx * back + tx * u, y, boss.z + nz * back + tz * u,
-        nx * sp, 0, nz * sp, 0.2, clsOf(y), 'wave');
+      const y0 = 1.45 + 1.15 * Math.sin(u * 0.58 + phase);
+      addBullet(boss.x + nx * back + tx * u, y0, boss.z + nz * back + tz * u,
+        nx * sp, 0, nz * sp, 0.2, clsOf(y0), 'wave');
+      const b = bullets[bullets.length - 1];
+      b.waveU = u * 0.58 + phase;
+      b.waveW = 2.2;
     }
   }
 }

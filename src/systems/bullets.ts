@@ -247,6 +247,11 @@ export function updateBullets(dt: number): void {
         b.vx = -b.vx; b.vz = -b.vz;
       }
     }
+    // 波浪：y 随时间流动（行波）—— 波峰不是钉在切向某个位置，站着不动会被浪谷扫到
+    if (b.kind === 'wave' && b.waveU !== undefined) {
+      b.y = 1.45 + 1.15 * Math.sin(b.waveU + clock.elapsed * (b.waveW || 0));
+    }
+
     b.life -= dt;
     b.rgb = heightRGB(b.y);   // 颜色永远跟着当前高度走
     // 落雨类的语义分段固定为 rain（诊断文案「落点雨」），其余按当前高度重算

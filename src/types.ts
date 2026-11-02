@@ -93,6 +93,9 @@ export interface Bullet {
   orbW?: number;
   orbX?: number;
   orbZ?: number;
+  /** 波浪：切向相位 + 时间角速度。y 每帧按 sin(waveU + ω·t) 重算 —— 波峰会流动，站不住 */
+  waveU?: number;
+  waveW?: number;
   trail: number[] | null;
   tk: number;
 }

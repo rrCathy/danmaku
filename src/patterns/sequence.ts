@@ -80,12 +80,13 @@ export const SEQUENCES_D3: Record<number, PatternName[]> = {
  * 再教"跳"（波浪/龙骨炮/扫描线/风车），最后叠成节奏（堆叠/东方对称）。
  */
 export const SEQUENCES_D4: Record<number, PatternName[]> = {
-  // P1：先把"跳"摆在第二招（三排波浪），后面三招压节奏与反应
-  1: ['aimed', 'wave', 'lightning', 'grenade', 'smoke', 'random'],
-  // P2：跳跃三连 —— 波浪（跟波）→ 龙骨炮（跳束）→ 风车（跟臂缝）→ 扫描线（跳交叉墙）
-  2: ['wave', 'gaster', 'pinwheel', 'sweepLine', 'grenade', 'lightning'],
-  // P3：节奏压轴。**不放扫描线** —— 堆叠会把玩家逼到边上，扫描线跟着出场等于白送
-  3: ['stack', 'toho', 'pinwheel', 'wave', 'gaster', 'petal', 'radial', 'cone']
+  // P1：环做主体、点状做点缀，中间夹一次翻滚的波浪。
+  //     节奏：满屏环 → 点 → 推进 → 点 → 满屏环 → 点，不空也不撞
+  1: ['toho', 'lightning', 'wave', 'aimed', 'ring', 'smoke'],
+  // P2：推进类（wave / gaster / sweepLine）必须被点缀隔开，绝不连排
+  2: ['wave', 'smoke', 'gaster', 'aimed', 'pinwheel', 'random', 'sweepLine', 'lightning'],
+  // P3：环与旋转交替，只放一种大范围扫场（stack），不再叠扫描线
+  3: ['stack', 'grenade', 'pinwheel', 'smoke', 'toho', 'lightning', 'petal', 'radial']
 };
 
 export function sequenceFor(phase: number, difficulty: DifficultyKey = 1): PatternName[] {
