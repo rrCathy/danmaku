@@ -270,7 +270,7 @@ body.touch .tp-foot{padding-top:8px;margin-top:9px}
 body.touch .pause-card.wide .pause-actions .btn{padding:9px 12px;font-size:12px}
 
 /* ---------- 起始页：街机标题屏 ---------- */
-.start-screen{position:relative;width:min(660px,92vw);padding:38px 40px 26px;
+.start-screen{position:relative;width:min(720px,94vw);padding:30px 34px 22px;
   border:1px solid rgba(110,232,255,.22);border-radius:8px;
   background:linear-gradient(180deg,rgba(12,22,48,.92),rgba(6,10,24,.96));
   box-shadow:0 30px 90px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.03) inset;
@@ -278,44 +278,57 @@ body.touch .pause-card.wide .pause-actions .btn{padding:9px 12px;font-size:12px}
 .ss-glow{position:absolute;inset:-40% -20% auto;height:120%;pointer-events:none;
   background:radial-gradient(ellipse at 50% 0%,rgba(110,232,255,.18),transparent 62%),
              radial-gradient(ellipse at 78% 12%,rgba(255,120,170,.14),transparent 55%)}
-.ss-kicker{position:relative;font-size:10.5px;letter-spacing:.42em;color:var(--cyan);
+.ss-kicker{position:relative;font-size:10px;letter-spacing:.42em;color:var(--cyan);
   opacity:.9;text-transform:uppercase}
 .ss-kicker i{font-style:normal;opacity:.5;margin:0 .35em}
-.ss-title{position:relative;margin:12px 0 10px;font-size:clamp(38px,7.2vw,62px);
-  line-height:.98;letter-spacing:.04em;font-weight:800;
+.ss-title{position:relative;margin:10px 0 4px;font-size:clamp(34px,6vw,50px);
+  line-height:1;letter-spacing:.08em;font-weight:800;
   background:linear-gradient(180deg,#eaf6ff 0%, #9fd8ff 52%, #6aa8ff 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
   text-shadow:0 0 46px rgba(110,232,255,.32)}
-.ss-title span{display:block;font-size:.62em;letter-spacing:.32em;font-weight:700;
-  background:linear-gradient(180deg,#ffd9e6,#ff7aa8);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  text-shadow:0 0 34px rgba(255,120,170,.34)}
-.ss-sub{position:relative;margin:0 0 22px;font-size:13px;line-height:1.9;
-  color:rgba(190,215,245,.78)}
+.ss-tag{position:relative;margin:0 0 10px;font-size:14px;letter-spacing:.34em;
+  font-weight:700;color:#ff9dc0}
+.ss-tag i{font-style:normal;opacity:.45;margin:0 .5em;color:#9fd8ff}
+.ss-tag span:last-child{color:#9fd8ff}
+.ss-sub{position:relative;margin:0 0 18px;font-size:12px;line-height:1.85;
+  color:rgba(190,215,245,.72)}
 .ss-sub b{color:#bfe9ff}
 
-/* 关卡横滚竖卡：横向滑动选关，卡片竖版（为 Level 4+ 预留扩展位） */
-.ss-levels{position:relative;display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x proximity;
-  padding:2px 2px 10px;margin:0 -2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+/* 关卡横滚竖卡：每张是独立的竖卡（顶部色带 + 关卡号 + 信息），横滑选关 */
+.ss-levels{position:relative;display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;
+  padding:4px 2px 12px;margin:0 -2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .ss-levels::-webkit-scrollbar{height:0}
-.lv-card{flex:0 0 152px;height:176px;display:flex;flex-direction:column;align-items:flex-start;
-  font:inherit;text-align:left;cursor:pointer;padding:14px 15px 12px;border-radius:8px;
-  color:rgba(200,220,245,.82);background:rgba(255,255,255,.035);
-  border:1px solid rgba(140,200,255,.16);transition:.14s;scroll-snap-align:start}
-.lv-no{display:block;font-style:normal;font-size:30px;font-weight:800;letter-spacing:.06em;
-  line-height:1;color:rgba(120,190,255,.5);font-variant-numeric:tabular-nums}
-.lv-card b{display:block;margin-top:auto;font-size:15px;letter-spacing:.12em;color:#e8f4ff;font-weight:700}
-.lv-card span{display:block;margin-top:4px;font-size:11px;letter-spacing:.06em;color:rgba(180,210,245,.72)}
-.lv-card em{display:block;margin-top:3px;font-style:normal;font-size:10px;
-  letter-spacing:.05em;color:rgba(150,185,225,.55)}
-.lv-card:hover{border-color:rgba(255,140,175,.5);background:rgba(255,120,170,.09)}
-.lv-card.on{border-color:rgba(255,120,160,.72);background:rgba(255,120,160,.16);
-  box-shadow:0 0 0 1px rgba(255,120,160,.28), 0 12px 34px rgba(255,90,150,.18)}
+.lv-card{position:relative;flex:0 0 132px;height:158px;display:flex;flex-direction:column;
+  align-items:flex-start;overflow:hidden;
+  font:inherit;text-align:left;cursor:pointer;padding:15px 13px 12px;border-radius:10px;
+  color:rgba(200,220,245,.82);
+  background:linear-gradient(180deg,rgba(28,44,80,.55),rgba(14,22,44,.72));
+  border:1px solid rgba(140,200,255,.2);transition:.16s;scroll-snap-align:start}
+.lv-strip{position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,rgba(110,232,255,.75),rgba(110,232,255,.12))}
+.lv-no{display:block;font-style:normal;font-size:24px;font-weight:800;letter-spacing:.05em;
+  line-height:1;color:rgba(150,205,255,.72);font-variant-numeric:tabular-nums}
+.lv-card b{display:block;margin-top:11px;font-size:13px;letter-spacing:.12em;
+  color:#e8f4ff;font-weight:700}
+.lv-card span{display:block;margin-top:5px;font-size:10.5px;letter-spacing:.05em;
+  color:rgba(180,210,245,.7)}
+.lv-card em{display:block;margin-top:4px;font-style:normal;font-size:9.5px;line-height:1.5;
+  letter-spacing:.04em;color:rgba(150,185,225,.52)}
+.lv-card:hover{transform:translateY(-2px);
+  border-color:rgba(255,140,175,.5);background:linear-gradient(180deg,rgba(52,36,66,.6),rgba(24,16,38,.75))}
+.lv-card.on{transform:translateY(-2px);
+  border-color:rgba(255,120,160,.75);
+  background:linear-gradient(180deg,rgba(66,32,58,.72),rgba(30,14,32,.82));
+  box-shadow:0 0 0 1px rgba(255,120,160,.3), 0 14px 34px rgba(255,90,150,.22)}
+.lv-card.on .lv-strip{background:linear-gradient(90deg,#ff7aa8,rgba(255,122,168,.15))}
+.lv-card.on .lv-no{color:#ffb6d2}
 .lv-card.on b{color:#ffe3ee}
-.lv-card.on .lv-no{color:rgba(255,150,190,.85)}
-.lv-card.locked{opacity:.5;cursor:not-allowed}
-.lv-card.locked:hover{border-color:rgba(140,200,255,.16);background:rgba(255,255,255,.035)}
-.ss-note{position:relative;margin:12px 0 22px;font-size:11px;letter-spacing:.05em;
+.lv-card.locked{opacity:.45;cursor:not-allowed;
+  background:linear-gradient(180deg,rgba(22,30,52,.5),rgba(10,14,28,.6))}
+.lv-card.locked .lv-strip{background:linear-gradient(90deg,rgba(140,170,220,.4),rgba(140,170,220,.06))}
+.lv-card.locked:hover{transform:none;border-color:rgba(140,200,255,.2);
+  background:linear-gradient(180deg,rgba(22,30,52,.5),rgba(10,14,28,.6))}
+.ss-note{position:relative;margin:6px 0 18px;font-size:11px;letter-spacing:.05em;
   color:rgba(160,190,230,.55);min-height:1.2em}
 
 .ss-start{position:relative;display:block;width:100%;font:inherit;cursor:pointer;
@@ -401,18 +414,18 @@ body.touch .pause-card.wide .pause-actions .btn{padding:9px 12px;font-size:12px}
 .help-note b{color:#bfe9ff}
 
 body.touch .start-screen{padding:14px 18px 12px}
-body.touch .ss-kicker{font-size:8.5px;letter-spacing:.3em}
-body.touch .ss-title{font-size:26px;margin:8px 0 6px}
-body.touch .ss-title span{letter-spacing:.26em}
-body.touch .ss-sub{font-size:10.5px;line-height:1.65;margin-bottom:11px}
-body.touch .ss-levels{gap:9px}
-body.touch .lv-card{flex-basis:116px;height:128px;padding:9px 10px 8px}
-body.touch .lv-no{font-size:22px}
-body.touch .lv-card b{font-size:12px}
-body.touch .lv-card span{font-size:9.5px;margin-top:3px}
-body.touch .lv-card em{font-size:8.5px;margin-top:2px}
-body.touch .ss-note{margin:8px 0 12px;font-size:10px;min-height:1em}
-body.touch .ss-start span{padding:11px 14px;font-size:13px;letter-spacing:.24em}
+body.touch .ss-kicker{font-size:8px;letter-spacing:.28em}
+body.touch .ss-title{font-size:23px;margin:5px 0 2px}
+body.touch .ss-tag{font-size:9.5px;letter-spacing:.22em;margin-bottom:5px}
+body.touch .ss-sub{font-size:9px;line-height:1.55;margin-bottom:7px}
+body.touch .ss-levels{gap:8px;padding-bottom:8px}
+body.touch .lv-card{flex-basis:104px;height:124px;padding:10px 9px 8px}
+body.touch .lv-no{font-size:18px}
+body.touch .lv-card b{font-size:10.5px;margin-top:7px}
+body.touch .lv-card span{font-size:8.5px;margin-top:2px}
+body.touch .lv-card em{font-size:7.5px;margin-top:2px;line-height:1.35}
+body.touch .ss-note{margin:3px 0 8px;font-size:9px;min-height:1em}
+body.touch .ss-start span{padding:9px 12px;font-size:12px;letter-spacing:.22em}
 body.touch .ss-actions{margin:9px 0 12px;gap:4px}
 body.touch .ss-legend{padding-top:9px;gap:8px}
 body.touch .ss-bar{flex-basis:82px;height:6px}
