@@ -361,7 +361,7 @@ function pushBlock(
 /** ── 人物模型整体缩放 ──
  * 设计稿总高 1.6m（脚底 y=0，MC 比例：腿 0.60 / 躯干 0.60 / 头 0.40）。
  * 调大小只改这一个数。判定胶囊（PLAYER.*）是玩法参数，不受这里影响。 */
-const MODEL_SCALE = 1.0;
+const MODEL_SCALE = 0.8;
 
 export function drawPlayer(p: Projected): void {
   const blink = player.inv > 0 && Math.floor(player.inv * 22) % 2 === 0;
