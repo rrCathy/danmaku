@@ -347,7 +347,7 @@ export function drawPlayer(p: Projected): void {
   ctx.globalAlpha = blink ? 0.45 : 1;
 
   // 辉光：脚下光晕，定位用
-  const gp = project(PX, PY + 0.9, PZ);
+  const gp = project(PX, PY + 0.78, PZ);
   if (gp) {
     const gr = Math.max(12, 1.0 * s);
     const g = glowSprite(COLORS.player);
@@ -357,9 +357,10 @@ export function drawPlayer(p: Projected): void {
   }
 
   /* 模型比例（世界单位，脚底 y=0）：
-   *   头顶 1.68 / 头球心 1.50 r0.15
-   *   肩 1.26 r0.165，腰 0.80 r0.155，裙 0.56-0.80 r0.21→0.155
-   *   判定胶囊 0.57-1.03（直径 0.26）完全藏在裙+躯干内部（最窄处直径 0.31） */
+   *   躯干顶（颈底）= 判定胶囊顶 1.03 —— 碰撞箱从裙底一直够到脖子
+   *   肩 1.01 r0.165，腰 0.80 r0.155，裙 0.56-0.80 r0.21→0.155
+   *   颈 1.03-1.12，头球心 1.24 r0.15（头顶 1.39）
+   *   判定胶囊 0.57-1.03（直径 0.26）藏在裙+躯干内部（最窄处直径 0.31） */
 
   // 腿（3D 线段）
   ctx.lineCap = 'round';
@@ -381,18 +382,18 @@ export function drawPlayer(p: Projected): void {
   band(PX, PZ, PY + 0.56, 0.21, PY + 0.80, 0.155, 10, 'rgba(52,150,138,0.92)', 'rgba(150,255,230,0.5)');
 
   // 躯干（0.80 r0.155 → 肩 1.26 r0.165）
-  band(PX, PZ, PY + 0.80, 0.155, PY + 1.26, 0.165, 10, 'rgba(96,214,190,0.95)', 'rgba(190,255,240,0.6)');
+  band(PX, PZ, PY + 0.80, 0.155, PY + 1.03, 0.165, 10, 'rgba(96,214,190,0.95)', 'rgba(190,255,240,0.6)');
 
   // 领口/肩线：一条亮环
-  band(PX, PZ, PY + 1.24, 0.166, PY + 1.28, 0.15, 10, 'rgba(232,255,248,0.95)');
+  band(PX, PZ, PY + 1.00, 0.166, PY + 1.05, 0.15, 10, 'rgba(232,255,248,0.95)');
 
   // 手臂
   ctx.strokeStyle = 'rgba(140,240,215,0.95)';
   ctx.lineWidth = Math.max(1.4, 0.045 * s);
   for (let ai = 0; ai < 2; ai++) {
     const sx = ai === 0 ? -1 : 1;
-    const a = project(PX + sx * 0.15, PY + 1.22, PZ);
-    const b = project(PX + sx * 0.27, PY + (air ? 1.40 : 0.92), PZ);
+    const a = project(PX + sx * 0.15, PY + 1.00, PZ);
+    const b = project(PX + sx * 0.27, PY + (air ? 1.12 : 0.72), PZ);
     if (a && b) {
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -402,8 +403,8 @@ export function drawPlayer(p: Projected): void {
   }
 
   // 颈
-  const na = project(PX, PY + 1.26, PZ);
-  const nb = project(PX, PY + 1.38, PZ);
+  const na = project(PX, PY + 1.02, PZ);
+  const nb = project(PX, PY + 1.13, PZ);
   if (na && nb) {
     ctx.strokeStyle = 'rgba(210,255,240,0.9)';
     ctx.lineWidth = Math.max(1.2, 0.035 * s);
@@ -414,7 +415,7 @@ export function drawPlayer(p: Projected): void {
   }
 
   // 头（球：投影中心 + 半径，俯视永远是个圆）
-  const head = project(PX, PY + 1.50, PZ);
+  const head = project(PX, PY + 1.24, PZ);
   if (head) {
     const hr = Math.max(2.4, 0.155 * (head.s || s));
     ctx.beginPath();
