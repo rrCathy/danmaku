@@ -478,14 +478,17 @@ export function drawPlayer(p: Projected): void {
     }
   }
 
-  // 判定（B 开关）：东方自机式「判定点」——小圆环，不是糊在身上的白斑
+  // 判定（B 开关）：**判定胶囊本体**（半径 hitR、高 bodyLow~bodyHigh）
   if (opts.playerBox) {
-    const b0 = project(PX, PY + PLAYER.bodyLow, PZ);
-    const b1 = project(PX, PY + PLAYER.bodyHigh, PZ);
+    const b0 = project(PX, PY + PLAYER.bodyLow, PZ);   // 下沿
+    const b1 = project(PX, PY + PLAYER.bodyHigh, PZ);  // 上沿
     if (b0 && b1) {
-      // 擦弹圈（K）：判定胶囊外扩 GRAZE_R 的柔光壳
+      const r0 = Math.max(1.6, PLAYER.hitR * b0.s);
+      const r1 = Math.max(1.6, PLAYER.hitR * b1.s);
+
+      // 擦弹圈（K）：判定胶囊外扩 GRAZE_R 的一层柔光壳
       if (opts.hitbox) {
-        ctx.strokeStyle = 'rgba(255,214,120,0.14)';
+        ctx.strokeStyle = 'rgba(255,214,120,0.16)';
         ctx.lineWidth = Math.max(4, (PLAYER.hitR + GRAZE_R) * 2 * b0.s);
         ctx.lineCap = 'round';
         ctx.beginPath();
@@ -493,18 +496,35 @@ export function drawPlayer(p: Projected): void {
         ctx.lineTo(b1.x, b1.y);
         ctx.stroke();
       }
-      // 判定点：东方式小判定点（白圈 + 品红核心）。
-      // 只标"命门在哪"，不按胶囊半径画大圆 —— 判定胶囊的横向范围由 K 的擦弹壳表达
-      const cx = (b0.x + b1.x) / 2, cy = (b0.y + b1.y) / 2;
-      const cr = Math.max(2.2, 0.048 * b0.s);
-      ctx.beginPath();
-      ctx.arc(cx, cy, cr, 0, TAU);
-      ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-      ctx.lineWidth = Math.max(1, cr * 0.34);
+
+      // 胶囊形状：屏幕空间沿轴线方向做两个半圆 + 两条侧边（任意视角都成立）
+      const ax = b1.x - b0.x, ay = b1.y - b0.y;
+      const al = Math.hypot(ax, ay) || 1;
+      const ux = ax / al, uy = ay / al;          // 轴向（下沿 → 上沿）
+      const a0 = Math.atan2(ux, -uy);            // 垂直于轴的起始角
+      const path = function (): void {
+        ctx.beginPath();
+        ctx.arc(b0.x, b0.y, r0, a0, a0 + Math.PI);            // 下帽（背离上沿）
+        ctx.arc(b1.x, b1.y, r1, a0 + Math.PI, a0 + TAU);       // 上帽
+        ctx.closePath();
+      };
+
+      // 半透明体积：看得见"哪里会被打中"
+      path();
+      ctx.fillStyle = 'rgba(255,120,170,0.16)';
+      ctx.fill();
+
+      // 轮廓：细实线（不是虚线圈，也不是椭圆套人）
+      path();
+      ctx.strokeStyle = 'rgba(255,180,205,0.9)';
+      ctx.lineWidth = Math.max(1, Math.min(1.8, r0 * 0.16));
       ctx.stroke();
+
+      // 中心命门点：小实心点，标"判定点在哪"
+      const cx = (b0.x + b1.x) / 2, cy = (b0.y + b1.y) / 2;
       ctx.beginPath();
-      ctx.arc(cx, cy, Math.max(0.9, cr * 0.42), 0, TAU);
-      ctx.fillStyle = 'rgba(255,110,160,0.95)';
+      ctx.arc(cx, cy, Math.max(1.3, r0 * 0.34), 0, TAU);
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
       ctx.fill();
     }
   }
