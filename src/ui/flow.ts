@@ -368,7 +368,11 @@ export function endGame(win: boolean, reason?: EndReason): void {
     html += '<div class="s"><div class="n" style="color:' + cells[i][2] + '">' + cells[i][1] + '</div>' +
       '<div class="l">' + cells[i][0] + '</div></div>';
   }
-  el.endStats.innerHTML = html;
+  // 擦弹行：擦弹是「读懂弹幕」的证据 —— 受击少 + 擦弹多 = 又稳又敢贴
+  const gRow = '<div class="g-row"><b>GRAZE ' + stats.graze + '</b><span>' +
+    '擦头 ' + stats.grazeHead + ' · 擦脚 ' + stats.grazeFoot + ' · 擦身 ' + stats.grazeBody +
+    '</span></div>';
+  el.endStats.innerHTML = gRow + html;
 
   el.endOverlay.classList.remove('hidden');
   syncOverlays();

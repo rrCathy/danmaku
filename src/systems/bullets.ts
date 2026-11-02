@@ -53,24 +53,116 @@ export function explodeMine(b: Bullet): void {
   cam.shakeAmp = Math.max(cam.shakeAmp, 3);
 }
 
-/** 玩家判定：竖直胶囊，半径 0.26，下沿 +0.18、上沿 +1.42 */
-export function hitPlayer(b: Bullet): boolean {
-  const d = segPointDist(
-    b.x, b.y, b.z,
+/* ============ 判定：形状分派 + 擦弹 ============ */
+
+/** 擦弹膨胀半径 = 1×标准弹径。擦弹层厚 0.29m ≈ 0.7 弹径，擦弹圈截面直径 1.1m */
+export const GRAZE_R = 0.42;
+
+/** 玩家判定胶囊轴（竖直线段）到一点的距离 */
+function distToPlayerAxis(x: number, y: number, z: number): number {
+  return segPointDist(
+    x, y, z,
     player.x, player.y + PLAYER.bodyLow, player.z,
     player.x, player.y + PLAYER.bodyHigh, player.z
   );
-  return d < PLAYER.hitR + b.r;
 }
 
-/** 非球形弹的尾部球（上一帧位置）：头 + 尾 = 扫掠胶囊的离散近似，防快速弹隧穿 */
-function hitPlayerTail(b: Bullet): boolean {
-  const d = segPointDist(
-    b.px, b.py, b.pz,
-    player.x, player.y + PLAYER.bodyLow, player.z,
-    player.x, player.y + PLAYER.bodyHigh, player.z
-  );
-  return d < PLAYER.hitR + b.r;
+/**
+ * 弹的朝向正交基（前向 = 速度方向）。返回 [f, u, w]。
+ * 速度接近零时退化为任意正交基（静止弹不受朝向影响）。
+ */
+function basisOf(b: Bullet): Array<[number, number, number]> {
+  const sp = Math.hypot(b.vx, b.vy, b.vz);
+  if (sp < 1e-6) return [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const fx = b.vx / sp, fy = b.vy / sp, fz = b.vz / sp;
+  // up 取与 f 最不共线的世界轴
+  let ux = 0, uy = 1, uz = 0;
+  if (Math.abs(fy) > 0.9) { ux = 1; uy = 0; }
+  // w = f × u（归一），u = w × f
+  let wx = fy * uz - fz * uy, wy = fz * ux - fx * uz, wz = fx * uy - fy * ux;
+  const wl = Math.hypot(wx, wy, wz) || 1;
+  wx /= wl; wy /= wl; wz /= wl;
+  const u2x = wy * fz - wz * fy, u2y = wz * fx - wx * fz, u2z = wx * fy - wy * fx;
+  return [[fx, fy, fz], [u2x, u2y, u2z], [wx, wy, wz]];
+}
+
+/**
+ * 形状 → 判定量。返回「点到弹碰撞体的距离」（负值=在内部语义上等价于小于 0），
+ * 与 hitR / GRAZE_R 直接比较 —— 碰撞箱形状跟视觉形状走：
+ *   ball          球（点到球心距离 - r）
+ *   arrow / ellip 头 + 尾双球（胶囊的扫掠近似，防快速弹隧穿）
+ *   box           方盒：OBB 膨胀判定（局部 AABB clamp，精确）
+ *   tetra         正四面体：4 面半平面（Minkowski 膨胀的过近似，宁严勿松）
+ */
+export function shapeDist(b: Bullet): number {
+  const shape = b.shape || 'ball';
+  if (shape === 'ball') {
+    return distToPlayerAxis(b.x, b.y, b.z) - b.r;
+  }
+  if (shape === 'arrow' || shape === 'ellip') {
+    const dHead = distToPlayerAxis(b.x, b.y, b.z);
+    const dTail = distToPlayerAxis(b.px, b.py, b.pz);
+    return Math.min(dHead, dTail) - b.r;
+  }
+  if (shape === 'box') {
+    const hl = (b.len || 2.2) * b.r * 0.5;
+    const hw = b.r * 0.92;
+    const B = basisOf(b);
+    // 玩家胶囊两端点分别对盒求距离（线段采样：端点距 0.45m > 单帧位移，不隧穿）
+    let dmin = Infinity;
+    for (const pe of [
+      [player.x, player.y + PLAYER.bodyLow, player.z],
+      [player.x, player.y + PLAYER.bodyHigh, player.z]
+    ] as const) {
+      const dx = pe[0] - b.x, dy = pe[1] - b.y, dz = pe[2] - b.z;
+      const ld = Math.abs(dx * B[0][0] + dy * B[0][1] + dz * B[0][2]) - hl;
+      const ud = Math.abs(dx * B[1][0] + dy * B[1][1] + dz * B[1][2]) - hw;
+      const wd = Math.abs(dx * B[2][0] + dy * B[2][1] + dz * B[2][2]) - hw;
+      const dPoint = Math.sqrt(Math.max(ld, 0) ** 2 + Math.max(ud, 0) ** 2 + Math.max(wd, 0) ** 2) +
+        Math.min(ld, ud, wd, 0);
+      if (dPoint < dmin) dmin = dPoint;
+    }
+    return dmin;
+  }
+  // tetra：单位四面体顶点 (±1,±1,±1)/√3，面法线 = -顶点方向。外接球 1×TETRA_SCALE
+  const S = 1.35 * b.r;          // 外接球半径（内切 ≈ 0.45r，体量感与球弹相当）
+  const N: Array<[number, number, number]> = [
+    [-1, -1, -1], [-1, 1, 1], [1, -1, 1], [1, 1, -1]
+  ];   // 每个面的外法线 ∝ -(对面顶点)
+  const B = basisOf(b);
+  const spin = (8 - (b.life || 0)) * 3.1;
+  const cs = Math.cos(spin), sn = Math.sin(spin);
+  let dmin = Infinity;
+  for (const pe of [
+    [player.x, player.y + PLAYER.bodyLow, player.z],
+    [player.x, player.y + PLAYER.bodyHigh, player.z]
+  ] as const) {
+    const dx = pe[0] - b.x, dy = pe[1] - b.y, dz = pe[2] - b.z;
+    // 世界 → 弹局部
+    const lf = dx * B[0][0] + dy * B[0][1] + dz * B[0][2];
+    let lu = dx * B[1][0] + dy * B[1][1] + dz * B[1][2];
+    let lw = dx * B[2][0] + dy * B[2][1] + dz * B[2][2];
+    // 绕前向轴自旋
+    const ru = lu * cs - lw * sn, rw = lu * sn + lw * cs;
+    lu = ru; lw = rw;
+    // 4 面半平面：外法线 ni = -(对面顶点方向)，面方程 dot(ni,p) = S/3（内切半径）。
+    // dd = dot(ni,p) - S/3：内部为负、面上为 0。hit(膨胀体) = max dd ≤ hitR。
+    // 棱角附近 max-face 是膨胀体的过近似 → 宁严勿松。
+    let d = -Infinity;
+    for (let k = 0; k < 4; k++) {
+      const dd = (N[k][0] * lf + N[k][1] * lu + N[k][2] * lw) * S / Math.sqrt(3) - S / 3;
+      if (dd > d) d = dd;
+    }
+    if (d < dmin) dmin = d;
+  }
+  return dmin;
+}
+
+/** 擦弹三分类：弹在头顶上方 / 脚下 / 身侧 */
+function grazeBucket(b: Bullet): 'head' | 'foot' | 'body' {
+  if (b.y > player.y + PLAYER.bodyHigh + 0.35) return 'head';
+  if (b.y < player.y + PLAYER.bodyLow - 0.35) return 'foot';
+  return 'body';
 }
 
 export function updateBullets(dt: number): void {
@@ -90,9 +182,9 @@ export function updateBullets(dt: number): void {
     }
 
     // 诱饵：降到 1.78m 突然改成水平冲刺 —— 紫色说"还很高"，实际在打你腰
-    if (b.kind === 'feint' && b.fuse && b.y <= 1.78) {
+    if (b.kind === 'feint' && b.fuse && b.y <= 0.6) {
       b.fuse = 0;
-      b.y = 1.78;
+      b.y = 0.6;
       const dx = player.x - b.x, dz = player.z - b.z;
       const dl = Math.hypot(dx, dz) || 1;
       const sp = 9.6;
@@ -105,7 +197,7 @@ export function updateBullets(dt: number): void {
     if (b.homing) {
       const spd = 4.2;
       const dx = player.x - b.x;
-      const dy = (player.y + 0.85) - b.y;
+      const dy = (player.y + 0.3) - b.y;
       const dz = player.z - b.z;
       const l = Math.hypot(dx, dy, dz) || 1;
       const k = Math.min(1, dt * 1.4);
@@ -189,12 +281,28 @@ export function updateBullets(dt: number): void {
       continue;
     }
 
-    // 球形弹：瞬时球判定（1:1 保持）；非球形弹加尾球 = 头+尾扫掠近似
-    const tailHit = b.shape !== undefined && b.shape !== 'ball' && hitPlayerTail(b);
-    if (!b.noHit && player.inv <= 0 && (hitPlayer(b) || tailHit)) {
-      onPlayerHit(b);
-      bullets.splice(i, 1);
-      continue;
+    // 判定 + 擦弹：一次形状求距，三档分派（hit / graze / 无事）。
+    // hit 永远优先 —— 弹飞向玩家必先穿过擦弹层，grazed 标记绝不能拦住 hit。
+    // grazed 只做两件事：擦弹去重（一颗弹只擦一次）、无敌期穿身后吞掉这颗弹的擦弹。
+    if (!b.noHit) {
+      const d = shapeDist(b);
+      if (d < PLAYER.hitR) {
+        if (player.inv <= 0) {
+          onPlayerHit(b);
+          bullets.splice(i, 1);
+          continue;
+        }
+        b.grazed = 1;                       // 穿身，这颗弹不再计擦弹
+      } else if (b.grazed !== 1 && d < GRAZE_R) {
+        b.grazed = 1;
+        stats.graze++;
+        const bucket = grazeBucket(b);
+        if (bucket === 'head') stats.grazeHead++;
+        else if (bucket === 'foot') stats.grazeFoot++;
+        else stats.grazeBody++;
+        for (let k = 0; k < 3; k++) spawnSpark(b.x, b.y, b.z, '255,255,255', 0.4);
+        updateHud();
+      }
     }
   }
 }

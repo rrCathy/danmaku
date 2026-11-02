@@ -1,5 +1,6 @@
 /** 实体绘制：子弹、玩家弹、粒子、玩家、boss。全部走 project() 的屏幕坐标。 */
 import { boss, bullets, opts, pshots, player } from '../state';
+import { PLAYER } from '../config';
 import type { Bullet, Particle, Projected, Shot } from '../types';
 import { TAU, clamp } from '../core/math';
 import { project } from '../core/camera';
@@ -72,6 +73,48 @@ export function drawBullet(b: Bullet, p: Projected): void {
     ctx.lineWidth = Math.max(1, rp * 0.24);
     ctx.strokeStyle = 'rgba(255,255,255,0.8)';
     ctx.stroke();
+  } else if (shape === 'tetra') {
+    // 正四面体：3D 顶点投影成线框 + 半透明面，绕速度轴自旋
+    const S = b.r * 1.35;
+    const sp = Math.hypot(b.vx, b.vy, b.vz) || 1;
+    const fx = b.vx / sp, fy = b.vy / sp, fz = b.vz / sp;
+    let ux = 0, uy = 1, uz = 0;
+    if (Math.abs(fy) > 0.9) { ux = 1; uy = 0; }
+    let wx = fy * uz - fz * uy, wy = fz * ux - fx * uz, wz = fx * uy - fy * ux;
+    const wl = Math.hypot(wx, wy, wz) || 1;
+    wx /= wl; wy /= wl; wz /= wl;
+    const u2x = wy * fz - wz * fy, u2y = wz * fx - wx * fz, u2z = wx * fy - wy * fx;
+    const spin = (8 - (b.life || 0)) * 3.1;
+    const cs = Math.cos(spin), sn = Math.sin(spin);
+    const V: Array<[number, number, number]> = [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]];
+    const pts: Array<{ x: number; y: number }> = [];
+    for (let vi = 0; vi < 4; vi++) {
+      const v = V[vi];
+      const lu = v[0], lv0 = v[1] * cs - v[2] * sn, lw0 = v[1] * sn + v[2] * cs;
+      const wxx = b.x + (fx * lu + u2x * lv0 + wx * lw0) * S;
+      const wyy = b.y + (fy * lu + u2y * lv0 + wy * lw0) * S;
+      const wzz = b.z + (fz * lu + u2z * lv0 + wz * lw0) * S;
+      const pr = project(wxx, wyy, wzz);
+      if (pr) pts.push({ x: pr.x, y: pr.y });
+    }
+    if (pts.length === 4) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let vi = 1; vi < 4; vi++) ctx.lineTo(pts[vi].x, pts[vi].y);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(' + b.rgb + ',0.5)';
+      ctx.fill();
+      ctx.lineWidth = Math.max(1, rp * 0.22);
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.stroke();
+      // 三条内棱，让"体"感出来
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[3].x, pts[3].y);
+      ctx.moveTo(pts[1].x, pts[1].y); ctx.lineTo(pts[3].x, pts[3].y);
+      ctx.moveTo(pts[2].x, pts[2].y); ctx.lineTo(pts[3].x, pts[3].y);
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.stroke();
+    }
   } else { // ellip：水滴 / 椭球
     const rx = rp * len, ry = rp * 1.02;
     ctx.beginPath();
@@ -193,20 +236,23 @@ export function drawPlayer(p: Projected): void {
   ctx.globalAlpha = 1;
 
   if (opts.hitbox) {
-    const a = project(player.x, player.y + 0.18, player.z);
-    const b = project(player.x, player.y + 1.42, player.z);
+    const a = project(player.x, player.y + PLAYER.bodyLow, player.z);
+    const b = project(player.x, player.y + PLAYER.bodyHigh, player.z);
     if (a && b) {
       ctx.lineCap = 'round';
       ctx.strokeStyle = 'rgba(120,255,180,0.30)';
-      ctx.lineWidth = 0.52 * a.s;
+      ctx.lineWidth = PLAYER.hitR * 2 * a.s;          // 胶囊粗 = 截面直径
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(a.x, a.y, 0.26 * a.s, 0, TAU);
+      ctx.arc(a.x, a.y, PLAYER.hitR * a.s, 0, TAU);   // 底帽
       ctx.strokeStyle = 'rgba(120,255,180,0.75)';
       ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, PLAYER.hitR * a.s, 0, TAU);   // 顶帽
       ctx.stroke();
     }
   }

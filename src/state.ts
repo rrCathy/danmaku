@@ -83,7 +83,7 @@ export let walls: Wall[] = [];
 export let particles: Particle[] = [];
 export let timers: Timer[] = [];
 export let logs: HitLog[] = [];
-export let stats: Stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0 };
+export let stats: Stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0, graze: 0, grazeHead: 0, grazeFoot: 0, grazeBody: 0 };
 
 /** 冲刺残影 */
 export const ghosts: Ghost[] = [];
@@ -118,7 +118,7 @@ export function reset(): void {
   timers = [];
   logs = [];
   ghosts.length = 0;
-  stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0 };
+  stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0, graze: 0, grazeHead: 0, grazeFoot: 0, grazeBody: 0 };
   clock.elapsed = 0;
   clock.timeLeft = ROUND.time;
   clock.slowT = 0;

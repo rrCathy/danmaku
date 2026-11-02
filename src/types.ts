@@ -11,9 +11,10 @@ export type HClass = 'low' | 'mid' | 'high' | 'rain';
 
 /**
  * 子弹形状。缺省 = ball（全部旧图案，行为不变）。
- * 形状只影响绘制与扫掠判定；碰撞球半径仍由 r 决定 —— 大形状就配大 r。
+ * 碰撞箱跟视觉形状走：ball=球、box=膨胀 OBB、tetra=四面体四半平面、
+ * arrow/ellip=头尾双球（胶囊扫掠近似）。尺寸倍数 len 相对 r。
  */
-export type BulletShape = 'ball' | 'arrow' | 'box' | 'ellip';
+export type BulletShape = 'ball' | 'arrow' | 'box' | 'ellip' | 'tetra';
 
 /** 子弹来源图案。保留这个字段是为了按图案做统计，逻辑上不参与判定。 */
 export type BulletKind =
@@ -58,6 +59,8 @@ export interface Bullet {
   shape?: BulletShape;
   /** 形状尺寸倍数（相对 r）：arrow 的箭长、ellip 的长轴、box 的长边。缺省 arrow 3.4 / ellip 1.8 / box 2.2 */
   len?: number;
+  /** 已计过擦弹（每颗弹只擦一次，防刷） */
+  grazed?: number;
   trail: number[] | null;
   tk: number;
 }
@@ -151,6 +154,11 @@ export interface Stats {
   mid: number;
   high: number;
   rain: number;
+  /** 擦弹总数与三分类（弹在头顶上方 / 脚下 / 身侧掠过） */
+  graze: number;
+  grazeHead: number;
+  grazeFoot: number;
+  grazeBody: number;
 }
 
 export interface Timer {

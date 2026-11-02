@@ -57,9 +57,9 @@ export function clsByHeight(h: number): HClass {
 }
 
 export const CLASS_INFO: Record<HClass, { name: string; tip: string }> = {
-  low: { name: '低空弹', tip: '贴地 0.5m —— 起跳可以躲过' },
+  low: { name: '低空弹', tip: '贴地 —— 起跳可以躲过' },
   mid: { name: '中空弹', tip: '中段高度 —— 侧向走位，别站在原地' },
-  high: { name: '高空弹', tip: '2.4m 以上 —— 不要起跳，从下方穿过' },
+  high: { name: '高空弹', tip: '头顶上方 —— 别起跳，贴地从下方穿过' },
   rain: { name: '落点雨', tip: '垂直下落 —— 离开地面标记圈' }
 };
 

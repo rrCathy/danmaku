@@ -25,6 +25,10 @@ function resetTrainingStats(): void {
   stats.mid = 0;
   stats.high = 0;
   stats.rain = 0;
+  stats.graze = 0;
+  stats.grazeHead = 0;
+  stats.grazeFoot = 0;
+  stats.grazeBody = 0;
   logs.length = 0;
   renderDiag();
 }

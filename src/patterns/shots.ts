@@ -66,7 +66,7 @@ export function spiralShot(): void {
       return function () {
         if (!boss.alive) return;
         const a = boss.spin * 2.4 + idx * 0.46;
-        const h = 0.75 + (Math.sin(idx * 0.42) * 0.5 + 0.5) * 2.1;
+        const h = 0.4 + (Math.sin(idx * 0.42) * 0.5 + 0.5) * 1.0;
         const sp = 10.2;
         addBullet(boss.x, h, boss.z, Math.cos(a) * sp, 0, Math.sin(a) * sp,
           0.20, clsOf(h), 'spiral');
@@ -96,7 +96,7 @@ function pushWall(
     for (let u = -halfW; u <= halfW; u += step) {
       if (Math.abs(u - gapPos) < gapW) continue;    // 缺口
       for (let k = 0; k < rows; k++) {
-        const h = 0.42 + k * 0.82;
+        const h = 0.42 + k * 0.46;
         const px = nx * D + tx * u;
         const pz = nz * D + tz * u;
         addBullet(px, h, pz, -nx * speed, 0, -nz * speed, 0.21, clsOf(h), 'wall', 'box', 2.2);
@@ -128,7 +128,7 @@ export function wallShot(): void {
 export function laserSweep(): void {
   const base = random() * TAU;
   lasers.push({ x: 0, z: 0, ang: base, y: 0.55, spin: 0.72, warm: 1.1, life: 3.2, r: 0.32, cls: 'low' });
-  lasers.push({ x: 0, z: 0, ang: base + Math.PI * 0.42, y: 2.72, spin: -0.52, warm: 1.6, life: 2.9, r: 0.32, cls: 'high' });
+  lasers.push({ x: 0, z: 0, ang: base + Math.PI * 0.42, y: 2.1, spin: -0.52, warm: 1.6, life: 2.9, r: 0.32, cls: 'high' });
   boss.flash = 0.55;
 }
 
@@ -138,7 +138,7 @@ export function satBurst(): void {
   for (let s = 0; s < boss.sats.length; s++) {
     const src = satPos(s);
     for (let i = 0; i < n; i++) {
-      const h = 0.62 + i * 0.95;
+      const h = 0.5 + i * 0.5;
       const v = aimVel(src, player.x, h, player.z, 12.5);
       addBullet(src.x, src.y, src.z, v.x, v.y, v.z, 0.20, clsOf(h), 'sat');
     }
@@ -154,7 +154,7 @@ export function stairShot(): void {
     later(i * 0.155, (function (idx) {
       return function () {
         if (!boss.alive) return;
-        const h = 0.45 + idx * (2.55 / (N - 1));   // 0.45 → 3.0 逐级抬升
+        const h = 0.45 + idx * (1.85 / (N - 1));   // 0.45 → 2.3 逐级抬升（hit → 擦头 → 惩罚跳）
         const v = aimVel(boss, px, h, pz, 11.8);
         addBullet(boss.x, boss.y, boss.z, v.x, v.y, v.z, 0.21, clsOf(h), 'stair');
       };
@@ -225,8 +225,8 @@ export function counterSpiral(): void {
         if (!boss.alive) return;
         const a1 = boss.spin * 2.8 + idx * 0.56;
         const a2 = -boss.spin * 2.8 - idx * 0.56 + Math.PI * 0.5;
-        const h1 = 0.7 + (Math.sin(idx * 0.36) * 0.5 + 0.5) * 2.2;
-        const h2 = 0.7 + (Math.sin(idx * 0.36 + Math.PI) * 0.5 + 0.5) * 2.2;
+        const h1 = 0.4 + (Math.sin(idx * 0.36) * 0.5 + 0.5) * 1.1;
+        const h2 = 0.4 + (Math.sin(idx * 0.36 + Math.PI) * 0.5 + 0.5) * 1.1;
         const sp = 9.6;
         addBullet(boss.x, h1, boss.z, Math.cos(a1) * sp, 0, Math.sin(a1) * sp, 0.19, clsOf(h1), 'spiral');
         addBullet(boss.x, h2, boss.z, Math.cos(a2) * sp, 0, Math.sin(a2) * sp, 0.19, clsOf(h2), 'spiral');
@@ -245,7 +245,7 @@ export function lowHigh(): void {
       const off = (i - 2.5) * 2.4;
       const px = player.x + off * Math.cos(boss.spin * 0.2);
       const pz = player.z + off * Math.sin(boss.spin * 0.2);
-      const v = aimVel(src, px, 2.62, pz, 13.2);
+      const v = aimVel(src, px, 2.15, pz, 13.2);
       addBullet(src.x, src.y, src.z, v.x, v.y, v.z, 0.24, 'high', 'sweep');
     }
   });
@@ -266,7 +266,7 @@ export function lowHigh(): void {
  * 三波：低（跳）→ 高（别跳）→ 低（跳），间隔约 1.2s，正好卡住起跳节奏。
  */
 export function jumpWall(): void {
-  const plan: Array<[number, number]> = [[0.35, 0.55], [1.55, 3.1], [2.75, 0.55]];
+  const plan: Array<[number, number]> = [[0.35, 0.55], [1.55, 2.1], [2.75, 0.55]];
   boss.flash = 0.4;
   for (let i = 0; i < plan.length; i++) {
     const delay = plan[i][0];
@@ -290,7 +290,7 @@ export function jumpWall(): void {
   }
 }
 
-/** 预判狙：按玩家当前速度打提前量，三个高度同时来 —— 站着不动必被三发一起命中 */
+/** 预判狙：按玩家当前速度打提前量，三个低层高度同时来 —— 站着不动必被三发一起命中。四面体弹：锐利、无惯性暗示 */
 export function sniper(): void {
   const rounds = boss.phase >= 3 ? 3 : 2;
   boss.flash = 0.45;
@@ -300,10 +300,10 @@ export function sniper(): void {
       const lead = 0.3;
       const tx = player.x + player.vx * lead;
       const tz = player.z + player.vz * lead;
-      const hs = [0.55, 1.55, 2.75];
+      const hs = [0.3, 0.55, 0.8];
       for (let i = 0; i < hs.length; i++) {
         const v = aimVel(boss, tx, hs[i], tz, 16);
-        addBullet(boss.x, boss.y, boss.z, v.x, v.y, v.z, 0.20, clsOf(hs[i]), 'sat');
+        addBullet(boss.x, boss.y, boss.z, v.x, v.y, v.z, 0.20, clsOf(hs[i]), 'sat', 'tetra', 1.35);
       }
     });
   }
@@ -343,7 +343,7 @@ export function risenare(): void {
       return function () {
         addBullet(xx, 0.2, zz, 0, 13.5, 0, 0.30, 'mid', 'rise');
         later(0.2, function () {
-          const h = 2.9;
+          const h = 1.15;
           const rot = random() * TAU;
           for (let k = 0; k < 10; k++) {
             const aa = rot + (k / 10) * TAU;
@@ -397,7 +397,7 @@ export function petalRing(): void {
         const k = idx === 0 ? 5 : idx === 1 ? 6 : 4;   // 花瓣数逐圈变，读图不读记忆
         const rot = random() * TAU;
         const n = 24;
-        const h = idx === 1 ? 1.62 : 1.18;             // 两圈错开高度，读层再读形
+        const h = idx === 1 ? 1.05 : 0.75;             // 两圈错开高度：低圈要跳，中圈擦头
         for (let i = 0; i < n; i++) {
           const a = (i / n) * TAU + rot;
           const vr = 7.2 + 2.9 * Math.cos(k * a);
@@ -424,7 +424,7 @@ export function radialRays(): void {
   const base = random() * TAU;
   for (let b = 0; b < beams; b++) {
     const ang = base + (b / beams) * TAU;
-    const h = (b % 2 === 0) ? 0.62 : 2.32;
+    const h = (b % 2 === 0) ? 0.55 : 1.75;
     for (let i = 0; i < per; i++) {
       later(0.42 + i * step, (function (aa, hh) {
         return function () {
@@ -556,7 +556,7 @@ export function coneBurst(): void {
       if (!boss.alive) return;
       // 锥轴 = boss → 玩家（每波重瞄）
       let ax = player.x - boss.x;
-      let ay = (player.y + 0.8) - boss.y;
+      let ay = (player.y + 0.3) - boss.y;
       let az = player.z - boss.z;
       const al = Math.hypot(ax, ay, az) || 1;
       ax /= al; ay /= al; az /= al;

@@ -33,6 +33,7 @@ import { flags } from './input/flags';
 import { endGame, initUi, setDifficulty, startGame, startTraining, togglePolar } from './ui/flow';
 import { updateHud } from './ui/hud';
 import { ALL_PATTERNS, runPattern } from './patterns';
+import { addBullet, shapeDist } from './systems/bullets';
 import type { PatternName } from './patterns';
 
 /* ============ 主循环 ============ */
@@ -226,6 +227,13 @@ if (/[?&]dbg=1/.test(location.search)) {
     heightRGB,
     dash: function () { flags.dash = true; },
     run: function (n: string) { runPattern(n); },
+    /** 精确放弹（擦弹/碰撞冒烟用）：add(x,y,z,vx,vy,vz,r,cls,kind,shape?) */
+    add: function (x: number, y: number, z: number, vx: number, vy: number, vz: number,
+      r: number, cls: string, kind: string, shape?: string) {
+      addBullet(x, y, z, vx, vy, vz, r, cls as never, kind as never, shape as never);
+    },
+    /** 判定距离探针：任取一颗弹看 shapeDist（碰撞/擦弹调试） */
+    dist: function (i: number) { return bullets[i] ? shapeDist(bullets[i]) : null; },
     /** 直接走结算链路（成就/无伤徽章都在 endGame 里） */
     end: function (win: boolean) { endGame(win, win ? undefined : 'hp'); }
   };

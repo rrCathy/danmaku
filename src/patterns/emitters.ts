@@ -40,10 +40,10 @@ export function fanShot(
   }
 }
 
-/** 瞄准点弥散：9 发，目标高度从 0.7m 铺到 3.3m，覆盖三个高度带 */
+/** 瞄准点弥散：9 发，目标高度从 0.4m 铺到 1.9m（低层 hit 带 + 擦头带） */
 export function spreadShot(): void {
   for (let i = 0; i < 9; i++) {
-    const ty = 0.7 + (i / 8) * 2.6;
+    const ty = 0.4 + (i / 8) * 1.5;
     const tx = player.x + rand(-1.2, 1.2);
     const tz = player.z + rand(-1.2, 1.2);
     const vx = tx - boss.x, vy = ty - boss.y, vz = tz - boss.z;
