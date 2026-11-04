@@ -34,12 +34,20 @@ export function updateGame(dt: number): void {
   // 训练场：由面板驱动出招节奏，不走 boss 的 cd
   if (trainingMode) updateTraining(dt);
 
-  // 自由视角绕玩家转（标准第三人称），只留一点权重给 boss 让它保持在画面里
-  const tx = polar.on ? player.x : player.x * 0.87 + boss.x * 0.13;
-  const tz = polar.on ? player.z : player.z * 0.87 + boss.z * 0.13;
-  cam.target.x = lerp(cam.target.x, tx, Math.min(1, dt * 3.2));
-  cam.target.z = lerp(cam.target.z, tz, Math.min(1, dt * 3.2));
-  cam.target.y = lerp(cam.target.y, 2.1 + player.y * 0.25, Math.min(1, dt * 3));
+  // 自由视角绕玩家转（标准第三人称），只留一点权重给 boss 让它保持在画面里。
+  // 玩家静止时冻结目标点：boss 永远在公转（boss.ts 持续推进 ang），若仍每帧混入
+  // 13% boss 坐标，目标点会被拖着绕场画圈 —— 站着不动视角也在轻微游移（用户报告）。
+  // 阈值 0.05 m/s：低于它的位移每秒不到 5cm，肉眼不可见，视为「站定」。
+  const moving = player.dashT > 0
+    || Math.hypot(player.vx, player.vz) > 0.05
+    || Math.abs(player.vy) > 0.05;
+  if (moving) {
+    const tx = polar.on ? player.x : player.x * 0.87 + boss.x * 0.13;
+    const tz = polar.on ? player.z : player.z * 0.87 + boss.z * 0.13;
+    cam.target.x = lerp(cam.target.x, tx, Math.min(1, dt * 3.2));
+    cam.target.z = lerp(cam.target.z, tz, Math.min(1, dt * 3.2));
+    cam.target.y = lerp(cam.target.y, 2.1 + player.y * 0.25, Math.min(1, dt * 3));
+  }
 
   player.inv = Math.max(0, player.inv - dt);
   clock.dmgFlash = Math.max(0, clock.dmgFlash - dt * 1.9);

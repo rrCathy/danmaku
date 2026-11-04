@@ -2,26 +2,12 @@
 import { BOSS, DIFFICULTIES, ROUND } from '../config';
 import { COLORS } from '../core/color';
 import { clamp, lerp, rand } from '../core/math';
-import { boss, bullets, clock, lasers, rings, session, state, timers, walls } from '../state';
+import { boss, clock, session, state } from '../state';
 import { spawnSpark } from './effects';
 import { pickPattern, runPattern } from '../patterns';
 import { updateHud } from '../ui/hud';
 import { toast } from '../ui/toast';
 import { endGame } from '../ui/flow';
-
-/**
- * 换阶段清场。
- *
- * 不清的话，上一阶段的大范围招会带进下一阶段：P2 的扫描线正扫到一半、P3 的风车已经转起来，
- * 玩家面对的是两个阶段的叠加。later 也要清，否则扫描线的后两道墙会在 P3 开场 0.5s 后才补出来。
- */
-function wipeField(): void {
-  bullets.length = 0;
-  lasers.length = 0;
-  walls.length = 0;
-  rings.length = 0;
-  timers.length = 0;
-}
 
 export function updateBoss(dt: number): void {
   if (!boss.alive) return;
@@ -45,10 +31,18 @@ export function updateBoss(dt: number): void {
   boss.cd -= dt;
   if (boss.cd <= 0) {
     runPattern(pickPattern());
-    const diff = DIFFICULTIES[session.difficulty];
-    boss.cd = diff.cdBase * (1 - (boss.phase - 1) * BOSS.cdPerPhase)
-      / (boss.enraged ? BOSS.cdRage : 1)
-      * rand(diff.cdJitter[0], diff.cdJitter[1]);
+    // 占台机制：晶格招等"舞台时间"长的招式声明 holdCd —— 晶体在场时它就是全部威胁，
+    // boss 停顿该时长再抽下一招（招式的持续时间决定抽招节奏，序列编排的基石）。
+    // 普通招不设 holdCd，照常走难度节奏。
+    if (boss.holdCd) {
+      boss.cd = boss.holdCd;
+      boss.holdCd = 0;
+    } else {
+      const diff = DIFFICULTIES[session.difficulty];
+      boss.cd = diff.cdBase * (1 - (boss.phase - 1) * BOSS.cdPerPhase)
+        / (boss.enraged ? BOSS.cdRage : 1)
+        * rand(diff.cdJitter[0], diff.cdJitter[1]);
+    }
   }
 }
 
@@ -63,17 +57,17 @@ export function damageBoss(d: number): void {
   boss.flash = Math.max(boss.flash, 0.1);
 
   const p = boss.hp / boss.maxHp;
+  // 换阶段只切"从哪一招开始教"（phase + seq 归零）。
+  // **不碰 boss.cd、不清场**：当前招可能正在 holdCd 占台（晶格招 6~10s），
+  // 强行缩短 cd / wipeField 会把进行中的招式拦腰砍断 —— 让它走完，
+  // 新阶段第一招在当前招 hold 结束后自然抽到（retire 会收走旧晶体）。
   if (p <= ROUND.phase2 && boss.phase === 1) {
     boss.phase = 2;
-    boss.seq = 0;                 // 新阶段从该阶段的第一招重新教
-    boss.cd = Math.min(boss.cd, 1.2);
-    wipeField();                  // 上一阶段的招不带进来
+    boss.seq = 0;
     toast('BOSS 进入第二阶段', 1500, COLORS.boss);
   } else if (p <= ROUND.phase3 && boss.phase === 2) {
     boss.phase = 3;
     boss.seq = 0;
-    boss.cd = Math.min(boss.cd, 1.0);
-    wipeField();
     toast('BOSS 进入第三阶段 · 弹幕加速', 1500, COLORS.boss);
   }
 

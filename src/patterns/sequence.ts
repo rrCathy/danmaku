@@ -80,13 +80,21 @@ export const SEQUENCES_D3: Record<number, PatternName[]> = {
  * 再教"跳"（波浪/龙骨炮/扫描线/风车），最后叠成节奏（堆叠/东方对称）。
  */
 export const SEQUENCES_D4: Record<number, PatternName[]> = {
-  // P1：**波纹开场**（一圈圈推开），老招 sweepLow / spread 做锚，中间用点状招透气
-  1: ['ripple', 'sweepLow', 'lightning', 'aimed', 'toho', 'smoke', 'ring', 'spread'],
-  // P2：**只放推进类**（扫描线 / 龙骨炮），sweepHigh 做「别跳」的反面教材；
-  //     不含风车 —— 风车在 P3，扫描线在 P2，两者永不同场
-  2: ['sweepLine', 'smoke', 'gaster', 'aimed', 'sweepHigh', 'lightning'],
-  // P3：**只放环 / 旋转类**（堆叠 / 风车 / 花瓣 / 放射），不放扫描线和波浪
-  3: ['stack', 'grenade', 'pinwheel', 'smoke', 'petal', 'lightning', 'radial', 'aimed']
+  /* FCC 专场 · **状态链编排**（v5.4，用户「招式的连接」观点落地；v5.4.1 按用户复核修正两处）。
+   * 三条同族链：链首生成一次晶体，链内招**接管同一批弹**（不 retire、不重新生成，
+   * 只切 LatticeFrame 驱动字段）；链尾接休息段硬切。跨族（轴对齐 / 立式）不接管。
+   * 轮长 = 各招 holdCd 之和：P1 ≈ 32s（5 招）→ P2 ≈ 23s（3 招）→ P3 ≈ 57s（8 招）。
+   * 详见 docs/danmaku-framework.md §3.3.1 / §3.3.2。 */
+  // P1 · 轴对齐链：长出 → 脉动 → 密度波 → 翻滚 ‖ 合胞（休息）
+  1: ['latticeBurst', 'latticeBreath', 'latticePhonon', 'latticeSpin', 'latticeAssemble'],
+  // P2 · 立式链：六层摞成静止全空间 → 逐层化雨落尽 ‖ 晶锥（休息）—— 用户指定：叠层直接接晶雨
+  2: ['latticeStack', 'latticeRain', 'latticeCone'],
+  // P3 · 轴对齐链：漏光晶体钉场 → 劈裂 → BCC 定型（链尾，晶体定型后由 life 自然散场）
+  //     ‖ 螺旋 → 111 → 位错 → 晶轮 → 齐狙（休息段，全部硬切）
+  //     螺旋不进链（用户 2026-11-04 指正）：接管 = 继承滑移劈出的上下错位晶体，旋转下沉时
+  //     错位跟着转，怎么排都丑 —— 错位长在弹上，不是相邻关系问题，只有硬切自带新晶体才干净
+  3: ['latticeVac', 'latticeShear', 'latticePhase',
+      'latticeScrew', 'lattice111', 'latticeDisloc', 'latticeWheel', 'latticeVolley']
 };
 
 export function sequenceFor(phase: number, difficulty: DifficultyKey = 1): PatternName[] {
@@ -142,5 +150,23 @@ export const PATTERN_LABELS: Record<PatternName, { name: string; hint: string }>
   pinwheel: { name: '风车', hint: '高低臂交替旋转 —— 跟着臂缝走，别乱跳' },
   toho: { name: '东方对称', hint: '16 向高低交替 —— 跳低臂、落高臂' },
   stack: { name: '堆叠', hint: '三层交错 + 高空钉 —— 必须跳，但别一直跳' },
-  ripple: { name: '波纹', hint: '像水里丢石头，一圈高、一圈低往外推 —— 低的那圈跳过去' }
+
+  // ---- 难度 4 新增（晶格系 · 沿体对角线运动的真三维晶体）----
+  lattice111: { name: '晶格·111', hint: 'FCC 晶片沿体对角线压下来 —— 密排面一层层扫过，ABC 堆垛没有站桩点' },
+  latticeShear: { name: '晶格·滑移', hint: '晶体沿对角滑移面裂成两半反向错开 —— 裂缝是唯一通道' },
+  latticeWheel: { name: '晶轮', hint: '六条密排晶列边转边涨到场地边缘 —— 待在臂缝里' },
+  latticeSpin: { name: '晶格·自旋', hint: '晶体钉在场心绕水平轴翻滚 —— 脚下的点卷上头顶、头顶的点卷下来；离翻滚轴越远上下扫得越快，场心有颗钉子别站' },
+  latticeVac: { name: '晶格·空位', hint: '晶体漏光了 30% 的点 —— 空位串成的通道就是路，快速读图穿过去' },
+  latticeScrew: { name: '晶格·螺旋', hint: '晶体边转边沉 —— 网眼带着你转，同时要读层跳蹲，双层威胁' },
+  latticeBreath: { name: '晶格·呼吸', hint: '晶体原地缩放脉动 —— 网眼按节拍开合，读秒决定动没动' },
+  latticePhonon: { name: '晶格·声子', hint: '一列密度波在晶体里跑 —— 波前挤死、波谷大开，读波的走向' },
+  latticeDisloc: { name: '晶格·位错', hint: '立式晶体的密排层间往复滑移 —— 错位阶跃每 2.2s 横扫一遍，安全缝每拍跳一个 ABC 偏移，跟着缝挪' },
+  latticePhase: { name: '晶格·相变', hint: '晶体流动重排成另一种结构 —— 迁移期网眼全失效，定型瞬间看脚下' },
+  latticeBurst: { name: '晶格·聚散', hint: '所有弹从场心长成全空间晶体 —— 链首，长出后交给下一棒继续演化（单独选招时才解体飞散）' },
+  latticeVolley: { name: '晶格·齐狙', hint: '稀疏晶体逐点朝你开火 —— 读发射顺序，子弹间隔走位' },
+  latticeRain: { name: '晶格·晶雨', hint: '晶体压阵 + 落点雨 —— 晶体管站位，雨管脚下，两边都要读' },
+  // ---- v5.3：晶胞 / 层为单位的三种新招 ----
+  latticeAssemble: { name: '晶格·合胞', hint: '8 个晶胞从空间四处飞到你脚下拼成 2×2×2 晶体 —— 站桩必被包住，拼合前先走开' },
+  latticeStack: { name: '晶格·叠层', hint: 'A/B/C 层从远处一层层横扫进场、摞成全空间晶体 —— 读下一层从哪来，别站在扫过的线上' },
+  latticeCone: { name: '晶格·晶锥', hint: '8 个晶胞（2³）从一点爆出，各自边飞边撑大 —— 锥轴锁你施法瞬间的位置，贴锥边持续挪' }
 };

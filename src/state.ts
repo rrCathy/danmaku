@@ -39,7 +39,11 @@ export const training = {
   pattern: TRAINING.first as PatternName,
   speed: 1,
   /** 距离下一次循环还有多久 */
-  nextIn: 0
+  nextIn: 0,
+  /** 招式放完后的额外间隔（秒，面板可调） */
+  gap: TRAINING.gap as number,
+  /** 间隔倒计时：场清之后才走这个表 */
+  gapIn: 0
 };
 
 /** 训练场定格（F）：冻结时间但保留相机控制，用来看子弹的 3D 建模 */
@@ -87,7 +91,7 @@ export let particles: Particle[] = [];
 export let blasters: Blaster[] = [];
 export let timers: Timer[] = [];
 export let logs: HitLog[] = [];
-export let stats: Stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0, graze: 0, grazeHead: 0, grazeFoot: 0, grazeBody: 0 };
+export let stats: Stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0, grid: 0, graze: 0, grazeHead: 0, grazeFoot: 0, grazeBody: 0 };
 
 /** 冲刺残影 */
 export const ghosts: Ghost[] = [];
@@ -123,7 +127,7 @@ export function reset(): void {
   timers = [];
   logs = [];
   ghosts.length = 0;
-  stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0, graze: 0, grazeHead: 0, grazeFoot: 0, grazeBody: 0 };
+  stats = { hits: 0, low: 0, mid: 0, high: 0, rain: 0, grid: 0, graze: 0, grazeHead: 0, grazeFoot: 0, grazeBody: 0 };
   freeze.on = false;
   clock.elapsed = 0;
   clock.timeLeft = ROUND.time;
@@ -131,6 +135,8 @@ export function reset(): void {
   clock.dmgFlash = 0;
   training.speed = 1;
   training.nextIn = 0;
+  training.gap = TRAINING.gap;
+  training.gapIn = 0;
   resetCameraTarget();
   updateHud();
   renderDiag();

@@ -17,3 +17,8 @@ Thumbs.db
 
 # 本地覆盖
 *.local
+
+# 本地调试产物（AI 会话目录 / 浏览器 profile / 旧调试截图）
+.commandcode/
+.playwright-mcp/
+/lattice111-*.png

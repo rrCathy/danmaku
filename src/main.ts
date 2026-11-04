@@ -22,6 +22,7 @@ import { heightRGB } from './core/color';
 import { blasters, boss, bullets, clock, freeze, later, lasers, player, reset, rings, session, state, stats, training, walls } from './state';
 import { getSeed, setSeed } from './core/random';
 import { SEQUENCES, getSequenceMode, setSequenceMode, sequenceFor } from './patterns/sequence';
+import { PATTERN_TAXONOMY, coverageReport } from './patterns/taxonomy';
 import { setSpeed } from './systems/training';
 import { refreshTrainPanel } from './ui/training';
 import { updateGame } from './systems/loop';
@@ -104,7 +105,12 @@ const PAT_ALIAS: Record<string, PatternName> = {
   aim: 'aimed', aimed: 'aimed', random: 'random', rand: 'random',
   smoke: 'smoke', lightning: 'lightning', bolt: 'lightning', grenade: 'grenade',
   wave: 'wave', sweepline: 'sweepLine', gaster: 'gaster',
-  pinwheel: 'pinwheel', toho: 'toho', stack: 'stack', ripple: 'ripple'
+  pinwheel: 'pinwheel', toho: 'toho', stack: 'stack',
+  // 晶格系
+  lattice: 'lattice111', l111: 'lattice111', shear: 'latticeShear',
+  wheel: 'latticeWheel',
+  // v5.3：晶胞 / 层为单位
+  assemble: 'latticeAssemble', stack2: 'latticeStack', cellcone: 'latticeCone'
 };
 
 function resolvePattern(raw: string): PatternName | undefined {
@@ -131,7 +137,7 @@ if (seqMatch && seqMatch[1] === 'random') setSequenceMode('random');
 /** 训练场：不计时不计死，?pat= 选初招，?speed= 调弹速 */
 const trainMatch = /[?&]train=1/.test(SEARCH);
 if (trainMatch) {
-  const pt = SEARCH.match(/[?&]pat=([a-zA-Z]+)/);
+  const pt = SEARCH.match(/[?&]pat=([a-zA-Z0-9]+)/);
   startTraining(pt ? resolvePattern(pt[1]) : undefined);
   const sp = SEARCH.match(/[?&]speed=([\d.]+)/);
   if (sp) { setSpeed(parseFloat(sp[1])); refreshTrainPanel(); }
@@ -174,7 +180,7 @@ if (/[?&]auto=1/.test(SEARCH) && !trainMatch) {
   const dv = SEARCH.match(/[?&]drive=([wasd]+)/);
   if (dv) { for (let i = 0; i < dv[1].length; i++) keys[dv[1][i]] = true; }
 
-  const pt = SEARCH.match(/[?&]pat=([a-zA-Z]+)/);
+  const pt = SEARCH.match(/[?&]pat=([a-zA-Z0-9]+)/);
   if (pt) {
     const nm = resolvePattern(pt[1]);
     if (nm) later(0.35, function () { runPattern(nm); });
@@ -231,6 +237,14 @@ if (/[?&]dbg=1/.test(location.search)) {
     train: function (n?: string) { startTraining(n ? resolvePattern(n) : undefined); },
     setSpeed: function (v: number) { setSpeed(v); },
     get stats() { return stats; },
+    taxonomy: PATTERN_TAXONOMY,
+    /** 关卡编排检查：某难度 P1~P3 固定序列的分类覆盖报告 */
+    coverage: function (diff?: number) {
+      const d = (diff || session.difficulty) as DifficultyKey;
+      const out: Record<string, ReturnType<typeof coverageReport>> = {};
+      for (const ph of [1, 2, 3] as const) out['P' + ph] = coverageReport(sequenceFor(ph, d));
+      return out;
+    },
     heightRGB,
     dash: function () { flags.dash = true; },
     run: function (n: string) { runPattern(n); },

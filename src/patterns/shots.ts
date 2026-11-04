@@ -777,43 +777,6 @@ export function waveShot(): void {
   }
 }
 
-/**
- * 波纹：往水里丢石头的那种同心波。
- *
- * 三圈弹从落点向外扩散，高度按 y = 1.45 + 1.15·sin(1.7r − 10.2t) 走。
- * 弹的径向速度 6 = 波速 ω/k（10.2/1.7 = 6），所以每圈弹在传播中保持自己的高度，
- * 看起来是一圈高、一圈低的浪头往外推，而不是一条线扫过场地。
- */
-export function rippleShot(): void {
-  // 以**场地原点**为中心丢石头，不是以玩家为中心 ——
-  // 跟着玩家走的水波只是"追人的圈"，玩家一直跑就永远在波前；钉在场地中心的才是环境级弹幕
-  const cx = 0;
-  const cz = 0;
-  const layers = 7;
-  const n = 64;              // 每圈 64 颗：环由渲染层连成闭合曲线，弹是曲线上的珠子
-  boss.flash = 0.45;
-  rings.push({ x: cx, z: cz, r: 1.2, t: 0.25, dur: 0.25, cls: 'mine' });
-  for (let L = 0; L < layers; L++) {
-    const r0 = 1.2 + L * 1.3;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * TAU;
-      addBullet(cx + Math.cos(a) * r0, 1.45, cz + Math.sin(a) * r0, 0, 0, 0,
-        0.2, 'mid', 'ripple');
-      const b = bullets[bullets.length - 1];
-      b.ripA = a;
-      b.ripR = r0;
-      b.ripV = 6.0;
-      b.ripX = cx;
-      b.ripZ = cz;
-      b.ripRing = L;
-      b.life = 2.8;
-    }
-  }
-  later(0.25, function () {
-    for (let k = 0; k < 10; k++) spawnSpark(cx, 0.4, cz, '120,200,255', 1.2);
-  });
-}
-
 /** 扫描线：三道不同角度的低墙（相差 60°）依次扫过 —— 交叉扫描，跳的时机各不同 */
 export function sweepLineShot(): void {
   const n = 3;

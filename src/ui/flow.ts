@@ -405,12 +405,13 @@ export function endGame(win: boolean, reason?: EndReason): void {
     el.endBadge.className = 'end-badge hidden';
   }
 
-  // 受击分布：低空 / 中空 / 高空 / 落点雨。受击总数已在上面的大数字里，这里不重复
+  // 受击分布：低空 / 中空 / 高空 / 落点雨 / 点阵。受击总数已在上面的大数字里，这里不重复
   const dist: Array<[string, number, string]> = [
     ['低空弹', stats.low, COLORS.low],
     ['中空弹', stats.mid, COLORS.mid],
     ['高空弹', stats.high, COLORS.high],
-    ['落点雨', stats.rain, COLORS.rain]
+    ['落点雨', stats.rain, COLORS.rain],
+    ['点阵弹', stats.grid, COLORS.grid]
   ];
   let maxV = 1;
   for (let i = 0; i < dist.length; i++) if (dist[i][1] > maxV) maxV = dist[i][1];

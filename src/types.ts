@@ -7,7 +7,7 @@
  */
 
 /** 语义高度段。只用于文案与统计，不影响颜色（颜色由 heightRGB 按连续高度决定）。 */
-export type HClass = 'low' | 'mid' | 'high' | 'rain';
+export type HClass = 'low' | 'mid' | 'high' | 'rain' | 'grid';
 
 /**
  * 子弹形状。缺省 = ball（全部旧图案，行为不变）。
@@ -59,8 +59,75 @@ export type BulletKind =
   | 'toho'
   /** 堆叠：多层交错弹幕 + 高钉惩罚乱跳 */
   | 'stack'
-  /** 同心波纹：像往水里丢石头，一圈圈向外推开 */
-  | 'ripple';
+  /** 晶格：整片点阵作为刚体运动（平移 / 自转 / 升降 / 发散） */
+  | 'lattice';
+
+/**
+ * 晶格组帧：整片点阵按刚体运动。
+ *
+ * 子弹只带自己的局部坐标 (lx, ly, lz)，世界位置每帧由组帧算出来。
+ * 于是"整片点阵自转""螺旋轴上升""对数螺旋外扩"这些运动只改组帧的几个数，
+ * 而不是给每颗弹各写一套积分 —— 同组点阵也不会各自漂移。
+ */
+export interface LatticeFrame {
+  /** 组原点（世界坐标） */
+  ox: number; oy: number; oz: number;
+  /** 组平移速度 m/s */
+  vx: number; vy: number; vz: number;
+  /** 旋转：当前角 / 角速度 rad/s */
+  ang: number; omega: number;
+  /** 旋转轴：'y' = 绕竖直轴原地转（x-z 平面），'z' = 绕场地内水平轴翻滚（x-y 平面） */
+  axis?: 'y' | 'z';
+  /** 组龄（秒）—— 脉动/声子/位错/相变/聚散都按它驱动 */
+  age: number;
+  /** 呼吸脉动：scale = 1 + pulseA·sin(pulseW·age)。pulseA=0 关闭 */
+  pulseA?: number; pulseW?: number;
+  /** 声子径向密度波：u = phononA·sin(phononK·ρ − phononW·age)，ρ = 到组原点的水平距离 */
+  phononA?: number; phononK?: number; phononW?: number;
+  /** 刃位错：错位波前沿 x 推进速度（m/s）。波前经过处上半晶体（ly>0）沿 z 错开半格 */
+  dislocV?: number;
+  /** 相变：age 达到 phaseT 后，面心点在 2s 内滑向 BCC 体心格点（tgtLx* 由 put 算好） */
+  phaseT?: number;
+  /** 聚散解体：age 达到 burstAt 后，全部弹脱离组帧沿径向飞散 */
+  burstAt?: number;
+  /** 缩放上限：scale 到顶后 sv 清零（晶体长出用） */
+  scaleCap?: number;
+  /** 生长保护：age < noHitAt 期间整片无判定（长出时全弹挤在原点，判了就是糊脸秒杀） */
+  noHitAt?: number;
+  /** 齐狙模式：每颗弹按 fireAt 依次朝玩家发射（弹本体飞出，阵点熄灭） */
+  volley?: boolean;
+  /** 层落雨：每颗弹按 dropAt（层序）依次脱离组帧匀速下落 —— 晶体本身化雨 */
+  rainDrop?: boolean;
+  /** 生成序号（volley 排队用） */
+  idx?: number;
+  /** 缩放（发散 / 呼吸）：当前倍率 / 每秒变化 */
+  scale: number; sv: number;
+  /** 上次更新的帧号 —— 同一帧内整片点阵只算一次 */
+  frame: number;
+
+  /* ---- v5.3：晶胞级单位所需的可选扩展（全部默认关闭，旧招零影响） ---- */
+  /** 任意 3D 姿态：3×3 行主序旋转矩阵。设了就替代 ang/omega 的单轴旋转 */
+  rot?: number[];
+  /**
+   * 到点飞行：组原点从 (sx,sy,sz) 在 dur 秒内 smoothstep 移到 (tx,ty,tz)，
+   * delay 秒后出发；到点后恢复 vx/vy/vz 匀速平移（通常 0 = 停住）。
+   * 用于「晶胞从各处飞来拼合」「整层横扫进场后停住」。
+   */
+  fly?: {
+    sx: number; sy: number; sz: number;
+    tx: number; ty: number; tz: number;
+    dur: number; delay?: number;
+  };
+  /** 胞内生长：scale 在 dur 秒内从 from（默认 0）smoothstep 撑到 1 —— 点间距渐涨到上限 */
+  grow?: { dur: number; from?: number };
+  /** 拼合去重：组龄达到 dedupAt 后，标了 dedup 的冗余弹自行退场 */
+  dedupAt?: number;
+  /** 晶格族：'axial' = 轴对齐 fccSpace（U=1.9 偶宇称），'upright' = 立式 ABC 密排面水平。
+   *  跨族几何不同，**只有同族才能被链内招接管**；旧招未设 = 不参与接管 */
+  family?: 'axial' | 'upright';
+  /** 停住交棒：组龄达到 stopAt 后平移速度归零，留下一个静止的全空间点阵给下一棒接管 */
+  stopAt?: number;
+}
 
 export interface Bullet {
   x: number; y: number; z: number;
@@ -98,14 +165,26 @@ export interface Bullet {
   /** 波浪：空间纹理相位 + 排相位。y 每帧按 sin(waveP + ω·t) 同步脉动 —— 整排同高，站哪都不行 */
   waveU?: number;
   waveP?: number;
-  /** 同心波纹：绕 (ripX, ripZ) 的极坐标。半径按 ripV 扩散，高度随 半径/时间 做正弦 */
-  ripA?: number;
-  ripR?: number;
-  ripV?: number;
-  ripX?: number;
-  ripZ?: number;
-  /** 波纹的环号（渲染层按环连成闭合曲线，而不是散点） */
-  ripRing?: number;
+  /** 晶格组：整片点阵共享的刚体变换帧 */
+  lg?: LatticeFrame;
+  /** 该弹在晶格局部坐标系里的位置 */
+  lx?: number;
+  ly?: number;
+  lz?: number;
+  /** 齐狙：到点后脱离组帧朝玩家发射（fireAt = 组龄秒），fired = 已发射 */
+  fireAt?: number;
+  fired?: boolean;
+  /** 层落雨：到点后脱离组帧匀速下落（dropAt = 组龄秒，按层序排布），drop = 已脱落 */
+  dropAt?: number;
+  drop?: boolean;
+  /** 相变：BCC 体心格点（局部坐标），迁移期从 FCC 格点滑过去 */
+  tgtLx?: number;
+  tgtLy?: number;
+  tgtLz?: number;
+  /** 晶胞拼合：该点是共享角/面心的冗余副本，到点后退场（只剩一份 = 一整块无重叠晶体） */
+  dedup?: boolean;
+  /** 横扫进场的层：起点在场地外，豁免出界清理（否则飞进来之前半层就被裁掉了） */
+  noOut?: boolean;
   trail: number[] | null;
   tk: number;
 }
@@ -194,6 +273,9 @@ export interface Boss {
   seq: number;
   /** 本局实际出过的招（最多 48 条）—— 复盘用，也是顺序验证的证据 */
   cast: string[];
+  /** 占台时长：晶格招施放后 boss 停顿这么久再抽下一招（招式持续时间 = 抽招节奏）。
+   *  下一招施放瞬间清零 —— 普通招不受影响。0/未设 = 用难度默认节奏。 */
+  holdCd?: number;
 }
 
 export interface HitLog {
@@ -209,6 +291,7 @@ export interface Stats {
   mid: number;
   high: number;
   rain: number;
+  grid: number;
   /** 擦弹总数与三分类（弹在头顶上方 / 脚下 / 身侧掠过） */
   graze: number;
   grazeHead: number;
@@ -251,7 +334,14 @@ export type PatternName =
   | 'petal' | 'radial' | 'downpour' | 'fountain' | 'uprain' | 'cone'
   // 第四难度（跳跃必要性）新增
   | 'aimed' | 'random' | 'smoke' | 'lightning' | 'grenade'
-  | 'wave' | 'sweepLine' | 'gaster' | 'pinwheel' | 'toho' | 'stack' | 'ripple';
+  | 'wave' | 'sweepLine' | 'gaster' | 'pinwheel' | 'toho' | 'stack'
+  // 难度 4 新增（晶格系 · 沿体对角线运动的真三维晶体）
+  | 'lattice111' | 'latticeShear' | 'latticeWheel' | 'latticeSpin'
+  // 晶格系 v5.2 批次（缺陷 / 运动学扩展 / 组合技）
+  | 'latticeVac' | 'latticeScrew' | 'latticeBreath' | 'latticePhonon' | 'latticeDisloc'
+  | 'latticePhase' | 'latticeBurst' | 'latticeVolley' | 'latticeRain'
+  // v5.3：单位为「晶胞 / 层」的三招
+  | 'latticeAssemble' | 'latticeStack' | 'latticeCone';
 
 /** 难度编号。1 = 标准，2 = 高压，3 = 形状微操，4 = 跳跃必要性 */
 export type DifficultyKey = 1 | 2 | 3 | 4;

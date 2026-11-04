@@ -44,10 +44,17 @@ export function heightRGB(y: number): string {
   return s;
 }
 
-/** 诊断文案按「段」说话，段界与 CLASS_INFO 的措辞对齐，颜色和说法不会打架。 */
+/**
+ * 诊断文案按「段」说话，段界与 CLASS_INFO 的措辞对齐，颜色和说法不会打架。
+ *
+ * 两刀来自判定物理（docs/danmaku-framework.md §2.2）：
+ * 1.37 = 站立命中上界（胶囊顶 1.16 + 弹半径 0.21），其下站着会中、必须离地；
+ * 1.87 = 单跳越顶上限（跳峰 1.64 + 胶囊底 0.44 − 弹半径 0.21），其上单跳会撞、别起跳。
+ * 1.37~1.87 为宽容带：站、跳皆安全。
+ */
 export function clsName(y: number): HClass {
-  if (y < 0.85) return 'low';
-  if (y < 2.4) return 'mid';
+  if (y < 1.37) return 'low';
+  if (y < 1.87) return 'mid';
   return 'high';
 }
 
@@ -58,9 +65,10 @@ export function clsByHeight(h: number): HClass {
 
 export const CLASS_INFO: Record<HClass, { name: string; tip: string }> = {
   low: { name: '低空弹', tip: '贴地 —— 起跳可以躲过' },
-  mid: { name: '中空弹', tip: '中段高度 —— 侧向走位，别站在原地' },
+  mid: { name: '中空弹', tip: '中段高度 —— 站稳或起跳都能躲过' },
   high: { name: '高空弹', tip: '头顶上方 —— 别起跳，贴地从下方穿过' },
-  rain: { name: '落点雨', tip: '垂直下落 —— 离开地面标记圈' }
+  rain: { name: '落点雨', tip: '垂直下落 —— 离开地面标记圈' },
+  grid: { name: '点阵弹', tip: '晶体点阵 —— 挪进点与点之间的空格，别站在点上' }
 };
 
 /** 非高度语义的固定色（玩家 / boss / 弹幕粒子 / 激光）。都写成 "r,g,b" 便于拼 rgba。 */
@@ -69,6 +77,7 @@ export const COLORS = {
   mid: '255,176,64',
   high: '163,124,255',
   rain: '74,224,255',
+  grid: '170,190,255',
   player: '150,255,210',
   boss: '255,86,160',
   pshot: '190,240,255'

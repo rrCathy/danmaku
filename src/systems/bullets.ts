@@ -19,15 +19,19 @@ import { toast } from '../ui/toast';
 import { endGame } from '../ui/flow';
 import type { Bullet, BulletShape, HClass } from '../types';
 
+/** 帧号：晶格组帧靠它保证同一帧只更新一次（整片点阵共享同一个组帧） */
+let frameNo = 0;
+
 export function addBullet(
   x: number, y: number, z: number,
   vx: number, vy: number, vz: number,
   r: number, cls: HClass, kind: Bullet['kind'],
-  shape?: BulletShape, len?: number
+  shape?: BulletShape, len?: number,
+  extra?: Partial<Bullet>
 ): void {
   // 难度倍率 × 训练场倍率，在这里统一生效：所有图案都走这个工厂，不用各自改
   const k = session.bulletSpeed * training.speed;
-  bullets.push({
+  const b: Bullet = {
     x, y, z,
     px: x, py: y, pz: z,
     vx: k === 1 ? vx : vx * k,
@@ -39,7 +43,9 @@ export function addBullet(
     life: kind === 'orbit' ? 7 : 8,
     shape, len,
     trail: null, tk: 0
-  });
+  };
+  if (extra) Object.assign(b, extra);
+  bullets.push(b);
 }
 
 /** 地雷爆炸：一圈低空弹（可以起跳躲） */
@@ -170,6 +176,7 @@ function grazeBucket(b: Bullet): 'head' | 'foot' | 'body' {
 }
 
 export function updateBullets(dt: number): void {
+  frameNo++;
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.px = b.x; b.py = b.y; b.pz = b.z;
@@ -221,8 +228,121 @@ export function updateBullets(dt: number): void {
       b.vy -= 2.2 * dt;
     }
 
-    // 风车：位置由绕中心的极坐标重算（不走速度积分）
-    if (b.kind === 'pinwheel' && b.orbA !== undefined) {
+    // 晶格：位置由组帧变换算出 —— 整片点阵当刚体走（局部坐标 → 世界）
+    if (b.kind === 'lattice' && b.lg && b.lx !== undefined && b.ly !== undefined && b.lz !== undefined) {
+      const f = b.lg;
+      if (f.frame !== frameNo) {
+        f.age += dt;
+        // 停住交棒：到点后平移归零，留下静止全空间点阵给链内下一棒接管
+        if (f.stopAt !== undefined && f.age >= f.stopAt) { f.vx = 0; f.vy = 0; f.vz = 0; }
+        // 到点飞行优先于匀速平移（晶胞拼合 / 层横扫进场）；未设 fly 时旧招逐位不变
+        if (f.fly) {
+          const fl = f.fly;
+          const p = Math.max(0, Math.min(1, (f.age - (fl.delay ?? 0)) / fl.dur));
+          const e = p * p * (3 - 2 * p);
+          f.ox = fl.sx + (fl.tx - fl.sx) * e;
+          f.oy = fl.sy + (fl.ty - fl.sy) * e;
+          f.oz = fl.sz + (fl.tz - fl.sz) * e;
+        } else {
+          f.ox += f.vx * dt; f.oy += f.vy * dt; f.oz += f.vz * dt;
+        }
+        f.ang += f.omega * dt;
+        // 胞内生长 / 呼吸脉动：scale 由时间直接驱动（不走 sv 积分）
+        if (f.grow) {
+          const p = Math.max(0, Math.min(1, f.age / f.grow.dur));
+          const e = p * p * (3 - 2 * p);
+          const from = f.grow.from ?? 0;
+          f.scale = from + (1 - from) * e;
+        } else if (f.pulseA) {
+          f.scale = 1 + f.pulseA * Math.sin(f.pulseW! * f.age);
+        } else {
+          f.scale += f.sv * dt;
+          if (f.scaleCap !== undefined && f.scale > f.scaleCap) { f.scale = f.scaleCap; f.sv = 0; }
+        }
+        f.frame = frameNo;
+      }
+      // 相变：迁移期面心点（tgtLx*）从 FCC 格点滑向 BCC 体心格点（2s smoothstep）
+      let lx = b.lx, ly = b.ly, lz = b.lz;
+      if (f.phaseT !== undefined && b.tgtLx !== undefined) {
+        const p = Math.max(0, Math.min(1, (f.age - f.phaseT) / 2));
+        const e = p * p * (3 - 2 * p);
+        lx += (b.tgtLx - lx) * e;
+        ly += (b.tgtLy! - ly) * e;
+        lz += (b.tgtLz! - lz) * e;
+      }
+      const c = Math.cos(f.ang), sn = Math.sin(f.ang), k = f.scale;
+      let nx: number, ny: number, nz: number;
+      if (f.rot) {
+        // 任意 3D 姿态：晶胞 (1,1,1) 对准玩家 / 大晶体整体随机朝向
+        const m = f.rot;
+        nx = f.ox + (m[0] * lx + m[1] * ly + m[2] * lz) * k;
+        ny = f.oy + (m[3] * lx + m[4] * ly + m[5] * lz) * k;
+        nz = f.oz + (m[6] * lx + m[7] * ly + m[8] * lz) * k;
+      } else if (f.axis === 'z') {
+        // 绕世界 z 轴（场地内水平轴）翻滚：x-y 平面转，z 不变 —— 头顶的点卷向脚下
+        nx = f.ox + (lx * c - ly * sn) * k;
+        ny = f.oy + (lx * sn + ly * c) * k;
+        nz = f.oz + lz * k;
+      } else {
+        // 绕竖直轴原地转：x-z 平面转，y 不变
+        nx = f.ox + (lx * c - lz * sn) * k;
+        ny = f.oy + ly * k;
+        nz = f.oz + (lx * sn + lz * c) * k;
+      }
+      // 声子径向密度波：波前处网眼挤死、波谷处大开（径向传播的纵波）
+      if (f.phononA) {
+        const rx = nx - f.ox, rz = nz - f.oz;
+        const rho = Math.hypot(rx, rz);
+        if (rho > 0.3) {
+          const u = f.phononA * Math.sin(f.phononK! * rho - f.phononW! * f.age);
+          nx += rx / rho * u;
+          nz += rz / rho * u;
+        }
+      }
+      // 往复位错：锯齿波前沿 x 从 -19 推到 +19（dislocV = 波前速度），每扫一遍
+      // 高处的密排层（ly>0.2）沿滑移面错开**一个 ABC 偏移（≈1.55m）** ——
+      // 立式晶体的滑移发生在水平密排层之间，正是真实位错的滑移面。
+      // 安全缝在两个位置之间钟摆式跳变，玩家必须每拍跟着挪。
+      // 上半晶体 = 世界高度 > 0.2（叠层接管时每层是独立 frame，层高在 f.oy 里；单 frame 招 f.oy=0 行为不变）
+      if (f.dislocV && (f.oy + ly) > 0.2) {
+        const u = f.age * f.dislocV + 19;
+        const cyc = Math.floor(u / 38);
+        const front = (u % 38) - 19;
+        // 该弹被波前扫过的次数：波前已过 lx = cyc+1 次，未过 = cyc 次。
+        // 奇数次 = 错位 +一个 ABC 偏移，偶数次 = 原位 —— 每遍翻转一次，钟摆。
+        const sweeps = lx < front ? cyc + 1 : cyc;
+        if (sweeps % 2) nz += 1.552;
+      }
+      // 层落雨：到点的层整体脱离组帧竖直下落（密排面水平、法向 = 竖直 —— 层落下来）
+      if (f.rainDrop && b.dropAt !== undefined && !b.drop && f.age >= b.dropAt) {
+        b.drop = true;
+        b.lg = undefined;
+        b.vx = 0; b.vy = -12; b.vz = 0;
+        b.life = 3;
+      }
+      // 齐狙：到点的弹脱离组帧朝玩家发射（阵点熄灭，弹本体变成直线弹）
+      if (f.volley && b.fireAt !== undefined && !b.fired && f.age >= b.fireAt) {
+        const tx = player.x, ty = player.y + 0.9, tz = player.z;
+        const dx = tx - b.x, dy = ty - b.y, dz = tz - b.z;
+        const d = Math.hypot(dx, dy, dz) || 1;
+        b.vx = dx / d * 11; b.vy = dy / d * 11; b.vz = dz / d * 11;
+        b.fired = true;
+        b.lg = undefined;
+        b.life = Math.min(b.life, 5);
+      }
+      // 聚散解体：age 到点，全部弹脱离组帧沿径向飞散
+      if (b.lg && f.burstAt !== undefined && f.age >= f.burstAt) {
+        const dx = b.x - f.ox, dy = b.y - f.oy, dz = b.z - f.oz;
+        const d = Math.hypot(dx, dy, dz) || 1;
+        b.vx = dx / d * 7; b.vy = dy / d * 7; b.vz = dz / d * 7;
+        b.lg = undefined;
+        b.life = Math.min(b.life, 3);
+      }
+      // 晶胞拼合：到点后删掉共享角/面心的冗余副本，8 胞收成一块无重叠点的晶体
+      if (f.dedupAt !== undefined && b.dedup && f.age >= f.dedupAt) b.life = 0;
+      if (dt > 0 && b.lg) { b.vx = (nx - b.x) / dt; b.vy = (ny - b.y) / dt; b.vz = (nz - b.z) / dt; }
+      b.x = nx; b.y = ny; b.z = nz;
+    } else if (b.kind === 'pinwheel' && b.orbA !== undefined) {
       b.orbA += (b.orbW || 0) * dt;
       b.x = (b.orbX || 0) + Math.cos(b.orbA) * (b.orbR || 0);
       b.z = (b.orbZ || 0) + Math.sin(b.orbA) * (b.orbR || 0);
@@ -230,17 +350,6 @@ export function updateBullets(dt: number): void {
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.z += b.vz * dt;
-    }
-
-    // 同心波纹：半径按 ripV 扩散，位置由极坐标重算（不走速度积分）
-    if (b.kind === 'ripple' && b.ripR !== undefined) {
-      b.ripR += (b.ripV || 0) * dt;
-      b.x = (b.ripX || 0) + Math.cos(b.ripA || 0) * b.ripR;
-      b.z = (b.ripZ || 0) + Math.sin(b.ripA || 0) * b.ripR;
-      if (b.ripR > ARENA_R + 3) {
-        bullets.splice(i, 1);
-        continue;
-      }
     }
 
     // 扫描线：沿自己速度方向在 [oscLo, oscHi] 之间往返（支持任意角度，不再只限 x 轴）
@@ -265,16 +374,13 @@ export function updateBullets(dt: number): void {
         + 0.18 * Math.sin(b.waveU || 0);
     }
 
-    // 波纹：高度跟着"半径 − 波速×时间"走，一圈高、一圈低地往外推
-    if (b.kind === 'ripple' && b.ripR !== undefined) {
-      b.y = 1.45 + 1.15 * Math.sin(1.7 * b.ripR - 10.2 * clock.elapsed);
-    }
-
     b.life -= dt;
     b.rgb = heightRGB(b.y);   // 颜色永远跟着当前高度走
-    // 落雨类的语义分段固定为 rain（诊断文案「落点雨」），其余按当前高度重算
-    b.cls = (b.kind === 'rain' || b.kind === 'downpour' || b.kind === 'lightning')
-      ? 'rain' : clsName(b.y);
+    // 语义分段：落雨类固定 rain（诊断文案「落点雨」）、晶格固定 grid（大玉 r=0.9 的判定带
+    // 和普通弹不同，clsName 的阈值按 r=0.21 推的，对大玉会撒谎）；其余按当前高度重算
+    b.cls = b.kind === 'lattice' ? 'grid'
+      : (b.kind === 'rain' || b.kind === 'downpour' || b.kind === 'lightning')
+        ? 'rain' : clsName(b.y);
 
     if (opts.trailMode === 1 || opts.trailMode === 3) {
       b.tk -= dt;
@@ -288,6 +394,13 @@ export function updateBullets(dt: number): void {
 
     if ((b.kind === 'rain' || b.kind === 'downpour' || b.kind === 'fountain' || b.kind === 'lightning') && b.y <= 0.12) {
       for (let k = 0; k < 5; k++) spawnSpark(b.x, 0.15, b.z, COLORS.rain, 0.8);
+      bullets.splice(i, 1);
+      continue;
+    }
+
+    // 层落雨：脱离晶格后的落雨弹碰到地面即散 —— 雨落到该落的地方就结束
+    if (b.drop && b.y <= 0.1) {
+      for (let k = 0; k < 3; k++) spawnSpark(b.x, 0.12, b.z, b.rgb, 0.6);
       bullets.splice(i, 1);
       continue;
     }
@@ -341,8 +454,16 @@ export function updateBullets(dt: number): void {
     }
 
     // 出界清除。uprain 出生在负 y（地面背面），下界放宽到 -3.5，其余弹维持 -1.2
-    const yOut = b.kind === 'uprain' ? b.y < -3.5 : b.y < -1.2;
-    if (b.life <= 0 || yOut || Math.hypot(b.x, b.z) > ARENA_R + 8) {
+    // 晶格点阵面是"纵深很长的一片"，角点天然会伸到场外 —— 给它单独的宽限，
+    // 否则最外侧那几列会被当成出界吃掉，看上去就是"少点漏点"。
+    // 翻滚晶体（axis z）的点会周期性卷到地下 —— 下界放宽到 -20（v5.3：自旋圆盘 R=18，最深 -18）
+    const yOut = b.kind === 'uprain' ? b.y < -3.5
+      : b.kind === 'lattice' ? b.y < -20
+      : b.y < -1.2;
+    const rOut = b.kind === 'lattice' ? ARENA_R + 14 : ARENA_R + 8;
+    const out = yOut || Math.hypot(b.x, b.z) > rOut;
+    // noOut：横扫进场的层从场外起飞，豁免出界清理，否则没进场就少了半层
+    if (b.life <= 0 || (!b.noOut && out)) {
       bullets.splice(i, 1);
       continue;
     }
@@ -350,7 +471,8 @@ export function updateBullets(dt: number): void {
     // 判定 + 擦弹：一次形状求距，三档分派（hit / graze / 无事）。
     // hit 永远优先 —— 弹飞向玩家必先穿过擦弹层，grazed 标记绝不能拦住 hit。
     // grazed 只做两件事：擦弹去重（一颗弹只擦一次）、无敌期穿身后吞掉这颗弹的擦弹。
-    if (!b.noHit) {
+    // 生长保护：聚散晶体长出期（scale 未到顶）整片无判定 —— 全弹挤在原点，判了就是糊脸秒杀
+    if (!b.noHit && !(b.lg && b.lg.noHitAt !== undefined && b.lg.age < b.lg.noHitAt)) {
       const d = shapeDist(b);
       if (d < PLAYER.hitR) {
         if (player.inv <= 0) {

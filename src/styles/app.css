@@ -289,6 +289,14 @@ body.touch .sb-v{font-size:11px}
   transition:.12s;letter-spacing:.06em}
 .tp-btn:hover{background:rgba(110,232,255,.24)}
 
+/* 分类器过滤条：按主解法分组选招（词汇见 src/patterns/taxonomy.ts） */
+.tp-filters{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px}
+.tp-chip{font:inherit;font-size:10px;line-height:1;padding:4px 10px;border-radius:10px;cursor:pointer;
+  color:rgba(190,215,245,.75);background:rgba(8,20,38,.5);border:1px solid rgba(140,200,255,.16);transition:.12s}
+.tp-chip:hover{border-color:rgba(110,232,255,.4);color:#eafcff}
+.tp-chip.on{background:rgba(110,232,255,.2);border-color:rgba(110,232,255,.7);color:#f2fdff}
+.tp-pat.hide{display:none}
+
 /* 暂停卡在训练场里加宽，塞得下 16 格 */
 .pause-card.wide{width:min(760px,94vw)}
 .pause-card.wide .pause-actions{flex-direction:row;flex-wrap:wrap}

@@ -13,10 +13,16 @@ import { fanShot, ringShot, spreadShot } from './emitters';
 import {
   aimedShot, coneBurst, counterSpiral, diveShot, downpour, feint, fountain, gasterBlast,
   gate, grenadeShot, jumpWall, laserSweep, lightning, lowHigh, mineShot, orbitShot,
-  petalRing, pinwheelShot, radialRays, rainShot, randomShot, rippleShot, risenare, riseShot,
+  petalRing, pinwheelShot, radialRays, rainShot, randomShot, risenare, riseShot,
   satBurst, smokeShot, sniper, spiralShot, stackWaves, stairShot, sweepLineShot,
   tohoRing, uprain, wallShot, waveShot
 } from './shots';
+import {
+  lattice111, latticeShear, latticeWheel, latticeSpin,
+  latticeVac, latticeScrew, latticeBreath, latticePhonon, latticeDisloc,
+  latticePhase, latticeBurst, latticeVolley, latticeRain,
+  latticeAssemble, latticeStack, latticeCone
+} from './lattice';
 
 import type { PatternName } from '../types';
 export type { PatternName } from '../types';
@@ -66,7 +72,14 @@ export const ALL_PATTERNS: PatternName[] = [
   'petal', 'radial', 'downpour', 'fountain', 'uprain', 'cone',
   // 难度 4（跳跃必要性）
   'aimed', 'random', 'smoke', 'lightning', 'grenade',
-  'wave', 'ripple', 'sweepLine', 'gaster', 'pinwheel', 'toho', 'stack'
+  'wave', 'sweepLine', 'gaster', 'pinwheel', 'toho', 'stack',
+  // 难度 4 晶格系
+  'lattice111', 'latticeShear', 'latticeWheel', 'latticeSpin',
+  // 晶格系 v5.2 批次
+  'latticeVac', 'latticeScrew', 'latticeBreath', 'latticePhonon', 'latticeDisloc',
+  'latticePhase', 'latticeBurst', 'latticeVolley', 'latticeRain',
+  // v5.3：晶胞 / 层为单位的三种新招
+  'latticeAssemble', 'latticeStack', 'latticeCone'
 ];
 
 /**
@@ -227,9 +240,6 @@ export function runPattern(name: PatternName | string): void {
     case 'wave':
       waveShot();
       break;
-    case 'ripple':
-      rippleShot();
-      break;
     case 'sweepLine':
       sweepLineShot();
       break;
@@ -244,6 +254,91 @@ export function runPattern(name: PatternName | string): void {
       break;
     case 'stack':
       stackWaves();
+      break;
+
+    /* ---- 难度 4（晶格系 · 状态链编排，v5.4.3 二次紧凑）----
+     * 链内招接管同一批弹，holdCd 收到 2~7s：每招只留「够读一遍」的窗口，
+     * 消灭一切「晶体钉着不动干等」。轮长 P1 17.5 / P2 15 / P3 34.5s。 */
+    case 'lattice111':
+      boss.flash = 0.5;
+      boss.holdCd = 4;                    // 漂移扫过 ~4s（休息段，完整读法）
+      later(0.5, lattice111);
+      break;
+    case 'latticeShear':
+      boss.flash = 0.5;
+      boss.holdCd = 4;                    // 裂缝张开 4s ≈ 11m
+      later(0.5, latticeShear);
+      break;
+    case 'latticeWheel':
+      boss.flash = 0.45;
+      boss.holdCd = 4.5;
+      later(0.45, latticeWheel);
+      break;
+    case 'latticeSpin':
+      boss.flash = 0.5;
+      boss.holdCd = 4;                    // omega 提到 1.3，4s ≈ 0.83 圈
+      later(0.5, latticeSpin);
+      break;
+    case 'latticeVac':
+      boss.flash = 0.5;
+      boss.holdCd = 2.5;                  // 链首漏光钉场：最短的一棒，立刻交滑移
+      later(0.5, latticeVac);
+      break;
+    case 'latticeScrew':
+      boss.flash = 0.5;
+      boss.holdCd = 3.5;                  // 下沉 2s 停住交棒给相变
+      later(0.5, latticeScrew);
+      break;
+    case 'latticeBreath':
+      boss.flash = 0.45;
+      boss.holdCd = 4;                    // 1.5+ 个脉动周期
+      later(0.45, latticeBreath);
+      break;
+    case 'latticePhonon':
+      boss.flash = 0.45;
+      boss.holdCd = 4;                    // 密度波扫过一轮半
+      later(0.45, latticePhonon);
+      break;
+    case 'latticeDisloc':
+      boss.flash = 0.45;
+      boss.holdCd = 4.5;                  // 两遍翻转
+      later(0.45, latticeDisloc);
+      break;
+    case 'latticePhase':
+      boss.flash = 0.5;
+      boss.holdCd = 4.5;                  // 静止 0.6 + 迁移 2 + BCC 驻留 1.9
+      later(0.5, latticePhase);
+      break;
+    case 'latticeBurst':
+      boss.flash = 0.4;
+      boss.holdCd = 3.5;                  // 长出 0.7 + 驻留交棒 2.8（链内不解体）
+      later(0.4, latticeBurst);
+      break;
+    case 'latticeVolley':
+      boss.flash = 0.4;
+      boss.holdCd = 7;                    // 125 发 × 0.05s = 6.25s 射完为止
+      later(0.4, latticeVolley);
+      break;
+    case 'latticeRain':
+      boss.flash = 0.5;
+      boss.holdCd = 5;                    // 层间隔 0.75s，6 层 5s 内落尽
+      later(0.5, latticeRain);
+      break;
+    /* ---- v5.3：晶胞 / 层为单位的三种新招 ---- */
+    case 'latticeAssemble':
+      boss.flash = 0.5;
+      boss.holdCd = 2;                    // 前摇 0.5 + 拼合 0.8 + 驻留 0.7s
+      later(0.5, latticeAssemble);
+      break;
+    case 'latticeStack':
+      boss.flash = 0.5;
+      boss.holdCd = 6;                    // 6 层 × 0.75s + 0.6s 飞行 + 驻留
+      later(0.5, latticeStack);
+      break;
+    case 'latticeCone':
+      boss.flash = 0.45;
+      boss.holdCd = 4;
+      later(0.45, latticeCone);
       break;
   }
 }

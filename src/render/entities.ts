@@ -6,7 +6,7 @@ import { TAU, clamp } from '../core/math';
 import { cam, project } from '../core/camera';
 import { COLORS } from '../core/color';
 import { ctx } from '../core/screen';
-import { glowSprite } from '../core/sprites';
+import { glowSprite, orbSprite, orbGlowSprite } from '../core/sprites';
 import { satPos } from '../systems/boss-geometry';
 
 /** 弹的朝向正交基：f = 速度方向，u/w 与 f 正交 */
@@ -35,44 +35,60 @@ function localToScreen(b: Bullet, B: Array<[number, number, number]>, a: number,
 export function drawBullet(b: Bullet, p: Projected): void {
   const rp = Math.max(1.4, b.r * p.s);
 
-  // 波纹：视觉由 drawRippleRings 的闭合曲线负责，弹只留一个很小的亮点。
-  // 不这么分开的话，一圈 64 颗 × 7 圈 = 448 个 glow sprite + 448 条尾影线，直接掉到 30fps。
-  if (b.kind === 'ripple') {
-    ctx.fillStyle = 'rgba(' + b.rgb + ',0.92)';
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, Math.max(1.1, rp * 0.34), 0, TAU);
-    ctx.fill();
-    return;
-  }
+  // 晶格：**观感与普通弹完全同一套**（辉光/白核/色环/运动拖线），
+  // 只有两处必要差异：
+  //   1. 近相机淡出 —— 晶体下坠会从镜头眼前穿过，不淡出就是一面糊脸的点墙；
+  //      区间收窄到 2~6m：只有真正贴镜头的才淡，玩家身边的弹全实心。
+  //   2. 辉光限幅 —— 上千颗晶体弹时防止大 sprite 打穿填充率（96 仍给足弥漫感）。
+  const fade = b.kind === 'lattice' ? Math.max(0, Math.min(1, (p.z - 2) / 4)) : 1;
+  if (fade <= 0.02) return;
 
   const tp = project(b.px, b.py, b.pz);
-  if (tp) {
+  // 晶格弹不画拖线：漂移/旋转的慢速弹拖线只有 1px 宽，视觉零贡献，
+  // 但 2000 颗的 stroke 是帧率大头（每次 -1 draw call）。
+  if (tp && b.kind !== 'lattice') {
     ctx.beginPath();
     ctx.moveTo(tp.x, tp.y);
     ctx.lineTo(p.x, p.y);
-    ctx.strokeStyle = 'rgba(' + b.rgb + ',0.42)';
+    ctx.strokeStyle = 'rgba(' + b.rgb + ',' + (0.42 * fade).toFixed(2) + ')';
     ctx.lineWidth = Math.max(1, rp * 1.15);
     ctx.lineCap = 'round';
     ctx.stroke();
   }
 
   const shape = b.shape || 'ball';
-  const g = glowSprite(b.rgb);
-  // 3D 形状弹幕只留一圈小柔光：大辉光会在盒子/锥体内部形成一颗"胶囊光斑"
-  const is3DShape = shape === 'box' || shape === 'arrow' || shape === 'tetra' || shape === 'octa';
-  const gs = is3DShape ? rp * 3.0 : rp * 6.4;
-  ctx.globalAlpha = is3DShape ? 0.34 : 0.85;
-  ctx.drawImage(g, p.x - gs / 2, p.y - gs / 2, gs, gs);
-  ctx.globalAlpha = 1;
+  // 晶格大玉走「光晕+球体」合成贴图：一次 drawImage 画完，不再叠一层单独辉光。
+  // 原来每颗 2 次 drawImage（1988 颗 ≈ 3974 次/帧），单独那层 64px 辉光是纯填充率开销。
+  const isLatticeOrb = b.kind === 'lattice' && shape === 'ball' && rp > 10;
+  if (!isLatticeOrb) {
+    const g = glowSprite(b.rgb);
+    // 3D 形状弹幕只留一圈小柔光：大辉光会在盒子/锥体内部形成一颗"胶囊光斑"
+    const is3DShape = shape === 'box' || shape === 'arrow' || shape === 'tetra' || shape === 'octa';
+    const gs0 = is3DShape ? rp * 3.0 : rp * 6.4;
+    const gs = b.kind === 'lattice' ? Math.min(gs0, 64) : gs0;
+    ctx.globalAlpha = (is3DShape ? 0.34 : 0.85) * fade;
+    ctx.drawImage(g, p.x - gs / 2, p.y - gs / 2, gs, gs);
+    ctx.globalAlpha = 1;
+  }
 
   if (shape === 'ball') {
+    // 晶格大玉（屏幕大弹）：光晕+球体**合成贴图一次画完**（省 2~3 draw call/颗）。
+    // 逐帧拼"白核+色环"怎么调都是靶环/白泡泡，球体感必须靠渐变明暗。
+    if (isLatticeOrb) {
+      // 光晕全幅 = rp×5.2（普通弹 6.4，晶格收敛一点换填充率）；rp 大时斜率降档
+      const GS = rp <= 15 ? rp * 5.2 : rp * 3.8 + 21;
+      ctx.globalAlpha = fade;
+      ctx.drawImage(orbGlowSprite(b.rgb), p.x - GS / 2, p.y - GS / 2, GS, GS);
+      ctx.globalAlpha = 1;
+      return;
+    }
     ctx.beginPath();
     ctx.arc(p.x, p.y, rp * 0.8, 0, TAU);
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.95 * fade).toFixed(2) + ')';
     ctx.fill();
     ctx.beginPath();
     ctx.arc(p.x, p.y, rp, 0, TAU);
-    ctx.strokeStyle = 'rgba(' + b.rgb + ',0.92)';
+    ctx.strokeStyle = 'rgba(' + b.rgb + ',' + (0.92 * fade).toFixed(2) + ')';
     ctx.lineWidth = Math.max(1, rp * 0.28);
     ctx.stroke();
     return;
@@ -684,35 +700,3 @@ export function drawBlaster(bl: Blaster, p: Projected): void {
   }
 }
 
-/**
- * 波纹的环：按 ripRing 把同圈弹按角度连成闭合曲线。
- * 不连的话，一圈 80 颗也只是 80 个点；连起来才是"水面上的一圈浪"。
- */
-export function drawRippleRings(): void {
-  if (!bullets.length) return;
-  const groups = new Map<number, Bullet[]>();
-  for (let i = 0; i < bullets.length; i++) {
-    const b = bullets[i];
-    if (b.kind !== 'ripple' || b.ripRing === undefined) continue;
-    let g = groups.get(b.ripRing);
-    if (!g) { g = []; groups.set(b.ripRing, g); }
-    g.push(b);
-  }
-  groups.forEach(function (g) {
-    if (g.length < 8) return;
-    g.sort(function (a, b) { return (a.ripA || 0) - (b.ripA || 0); });
-    const pts: Projected[] = [];
-    for (let i = 0; i < g.length; i++) {
-      const q = project(g[i].x, g[i].y, g[i].z);
-      if (q) pts.push(q);
-    }
-    if (pts.length < 8) return;
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-    ctx.closePath();
-    ctx.strokeStyle = 'rgba(' + g[0].rgb + ',0.45)';
-    ctx.lineWidth = 2.4;
-    ctx.stroke();
-  });
-}

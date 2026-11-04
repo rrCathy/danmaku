@@ -10,7 +10,7 @@ import { project } from '../core/camera';
 import { blasters, boss, bullets, clock, opts, particles, player, pshots } from '../state';
 import { drawFloor, drawTelegraphs } from './floor';
 import { drawGhostsLayer, drawGuides, drawPlaneTrails, drawShadows } from './aids';
-import { drawBlaster, drawBoss, drawBullet, drawParticle, drawPlayer, drawPShot, drawRippleRings } from './entities';
+import { drawBlaster, drawBoss, drawBullet, drawParticle, drawPlayer, drawPShot } from './entities';
 import { drawLasers, drawWalls } from './hazards';
 import { drawMinimap } from './minimap';
 import { lasers, walls } from '../state';
@@ -25,7 +25,6 @@ export function render(): void {
 
   drawFloor();
   drawTelegraphs();
-  drawRippleRings();   // 波纹的环线铺在所有实体下面，弹再压上去
   if (walls.length) drawWalls();
   if (opts.shadows) drawShadows();
   drawPlaneTrails();

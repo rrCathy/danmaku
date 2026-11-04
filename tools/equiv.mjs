@@ -25,6 +25,13 @@ const LEGACY = process.env.LEGACY ||
 const NEXT = process.env.NEXT || 'http://127.0.0.1:4173/danmaku/';
 
 // 注意：新版默认走固定出招序列（v0.7 起），要对照 v0.6 的随机抽必须显式 ?seq=random
+//
+// ⚠️ 陈旧警告（2026-11）：14/14 基线停留在 v0.7 重构时点。此后两个**合法**分歧使本工具
+// 对 archive 必然 DIFF，跑出 DIFF ≠ 回归：
+//   1) v0.8 起默认固定出招序列，CASES 未加 ?seq=random → 出招流与 v0.6 随机抽不同；
+//   2) v1.5 判定重标（胶囊 0.26/0.18~1.42 → 0.13/0.57~1.03）→ 碰撞结果与 v0.6 本就不同。
+// 另：快照的 kinds 串只比 kind（仿真契约），cls/rgb（演示层）已移出对比 —— 改配色/诊断分段不应炸基线。
+// 要恢复对照能力：CASES 加 ?seq=random，并用与当前判定规格一致的版本重建 legacy 基线。
 const CASES = [
   'auto=1&dbg=1&t=60&drive=wasd',
   'auto=1&dbg=1&t=60&drive=wasd&fire=1',
@@ -93,7 +100,8 @@ const SNAP = `(() => {
   for (var i = 0; i < n; i++) {
     var b = d.bullets[i];
     sum += b.x * 3 + b.y * 5 + b.z * 7 + b.vx * 11 + b.vy * 13 + b.vz * 17 + b.r * 19 + b.life * 23;
-    if (i < 4) kinds += b.kind + ':' + b.cls + ':' + b.rgb + '|';
+    // 只比 kind（行为分支 = 仿真契约）。cls/rgb 是演示层（配色、诊断分段），不进逐位对比 —— 改它们不该炸基线。
+    if (i < 4) kinds += b.kind + '|';
   }
   return JSON.stringify({
     st: d.state,
