@@ -83,7 +83,7 @@ export const SEQUENCES_D4: Record<number, PatternName[]> = {
   /* FCC 专场 · **状态链编排**（v5.4，用户「招式的连接」观点落地；v5.4.1 按用户复核修正两处）。
    * 三条同族链：链首生成一次晶体，链内招**接管同一批弹**（不 retire、不重新生成，
    * 只切 LatticeFrame 驱动字段）；链尾接休息段硬切。跨族（轴对齐 / 立式）不接管。
-   * 轮长 = 各招 holdCd 之和：P1 ≈ 32s（5 招）→ P2 ≈ 23s（3 招）→ P3 ≈ 57s（8 招）。
+   * 轮长 = 各招 holdCd 之和（v5.4.3 二次收紧后）：P1 ≈ 17.5s（5 招）→ P2 ≈ 15s（3 招）→ P3 ≈ 34.5s（8 招）。
    * 详见 docs/danmaku-framework.md §3.3.1 / §3.3.2。 */
   // P1 · 轴对齐链：长出 → 脉动 → 密度波 → 翻滚 ‖ 合胞（休息）
   1: ['latticeBurst', 'latticeBreath', 'latticePhonon', 'latticeSpin', 'latticeAssemble'],

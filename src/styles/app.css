@@ -404,6 +404,13 @@ body.touch .pause-card.wide .pause-actions .btn{padding:9px 12px;font-size:12px}
 .ach .dot{width:7px;height:7px;border-radius:50%;background:rgba(150,185,225,.3);flex:none}
 .ach.on{color:#dff3ff;background:rgba(110,232,255,.13);border-color:rgba(110,232,255,.42)}
 .ach.on .dot{background:#5ce6ff;box-shadow:0 0 10px rgba(92,230,255,.8)}
+/* 牌级配色：写在 .ach.on 之后，覆盖通用青色 */
+.ach.gold{color:#ffe6a8;background:rgba(255,212,121,.13);border-color:rgba(255,212,121,.45)}
+.ach.gold .dot{background:#ffd479;box-shadow:0 0 10px rgba(255,212,121,.8)}
+.ach.silver{color:#e6eef7;background:rgba(207,216,227,.12);border-color:rgba(207,216,227,.42)}
+.ach.silver .dot{background:#cfd8e3;box-shadow:0 0 10px rgba(207,216,227,.7)}
+.ach.bronze{color:#f3d2b8;background:rgba(217,154,104,.12);border-color:rgba(217,154,104,.42)}
+.ach.bronze .dot{background:#d99a68;box-shadow:0 0 10px rgba(217,154,104,.7)}
 .ach em{font-style:normal;opacity:.62;margin-left:2px}
 
 .start-goal{margin-top:18px;font-size:11.5px;color:rgba(190,215,245,.5);letter-spacing:.02em;line-height:1.7}
@@ -421,15 +428,23 @@ body.touch .pause-card.wide .pause-actions .btn{padding:9px 12px;font-size:12px}
 .eh-diff b{color:#9df0ff;text-shadow:0 0 22px rgba(110,232,255,.35)}
 .eh-hits{background:rgba(255,120,170,.08);border-color:rgba(255,120,170,.24)}
 .eh-hits b{color:#ffb0cd;text-shadow:0 0 22px rgba(255,120,170,.3)}
-.eh-hits b.zero{color:#ffe08a;text-shadow:0 0 26px rgba(255,214,90,.5)}
+.eh-hits b.gold{color:#ffe08a;text-shadow:0 0 26px rgba(255,214,90,.5)}
+.eh-hits b.silver{color:#dbe6f2;text-shadow:0 0 26px rgba(207,216,227,.45)}
+.eh-hits b.bronze{color:#eab78c;text-shadow:0 0 26px rgba(217,154,104,.45)}
 .eh-time b{color:#cfe6ff}
 .end-badge{display:flex;align-items:center;gap:10px;margin:16px 0 4px;padding:11px 16px;
   border-radius:6px;border:1px solid rgba(110,232,255,.3);background:rgba(110,232,255,.08)}
 .end-badge b{font-size:13px;letter-spacing:.12em;color:#bfe9ff}
 .end-badge span{font-size:11px;letter-spacing:.06em;color:rgba(190,215,245,.7)}
-.end-badge.unlock{border-color:rgba(255,214,90,.5);
-  background:linear-gradient(180deg,rgba(255,214,90,.16),rgba(255,180,60,.06))}
-.end-badge.unlock b{color:#ffe6a8;letter-spacing:.16em}
+/* 本局牌级配色；unlock 只加强调框，颜色仍跟牌级走 */
+.end-badge.gold{border-color:rgba(255,212,121,.45);background:rgba(255,212,121,.10)}
+.end-badge.gold b{color:#ffe6a8}
+.end-badge.silver{border-color:rgba(207,216,227,.42);background:rgba(207,216,227,.10)}
+.end-badge.silver b{color:#e6eef7}
+.end-badge.bronze{border-color:rgba(217,154,104,.42);background:rgba(217,154,104,.10)}
+.end-badge.bronze b{color:#f3d2b8}
+.end-badge.unlock{box-shadow:0 0 0 1px rgba(255,255,255,.10) inset,0 0 18px rgba(255,214,90,.12)}
+.end-badge.unlock b{letter-spacing:.16em}
 .end-badge.hidden{display:none}
 
 /* 擦弹汇总行（结算） */

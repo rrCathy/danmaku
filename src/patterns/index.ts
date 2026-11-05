@@ -61,7 +61,7 @@ export function poolFor(phase: number): PatternName[] {
   return PATTERNS[phase] || PATTERNS[1];
 }
 
-/** 全部 27 种，按"想单独测某个图案"的顺序排（给训练场 / ?pat= 用） */
+/** 全部 54 种，按"想单独测某个图案"的顺序排（给训练场 / ?pat= 用） */
 export const ALL_PATTERNS: PatternName[] = [
   // 难度 1
   'sweepLow', 'sweepHigh', 'spread', 'ring', 'stair', 'rise', 'lowHigh', 'dive',

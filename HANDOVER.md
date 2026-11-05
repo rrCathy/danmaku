@@ -1,7 +1,7 @@
 # 5D 弹幕 · 项目交接文档
 
 > 交接对象：接手这个验证装置的下一个人 / 下一个自己
-> 版本：v1.21　｜　整理时间：2026-11-04
+> 版本：v5.4（提交 `6df5763`；`package.json` 的 1.21.0 未动，功能版本走 v5.x 口径）　｜　整理时间：2026-11-04　｜　最后核对：2026-11-05
 > 仓库：`github.com/rrCathy/danmaku`　｜　线上：<https://rrcathy.github.io/danmaku/>
 
 ---
@@ -27,10 +27,10 @@
 
 | 项 | 值 |
 |---|---|
-| 版本 | v1.21（最近一次提交）；工作区含未提交的 Level 4 FCC 专场、性能改动、v5.3 三新招与 **v5.4 状态链编排** |
+| 版本 | **v5.4**（提交 `6df5763`，2026-11-04；工作区干净）。`package.json` 的 `version` 仍是 1.21.0，功能版本以 v5.x 口径为准 |
 | 形态 | **Vite + TypeScript 多模块**，44 个 `.ts` + 2 个 `.css`，零运行时依赖（无 CDN / 字体 / 图片 / WebGL） |
-| 源码规模 | 约 7,414 行 TS + 518 行 CSS（2026-11-04 实测） |
-| 构建产物 | `dist/assets/index-*.js` **104.90 kB**（gzip 39.54 kB）+ `index-*.css` **26.34 kB**（gzip 6.35 kB），2026-11-04 构建 |
+| 源码规模 | 7,905 行 TS + 518 行 CSS（2026-11-05 `wc -l` 实测） |
+| 构建产物 | `dist/assets/index-*.js` **112.27 kB**（gzip 42.77 kB）+ `index-*.css` **27.14 kB**（gzip 6.54 kB），2026-11-05 `npm run build` 输出。**口径**：Vite 按字符数计 kB，磁盘字节数为 JS 117,198 / CSS 27,137，两者别混用 |
 | 招式 | **54 招**：经典 38 招（L1 16 / L2 +5 / L3 +6 / L4 +11）+ **16 招 FCC 晶格系**；训练场 54 格 |
 | 难度 | L1 / L2 / L3 沿用经典池；**Level 4 已改 FCC 晶格专场**（序列只放 16 招晶格，`D4_POOL` 由序列去重生成） |
 | 渲染 | canvas 2D + 手写透视投影（`project()`），不用 3D 库；形状 ball/arrow/box/ellip/tetra/octa |
@@ -38,8 +38,9 @@
 | 运行时错误 | **0**（v0.6 每次开局会留 1 条未捕获的 pointer lock 拒绝，已修） |
 | 退出与暂停 | 对局/训练场都能 `P` 暂停 → 继续 / 重开 / 操作方式 / 返回主界面 + **设置面板**（读 Aid 开关） |
 | 行为一致性 | v0.7 时 14/14 与 v0.6 逐位一致；**该基线已陈旧**（v0.8 固定序列、v1.5 判定重标两处合法分歧），`tools/equiv.mjs` 对 archive 必然 DIFF，恢复对照需重建 legacy 基线 |
-| 出招可控 | 固定序列 + `?seq=random` 回退 + `?seed=` 逐位复现；晶格招 `holdCd` 占台 6~10s，换阶段不打断进行中的招 |
+| 出招可控 | 固定序列 + `?seq=random` 回退 + `?seed=` 逐位复现；晶格招 `holdCd` 占台 2~7s，换阶段不打断进行中的招 |
 | 移动端 | 触屏布局沿用 v0.6；v1.3 已复测 844×390 关卡竖卡 116×128 无溢出 |
+| 成就 | **每关一枚奖牌**（0 伤金 / 1 伤银 / 2 伤铜 / ≥3 无牌），按该关历史最低受击数升级、不回退；只有击破 boss 才记账。旧 `nofx-*` 无伤存档自动折算为金牌。详见 README「成就与奖牌」 |
 
 ---
 
@@ -115,7 +116,7 @@ ui/*           →  只读 state，写 DOM
 | `systems/training.ts` | 训练场：清场 / 选图案 / 循环 / 弹速 | `selectPattern()` `updateTraining()` `setSpeed()` |
 | `patterns/index.ts` | 出招总表 + 阶段池 + 抽取 | `runPattern()` `pickPattern()` `PATTERNS` |
 | `patterns/sequence.ts` | 固定出招序列 + 图案中文名/解法提示 | `SEQUENCES` `PATTERN_LABELS` |
-| `patterns/shots.ts` | 27 种图案的具体实现 | `rainShot()` `wallShot()` `petalRing()` … |
+| `patterns/shots.ts` | 经典 38 招的主要实现（少数招式在 `index.ts` / `emitters.ts`） | `rainShot()` `wallShot()` `petalRing()` … |
 | `render/index.ts` | 绘制总入口（深度排序只对实体做） | `render()` |
 | `ui/flow.ts` | 开始 / 暂停 / 结束 / 镜头 / 极坐标 / 开关 | `startGame()` `pauseGame()` `resumeGame()` `endGame()` |
 | `ui/overlays.ts` | 暂停卡 / 操作方式卡的显隐与状态回退 | `syncOverlays()` `openHelp()` `toggleHelp()` |
@@ -225,9 +226,9 @@ boss.cast  本局实际出过的招（48 条上限）
 
 ---
 
-## 7. 27 种图案与出招顺序
+## 7. 经典招式与出招顺序
 
-Level 1 有 16 种，Level 2 多 5 种（见 §7.2），Level 3 再多 6 种（见 §7.3）。阶段解锁：P1 → P2 → P3 逐步放开。
+本节讲 L1–L3 的经典 27 种：Level 1 有 16 种，Level 2 多 5 种（见 §7.2），Level 3 再多 6 种（见 §7.3）；§7.4 是 L4 曾新增的 11 种历史招。**全项目现为 54 招**（经典 38 + 16 招 FCC 晶格系），L4 现行序列只放 16 招晶格的状态链（见本节末与 README「出招顺序」），训练场 54 格可单招选练。阶段解锁：P1 → P2 → P3 逐步放开。
 
 **默认走固定序列**（v0.8 起的改动，`patterns/sequence.ts`）。随机抽意味着三次测试跑的不是同一套弹幕，
 结论不可比。序列按「先教最基本的，再教需要新动作的」排序，每阶段开头都是这阶段的新东西：
@@ -358,8 +359,8 @@ Level 1 有 16 种，Level 2 多 5 种（见 §7.2），Level 3 再多 6 种（�
 | P2 | 叠层 → 晶雨 ‖ 晶锥 | 立式状态链：摞成全空间 → 逐层落尽 ‖ 硬切休息 |
 | P3 | 空位 → 滑移 → 相变 ‖ 螺旋 → 111 → 位错 → 晶轮 → 齐狙 | 轴对齐状态链：漏光钉场 → 劈裂 → BCC 定型（链尾）‖ 五招休息（**螺旋永远硬切**：接管会继承滑移劈出的上下错位晶体，排序解不掉） |
 
-> **holdCd 占台机制**（`boss.holdCd`，boss.ts）：每招声明 6~10s 舞台时间，施放后 boss 停顿该时长再抽下一招
-> —— D4 基础节奏只有 1.02s，没有占台就会把 15s 寿命的晶体每 4.5s 掐断一次。
+> **holdCd 占台机制**（`boss.holdCd`，boss.ts）：每招声明 2~7s 舞台时间（v5.4.3 二次收紧），施放后 boss 停顿该时长再抽下一招
+> —— D4 基础节奏只有 1.02s，没有占台就会把进行中的晶体按基础节奏反复掐断。
 > 换招时 `retireOldLattice()` 在 0.6s 内收走旧晶体（FCC 专场无普通招喘息，重叠窗口必须压到最短）。
 > **换阶段不打断招式**（用户要求）：damageBoss 切阶段只改 phase/seq，不再 wipeField / 不再缩短
 > boss.cd —— 当前招的 holdCd 完整走完后才抽新阶段第一招（实测：切阶段瞬间 1175 颗晶体、

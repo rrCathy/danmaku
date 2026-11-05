@@ -58,7 +58,7 @@ export function damageBoss(d: number): void {
 
   const p = boss.hp / boss.maxHp;
   // 换阶段只切"从哪一招开始教"（phase + seq 归零）。
-  // **不碰 boss.cd、不清场**：当前招可能正在 holdCd 占台（晶格招 6~10s），
+  // **不碰 boss.cd、不清场**：当前招可能正在 holdCd 占台（晶格招 2~7s），
   // 强行缩短 cd / wipeField 会把进行中的招式拦腰砍断 —— 让它走完，
   // 新阶段第一招在当前招 hold 结束后自然抽到（retire 会收走旧晶体）。
   if (p <= ROUND.phase2 && boss.phase === 1) {

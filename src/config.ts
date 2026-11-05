@@ -146,7 +146,7 @@ export const DIFFICULTIES: Record<DifficultyKey, Difficulty> = {
     key: 4,
     name: 'Level 4',
     note: 'FCC 晶格专场 · 16 招全空间点阵',
-    // 晶格专场每招弹数上千、独占舞台（holdCd 6~10s），出手基数与弹速沿用旧档；
+    // 晶格专场每招弹数上千、独占舞台（holdCd 2~7s），出手基数与弹速沿用旧档；
     // 密度由招式自身的占台时长决定，不再靠 cdBase 堆量。
     cdBase: 1.02,
     cdJitter: [0.85, 1.0],

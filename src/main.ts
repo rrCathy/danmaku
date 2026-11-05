@@ -255,7 +255,7 @@ if (/[?&]dbg=1/.test(location.search)) {
     },
     /** 判定距离探针：任取一颗弹看 shapeDist（碰撞/擦弹调试） */
     dist: function (i: number) { return bullets[i] ? shapeDist(bullets[i]) : null; },
-    /** 直接走结算链路（成就/无伤徽章都在 endGame 里） */
+    /** 直接走结算链路（成就 / 奖牌徽章都在 endGame 里） */
     end: function (win: boolean) { endGame(win, win ? undefined : 'hp'); }
   };
 }

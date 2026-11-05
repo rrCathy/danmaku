@@ -16,7 +16,7 @@ import type { DifficultyKey, EndReason, PatternName } from '../types';
 import { el } from './dom';
 import { updateHud } from './hud';
 import { toast } from './toast';
-import { allAchievements, unlockNoHit } from './achievements';
+import { allAchievements, awardMedal, labelForHits, MEDAL_LABEL, rankForHits } from './achievements';
 
 const TRAIL_NAMES = ['关闭', '拖尾（已飞过的路径）', '预测（接下来往哪飞）', '拖尾 + 预测'];
 let trailBtnEl: HTMLElement | null = null;
@@ -366,12 +366,13 @@ export function endGame(win: boolean, reason?: EndReason): void {
   const used = ROUND.time - Math.max(0, clock.timeLeft);
   const diffName = DIFFICULTIES[session.difficulty].name;
   const noHit = stats.hits === 0;
+  const thisRank = rankForHits(stats.hits);
 
   // 结算三块大数字：关卡难度 · 受击次数 · 用时（受击是核心指标）
   el.endDiff.textContent = 'LV.' + session.difficulty;
   el.endDiffName.textContent = diffName;
   el.endHits.textContent = String(stats.hits);
-  el.endHits.className = noHit ? 'zero' : '';
+  el.endHits.className = thisRank || '';
   el.endTime.textContent = used.toFixed(1);
 
   if (win) {
@@ -394,13 +395,15 @@ export function endGame(win: boolean, reason?: EndReason): void {
       '重点看下面的受击分布：哪一类最多，就说明哪一类最“读不出来”。';
   }
 
-  // 无伤成就：只有通关且 0 受击才算。新解锁才弹提示。
-  if (win && noHit && unlockNoHit(session.difficulty)) {
-    el.endBadge.className = 'end-badge unlock';
-    el.endBadge.innerHTML = '<b>成就解锁</b><span>无伤 ' + diffName + '</span>';
-  } else if (win && noHit) {
-    el.endBadge.className = 'end-badge';
-    el.endBadge.innerHTML = '<b>无伤</b><span>' + diffName + ' · 成就已达成</span>';
+  // 奖牌成就：只有击破 boss 且受击 ≤2 才记账（3 伤及以上无牌）。
+  // rank 是「本局」牌级；improved 才弹「成就解锁」，已有更好成绩时补一句历史最好。
+  const medal = win ? awardMedal(session.difficulty, stats.hits) : null;
+  if (medal && medal.rank) {
+    const label = MEDAL_LABEL[medal.rank];
+    const best = medal.previous >= 0 ? ' · 历史最好 ' + labelForHits(medal.previous) : '';
+    el.endBadge.className = 'end-badge ' + medal.rank + (medal.improved ? ' unlock' : '');
+    el.endBadge.innerHTML = '<b>' + (medal.improved ? '成就解锁' : label) + '</b>' +
+      '<span>' + label + ' · ' + diffName + ' · 本局 ' + stats.hits + ' 伤' + best + '</span>';
   } else {
     el.endBadge.className = 'end-badge hidden';
   }
@@ -484,12 +487,11 @@ export function renderAchievements(): void {
   if (!bar) return;
   const list = allAchievements();
   let html = '';
-  for (let i = 0; i < list.length; i++) {
-    const a = list[i];
-    const on = a.at > 0;
-    html += '<span class="ach' + (on ? ' on' : '') + '">' +
+  for (const a of list) {
+    const on = a.rank !== null;
+    html += '<span class="ach' + (on ? ' on ' + a.rank : '') + '">' +
       '<span class="dot"></span>' + a.title +
-      (on ? '<em>已达成</em>' : '<em>未达成</em>') + '</span>';
+      (on ? '<em>' + a.best + ' 伤</em>' : '<em>未达成</em>') + '</span>';
   }
   bar.innerHTML = html;
 }
