@@ -129,7 +129,11 @@ export const PATTERN_TAXONOMY: Record<PatternName, PatternClass> = {
   /* v5.3：晶胞 / 层为单位 */
   latticeAssemble: { threats: ['transition', 'inBand'],   height: 'fixed',       arrange: 'lattice', aim: 'aimed',      source: 'scatter',      verbs: ['detour', 'shift'],            purity: '3d',   sig: 'latticeCellSig' },
   latticeStack:  { threats: ['crossing', 'inBand'],       height: 'ladder',      arrange: 'lattice', aim: 'none',       source: 'edge',         verbs: ['thread', 'shift'],            purity: '3d',   sig: 'latticeStackSig' },
-  latticeCone:   { threats: ['crossing', 'transition'],   height: 'field',       arrange: 'lattice', aim: 'aimed',      source: 'boss',         verbs: ['detour', 'shift'],            purity: '3d',   sig: 'latticeConeSig' }
+  latticeCone:   { threats: ['crossing', 'transition'],   height: 'field',       arrange: 'lattice', aim: 'aimed',      source: 'boss',         verbs: ['detour', 'shift'],            purity: '3d',   sig: 'latticeConeSig' },
+  /* 对流墙系：独立一组，底座招。主解法 = 等两列错开的缝（followGap） */
+  wallFlow:      { threats: ['crossing', 'inBand'],       height: 'fixed',       arrange: 'stack',   aim: 'none',       source: 'anchor',       verbs: ['followGap', 'shift'],         purity: '2.5d', sig: 'followGap' },
+  /* 第一变体：立起来，水平大板沿 y 推进 */
+  wallFlowY:     { threats: ['crossing', 'inBand'],       height: 'field',       arrange: 'field',   aim: 'none',       source: 'anchor',       verbs: ['followGap', 'shift'],         purity: '3d',   sig: 'followGap' }
 };
 
 /* ============ 词汇中文标注 ============ */

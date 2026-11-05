@@ -11,7 +11,7 @@ import { ALL_PATTERNS } from '../patterns';
 import { PATTERN_LABELS } from '../patterns/sequence';
 import { VERB_INFO, classifyLine, classifyShort, primaryVerb, type DodgeVerb } from '../patterns/taxonomy';
 import { logs, session, stats, training } from '../state';
-import { replay, selectPattern, setGap, setSpeed } from '../systems/training';
+import { replay, selectPattern, setGap, setSpeed, setStream } from '../systems/training';
 import type { PatternName } from '../types';
 import { renderDiag } from './diag';
 import { resumeGame } from './flow';
@@ -106,10 +106,18 @@ export function initTrainPanel(): void {
       b.className = 'tp-sp';
       b.dataset.gap = String(v);
       b.textContent = v + 's';
-      b.title = '上一招放完后，间隔 ' + v + ' 秒再放下一招';
+      b.title = '两招之间的间隔 ' + v + ' 秒；无限流开启时 = 墙距档位（refresh 会换成米数）';
       b.addEventListener('click', function () {
         setGap(v);
-        refreshTrainPanel();  // 调间隔不自动继续，留在暂停卡里
+        // 无限流下这排按钮是空间墙距档；改档位要立刻重放，否则看起来「改了没反应」。
+        // 重放走 later(0.5)，暂停时不推进，所以这里顺手恢复游戏（和无限流开关一致）。
+        if (training.stream) {
+          selectPattern(training.pattern as PatternName);
+          refreshTrainPanel();
+          resumeGame();
+        } else {
+          refreshTrainPanel();  // 调间隔不自动继续，留在暂停卡里
+        }
       });
       gapBox.appendChild(b);
     }
@@ -119,6 +127,17 @@ export function initTrainPanel(): void {
   if (replayBtn) {
     replayBtn.addEventListener('click', function () {
       replay();
+      resumeGame();
+    });
+  }
+
+  const streamBtn = document.getElementById('tpStream');
+  if (streamBtn) {
+    streamBtn.addEventListener('click', function () {
+      setStream(!training.stream);
+      // selectPattern 内部 clearField() 会清掉旧的补墙定时器，再按新模式重放
+      selectPattern(training.pattern as PatternName);
+      refreshTrainPanel();
       resumeGame();
     });
   }
@@ -148,6 +167,25 @@ export function refreshTrainPanel(): void {
       ? Number(sps[i].dataset.gap) === training.gap
       : Number(sps[i].dataset.sp) === training.speed;
     sps[i].classList.toggle('on', on);
+  }
+
+  const gapBtns = pick.querySelectorAll<HTMLElement>('#tpGap .tp-sp');
+  for (let i = 0; i < gapBtns.length; i++) {
+    const v = Number(gapBtns[i].dataset.gap);
+    const m = v <= 0.5 ? '9m' : v <= 1 ? '13.5m' : '18m';
+    // 无限流下这排按钮是「墙距」档，不是秒数；文案跟着换，免得看起来像在调补墙节奏
+    gapBtns[i].textContent = training.stream ? m : v + 's';
+    gapBtns[i].title = training.stream
+      ? '无限流空间墙距 ' + m + '（越宽越好练，最小 9m = 没开时）'
+      : '两招之间的间隔 ' + v + ' 秒；无限流开启时 = 墙距档位';
+  }
+  const gapLab = document.getElementById('tpGap')?.previousElementSibling as HTMLElement | null;
+  if (gapLab) gapLab.textContent = training.stream ? '墙距' : '间隔';
+
+  const sb = document.getElementById('tpStream');
+  if (sb) {
+    sb.textContent = training.stream ? '无限流：开' : '无限流：关';
+    sb.classList.toggle('on', training.stream);
   }
 
   const stat = document.getElementById('tpStat');

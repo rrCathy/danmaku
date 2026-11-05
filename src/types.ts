@@ -60,7 +60,11 @@ export type BulletKind =
   /** 堆叠：多层交错弹幕 + 高钉惩罚乱跳 */
   | 'stack'
   /** 晶格：整片点阵作为刚体运动（平移 / 自转 / 升降 / 发散） */
-  | 'lattice';
+  | 'lattice'
+  /** 对流墙系：左右两列反向推进的高墙（单位 = 一道墙） */
+  | 'wallFlow'
+  /** 对流墙系第一变体：墙法向 y 的水平大板 */
+  | 'wallFlowY';
 
 /**
  * 晶格组帧：整片点阵按刚体运动。
@@ -341,7 +345,9 @@ export type PatternName =
   | 'latticeVac' | 'latticeScrew' | 'latticeBreath' | 'latticePhonon' | 'latticeDisloc'
   | 'latticePhase' | 'latticeBurst' | 'latticeVolley' | 'latticeRain'
   // v5.3：单位为「晶胞 / 层」的三招
-  | 'latticeAssemble' | 'latticeStack' | 'latticeCone';
+  | 'latticeAssemble' | 'latticeStack' | 'latticeCone'
+  // 对流墙系：独立一组，单位 = 一道墙（底座招 + 第一变体，后续变种走参数）
+  | 'wallFlow' | 'wallFlowY';
 
 /** 难度编号。1 = 标准，2 = 高压，3 = 形状微操，4 = 跳跃必要性 */
 export type DifficultyKey = 1 | 2 | 3 | 4;

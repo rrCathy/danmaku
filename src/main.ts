@@ -110,7 +110,9 @@ const PAT_ALIAS: Record<string, PatternName> = {
   lattice: 'lattice111', l111: 'lattice111', shear: 'latticeShear',
   wheel: 'latticeWheel',
   // v5.3：晶胞 / 层为单位
-  assemble: 'latticeAssemble', stack2: 'latticeStack', cellcone: 'latticeCone'
+  assemble: 'latticeAssemble', stack2: 'latticeStack', cellcone: 'latticeCone',
+  // 对流墙系（底座招：只进训练场 / ?pat=，暂不进难度序列）
+  flow: 'wallFlow', wallflow: 'wallFlow', flowy: 'wallFlowY', wallflowy: 'wallFlowY'
 };
 
 function resolvePattern(raw: string): PatternName | undefined {

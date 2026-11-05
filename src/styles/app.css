@@ -288,6 +288,7 @@ body.touch .sb-v{font-size:11px}
   color:#e8f8ff;background:rgba(110,232,255,.12);border:1px solid rgba(110,232,255,.4);
   transition:.12s;letter-spacing:.06em}
 .tp-btn:hover{background:rgba(110,232,255,.24)}
+.tp-btn.on{background:rgba(255,200,120,.18);border-color:rgba(255,200,120,.6);color:#ffe9c9}
 
 /* 分类器过滤条：按主解法分组选招（词汇见 src/patterns/taxonomy.ts） */
 .tp-filters{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px}

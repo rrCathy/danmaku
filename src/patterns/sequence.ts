@@ -168,5 +168,7 @@ export const PATTERN_LABELS: Record<PatternName, { name: string; hint: string }>
   // ---- v5.3：晶胞 / 层为单位的三种新招 ----
   latticeAssemble: { name: '晶格·合胞', hint: '8 个晶胞从空间四处飞到你脚下拼成 2×2×2 晶体 —— 站桩必被包住，拼合前先走开' },
   latticeStack: { name: '晶格·叠层', hint: 'A/B/C 层从远处一层层横扫进场、摞成全空间晶体 —— 读下一层从哪来，别站在扫过的线上' },
-  latticeCone: { name: '晶格·晶锥', hint: '8 个晶胞（2³）从一点爆出，各自边飞边撑大 —— 锥轴锁你施法瞬间的位置，贴锥边持续挪' }
+  latticeCone: { name: '晶格·晶锥', hint: '8 个晶胞（2³）从一点爆出，各自边飞边撑大 —— 锥轴锁你施法瞬间的位置，贴锥边持续挪' },
+  wallFlow: { name: '对流墙', hint: '左右两列高过二段跳的墙反向滑动 —— 对齐时是一整面无缝墙，在原点附近绕圈等错开的缝再横穿' },
+  wallFlowY: { name: '对流墙·立', hint: '把整招立起来：墙法向 y、沿 y 上下反向滑动，每片是半个场地大的水平板；对齐时拼成整面，等错开的缝横穿' }
 };

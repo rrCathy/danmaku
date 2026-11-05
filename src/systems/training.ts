@@ -39,6 +39,11 @@ export function setSpeed(v: number): void {
   training.speed = v;
 }
 
+/** 无限流开关：只改状态，重放由面板负责（会 clearField 清掉旧的补墙定时器） */
+export function setStream(on: boolean): void {
+  training.stream = on;
+}
+
 /** 调整"放完之后的间隔"档位（面板） */
 export function setGap(v: number): void {
   training.gap = v;
@@ -59,6 +64,10 @@ function fieldBusy(): boolean {
 }
 
 export function updateTraining(dt: number): void {
+  // 无限流由招式自己的 later 递归补墙，这里不重放（连 20s 强制放行兜底也不能叠招）。
+  // 「间隔」档位并没失效：无限流下它映射成空间墙距（9 / 13.5 / 18m），
+  // 改档位时 ui/training.ts 会 selectPattern 重放，新墙距立即生效。
+  if (training.stream) return;
   training.nextIn -= dt;
   if (training.nextIn > 0) return;
   // 循环间隔到点后：先等上一招**彻底放完**（场清），绝不叠招。

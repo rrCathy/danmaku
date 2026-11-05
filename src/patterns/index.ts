@@ -6,7 +6,7 @@
  *
  * 想复现某一局：见 main.ts 的 ?pat= / ?seed= 与 __dbg.run()。
  */
-import { boss, later, lasers, session, walls } from '../state';
+import { boss, later, lasers, session, training, walls } from '../state';
 import { SEQUENCES_D2, SEQUENCES_D3, SEQUENCES_D4, getSequenceMode, sequenceFor } from './sequence';
 import { random } from '../core/random';
 import { fanShot, ringShot, spreadShot } from './emitters';
@@ -23,6 +23,7 @@ import {
   latticePhase, latticeBurst, latticeVolley, latticeRain,
   latticeAssemble, latticeStack, latticeCone
 } from './lattice';
+import { wallFlow, wallFlowY } from './wallflow';
 
 import type { PatternName } from '../types';
 export type { PatternName } from '../types';
@@ -61,7 +62,7 @@ export function poolFor(phase: number): PatternName[] {
   return PATTERNS[phase] || PATTERNS[1];
 }
 
-/** 全部 54 种，按"想单独测某个图案"的顺序排（给训练场 / ?pat= 用） */
+/** 全部招式（数量以本表为准），按"想单独测某个图案"的顺序排（给训练场 / ?pat= 用） */
 export const ALL_PATTERNS: PatternName[] = [
   // 难度 1
   'sweepLow', 'sweepHigh', 'spread', 'ring', 'stair', 'rise', 'lowHigh', 'dive',
@@ -79,7 +80,11 @@ export const ALL_PATTERNS: PatternName[] = [
   'latticeVac', 'latticeScrew', 'latticeBreath', 'latticePhonon', 'latticeDisloc',
   'latticePhase', 'latticeBurst', 'latticeVolley', 'latticeRain',
   // v5.3：晶胞 / 层为单位的三种新招
-  'latticeAssemble', 'latticeStack', 'latticeCone'
+  'latticeAssemble', 'latticeStack', 'latticeCone',
+  // 对流墙系：只进训练场 / ?pat=，暂不进任何难度序列
+  'wallFlow',
+  // 第一变体：把招式立起来（法向 y）
+  'wallFlowY'
 ];
 
 /**
@@ -339,6 +344,21 @@ export function runPattern(name: PatternName | string): void {
       boss.flash = 0.45;
       boss.holdCd = 4;
       later(0.45, latticeCone);
+      break;
+    /* 对流墙系底座招：不设 holdCd（暂不进难度序列），只由训练场 / ?pat= 触发。
+     * 训练场重放看的是 Bullet.life，不是 holdCd —— 两套时钟别混。 */
+    case 'wallFlow':
+      boss.flash = 0.5;
+      later(0.5, wallFlow);
+      break;
+    case 'wallFlowY':
+      boss.flash = 0.5;
+      // 训练场「间隔」档位在无限流下是**空间墙距**（m），不是补墙秒数：
+      // 0.4 / 1 / 2 → 9 / 13.5 / 18m，越调越宽松，最小也等于一次性模式的 gap=9m。
+      later(0.5, function () {
+        const sg = training.gap <= 0.5 ? 9 : training.gap <= 1 ? 13.5 : 18;
+        wallFlowY(training.stream, sg);
+      });
       break;
   }
 }

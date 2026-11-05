@@ -43,7 +43,9 @@ export const training = {
   /** 招式放完后的额外间隔（秒，面板可调） */
   gap: TRAINING.gap as number,
   /** 间隔倒计时：场清之后才走这个表 */
-  gapIn: 0
+  gapIn: 0,
+  /** 无限流开关：开启后训练场不重放，由招式自己的定时器持续补墙 */
+  stream: false
 };
 
 /** 训练场定格（F）：冻结时间但保留相机控制，用来看子弹的 3D 建模 */
@@ -137,6 +139,7 @@ export function reset(): void {
   training.nextIn = 0;
   training.gap = TRAINING.gap;
   training.gapIn = 0;
+  training.stream = false;
   resetCameraTarget();
   updateHud();
   renderDiag();

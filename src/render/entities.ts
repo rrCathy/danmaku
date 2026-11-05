@@ -35,6 +35,23 @@ function localToScreen(b: Bullet, B: Array<[number, number, number]>, a: number,
 export function drawBullet(b: Bullet, p: Projected): void {
   const rp = Math.max(1.4, b.r * p.s);
 
+  // 对流墙系：弹按判定半径密铺才无缝，但视觉必须留出空隙，否则一大片光晕糊住观察。
+  // 单独走轻量画法：视觉半径 = 判定半径的 0.45，且不叠 6.4 倍大辉光；旧招零影响。
+  // 判定仍用 b.r（shapeDist），所以「墙不可无伤通过」的几何不变。
+  if (b.kind === 'wallFlow' || b.kind === 'wallFlowY') {
+    const vr = Math.max(1.0, rp * 0.45);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, vr, 0, TAU);
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, vr, 0, TAU);
+    ctx.strokeStyle = 'rgba(' + b.rgb + ',0.95)';
+    ctx.lineWidth = Math.max(1, vr * 0.45);
+    ctx.stroke();
+    return;
+  }
+
   // 晶格：**观感与普通弹完全同一套**（辉光/白核/色环/运动拖线），
   // 只有两处必要差异：
   //   1. 近相机淡出 —— 晶体下坠会从镜头眼前穿过，不淡出就是一面糊脸的点墙；
